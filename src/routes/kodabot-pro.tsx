@@ -3,14 +3,16 @@ import { Outlet, createFileRoute } from "@tanstack/react-router";
 import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
 
-export const Route = createFileRoute("/suporte")({ component: SupportLayout });
+export const Route = createFileRoute("/kodabot-pro")({
+  component: KodaBotProLayout,
+});
 
-function SupportLayout() {
+function KodaBotProLayout() {
   return (
-    <div className="min-h-screen bg-white text-[#1d1d1f]">
+    <div className="min-h-screen bg-black text-white">
       <Nav />
       <Outlet />
-      <SiteFooter />
+      <SiteFooter dark />
     </div>
   );
 }

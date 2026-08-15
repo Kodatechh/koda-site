@@ -79,12 +79,6 @@ const osSpecs = [
   { label: "Temas", value: "Escuro (padrão) · Claro (em breve)" },
 ];
 
-const roadmap = [
-  { name: "Atualizações OTA", status: "Em desenvolvimento", text: "Atualização do KODA OS pela internet, sem precisar conectar o KodaBot ao computador." },
-  { name: "Tela do KodaBot I", status: "Próxima etapa", text: "Levar a experiência do KODA OS para a tela touch 2,8 polegadas do produto." },
-  { name: "Tarefas e alarmes", status: "Planejado", text: "Criar a experiência de agenda, tarefas, timers e alarmes diretamente no KodaBot." },
-  { name: "Ecossistema Koda", status: "Pesquisa", text: "Conectar os futuros produtos da Koda em uma experiência comum." },
-];
 
 const requirements = [
   { label: "KodaBot I", value: true, note: "Plataforma principal" },
@@ -117,10 +111,10 @@ export function KodaOS() {
               Conhecer o KodaBot
             </a>
             <a
-              href="#especificacoes"
+              href="/kodaos/updates"
               className="rounded-full border border-ink-foreground/25 px-7 py-3 font-medium text-ink-foreground transition-colors hover:bg-ink-foreground/10"
             >
-              Ver especificações →
+              Ver atualizações →
             </a>
           </div>
 
@@ -238,6 +232,29 @@ export function KodaOS() {
         </div>
       </section>
 
+      <section className="bg-black px-5 py-24 text-white sm:py-32">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-sm font-semibold text-white/45">KodaCloud</p>
+          <h2 className="mt-4 max-w-4xl text-5xl font-semibold tracking-[-0.05em] sm:text-6xl">O setup também sabe quem é o seu KodaBot.</h2>
+          <p className="mt-6 max-w-3xl text-lg leading-relaxed text-white/55">No fluxo de ativação em desenvolvimento, cada aparelho sai da fábrica previamente cadastrado como Não ativado. Durante o primeiro setup, o comprador entra na Conta KodaCloud e o próprio dispositivo participa da validação.</p>
+          <div className="mt-12 grid gap-3 md:grid-cols-4">
+            {[
+              ["01", "Fábrica", "Serial e dados do produto são cadastrados."],
+              ["02", "Primeiro setup", "O KodaBot conecta à internet."],
+              ["03", "KodaCloud", "O comprador entra ou cria a conta."],
+              ["04", "Ativado", "O aparelho aparece em Meu KodaBot."],
+            ].map(([step, title, text]) => (
+              <div key={step} className="rounded-2xl bg-white/[0.06] p-5">
+                <span className="text-xs text-[#5b9cff]">{step}</span>
+                <h3 className="mt-7 text-xl font-semibold">{title}</h3>
+                <p className="mt-2 text-xs leading-relaxed text-white/45">{text}</p>
+              </div>
+            ))}
+          </div>
+          <a href="/suporte/configurar" className="mt-8 inline-flex text-sm font-semibold text-[#2997ff] hover:underline">Entender a ativação ›</a>
+        </div>
+      </section>
+
       <section id="especificacoes" className="mx-auto max-w-6xl px-5 py-28">
         <div className="text-center">
           <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Especificações</p>
@@ -281,28 +298,6 @@ export function KodaOS() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-5 py-28">
-        <div className="text-center">
-          <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Roteiro</p>
-          <h2 className="mx-auto mt-4 max-w-2xl text-4xl font-semibold sm:text-5xl">
-            O que vem por aí no KODA OS.
-          </h2>
-        </div>
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {roadmap.map((r) => (
-            <article
-              key={r.name}
-              className="rounded-3xl border border-border bg-card p-8 shadow-[var(--shadow-soft)] transition-transform duration-300 hover:-translate-y-1"
-            >
-              <p className="inline-flex rounded-full bg-secondary px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                {r.status}
-              </p>
-              <h3 className="mt-4 text-xl font-semibold">{r.name}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{r.text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
 
       <section className="mx-auto max-w-6xl px-5 pb-28">
         <div className="ink-panel relative overflow-hidden rounded-[2.5rem] px-6 py-20 text-center">

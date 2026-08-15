@@ -1,79 +1,74 @@
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { MessageCircle, Wrench, FileText } from "lucide-react";
+import { ArrowRight, BookOpen, CircleHelp, Cloud, Search, Settings2, ShieldCheck, UserRound, Wrench } from "lucide-react";
 
-const title = "Suporte — Koda";
-const description =
-  "Central de suporte da Koda. Orçamentos de reparo, perguntas frequentes e atendimento para o seu KodaBot.";
+import { supportTopics } from "@/lib/koda-data";
 
 export const Route = createFileRoute("/suporte/")({
-  head: () => ({
-    meta: [
-      { title },
-      { name: "description", content: description },
-      { property: "og:title", content: title },
-      { property: "og:description", content: description },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: Suporte,
+  head: () => ({ meta: [{ title: "Suporte Koda" }, { name: "description", content: "Configuração, reparos, garantia, manuais e atendimento Koda." }] }),
+  component: Support,
 });
 
-const links = [
-  {
-    label: "Orçamento de reparo",
-    note: "Estime o valor do conserto",
-    href: "/suporte/orcamentos",
-    icon: Wrench,
-  },
-  {
-    label: "Fale conosco",
-    note: "suporte@koda.shop",
-    href: "mailto:suporte@koda.shop",
-    icon: MessageCircle,
-  },
-  {
-    label: "Perguntas frequentes",
-    note: "Em breve",
-    href: "#",
-    icon: FileText,
-  },
+const cards = [
+  { title: "Configurar", text: "Primeiro setup, Wi‑Fi, KodaCloud e ativação.", href: "/suporte/configurar", icon: Settings2 },
+  { title: "Reparo", text: "Veja opções de serviço específicas para cada modelo.", href: "/suporte/reparo", icon: Wrench },
+  { title: "Garantia", text: "Consulte como cobertura e serial funcionam no KodaCloud.", href: "/suporte/garantia", icon: ShieldCheck },
+  { title: "Manuais", text: "Guias rápidos, documentação e informações técnicas.", href: "/suporte/manuais", icon: BookOpen },
+  { title: "Meu KodaBot", text: "Acesse seus dispositivos vinculados à Conta KodaCloud.", href: "/conta", icon: UserRound },
+  { title: "Perguntas frequentes", text: "Respostas rápidas para as dúvidas mais comuns.", href: "/suporte/faq", icon: CircleHelp },
 ];
 
-function Suporte() {
+function Support() {
+  const [query, setQuery] = useState("");
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return supportTopics.filter((topic) => `${topic.title} ${topic.keywords}`.toLowerCase().includes(q)).slice(0, 6);
+  }, [query]);
+
   return (
     <main>
-      <section className="hero-panel relative overflow-hidden">
-        <div className="pointer-events-none absolute left-1/2 top-[10%] h-[600px] w-[600px] -translate-x-1/2 accent-glow opacity-50 blur-2xl" />
-        <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-24 text-center sm:pt-32">
-          <p className="fade-up inline-flex items-center gap-2 rounded-full border border-ink-foreground/15 bg-ink-foreground/5 px-4 py-1.5 text-[11px] font-medium uppercase tracking-[0.28em] text-ink-foreground/70 backdrop-blur">
-            Ajuda
-          </p>
-          <h1 className="fade-up mt-7 text-5xl font-semibold leading-[0.95] sm:text-7xl">
-            Suporte Koda
-          </h1>
-          <p className="fade-up mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink-foreground/65">
-            Tire dúvidas, solicite orçamentos de reparo e encontre tudo o que precisa para cuidar do seu KodaBot.
-          </p>
+      <section className="bg-[#f5f5f7] px-5 py-20 text-center sm:py-28">
+        <Cloud className="mx-auto h-9 w-9 text-[#0071e3]" />
+        <h1 className="mt-5 text-5xl font-semibold tracking-[-0.055em] sm:text-7xl">Como podemos ajudar?</h1>
+        <p className="mx-auto mt-5 max-w-xl text-lg text-[#6e6e73]">Encontre configuração, reparo, garantia, manuais e ajuda para sua Conta KodaCloud.</p>
+        <div className="relative mx-auto mt-8 max-w-2xl text-left">
+          <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#86868b]" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar no suporte" className="h-14 w-full rounded-2xl border border-black/10 bg-white pl-14 pr-5 text-base outline-none focus:border-[#0071e3]" />
+          {query && (
+            <div className="absolute inset-x-0 top-[64px] z-20 overflow-hidden rounded-2xl border border-black/10 bg-white p-2 shadow-2xl">
+              {results.length ? results.map((item) => (
+                <a key={item.href} href={item.href} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-[#f5f5f7]">
+                  <span className="text-sm font-medium">{item.title}</span><ArrowRight className="h-4 w-4 text-[#86868b]" />
+                </a>
+              )) : <p className="px-4 py-6 text-center text-sm text-[#6e6e73]">Nenhum resultado. Tente “Wi‑Fi”, “garantia” ou “reparo”.</p>}
+            </div>
+          )}
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-5 py-24">
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {links.map((link) => {
-            const Icon = link.icon;
+      <section className="mx-auto max-w-6xl px-5 py-20 sm:py-24">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {cards.map((card) => {
+            const Icon = card.icon;
             return (
-              <a
-                key={link.label}
-                href={link.href}
-                className="group rounded-3xl border border-border bg-card p-8 shadow-[var(--shadow-soft)] transition-transform hover:-translate-y-1"
-              >
-                <Icon className="h-8 w-8 text-ring" />
-                <h3 className="mt-5 text-xl font-semibold">{link.label}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{link.note}</p>
+              <a key={card.href} href={card.href} className="group min-h-64 rounded-[28px] bg-[#f5f5f7] p-7 transition-transform hover:-translate-y-1">
+                <Icon className="h-8 w-8 text-[#0071e3]" />
+                <h2 className="mt-14 text-2xl font-semibold tracking-[-0.03em]">{card.title}</h2>
+                <p className="mt-3 text-sm leading-relaxed text-[#6e6e73]">{card.text}</p>
+                <ArrowRight className="mt-6 h-4 w-4 text-[#0066cc] transition-transform group-hover:translate-x-1" />
               </a>
             );
           })}
+        </div>
+      </section>
+
+      <section className="border-t border-black/10 px-5 py-20 text-center">
+        <h2 className="text-4xl font-semibold tracking-[-0.045em]">Ainda precisa de ajuda?</h2>
+        <p className="mx-auto mt-3 max-w-lg text-sm text-[#6e6e73]">Entre na KodaCloud para receber suporte ligado ao seu dispositivo ou fale diretamente com a Koda.</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-4">
+          <a href="/conta" className="rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white">Minha conta</a>
+          <a href="/suporte/contato" className="py-3 text-sm font-semibold text-[#0066cc] hover:underline">Fale conosco ›</a>
         </div>
       </section>
     </main>

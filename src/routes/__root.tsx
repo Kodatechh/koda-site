@@ -11,23 +11,21 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { AuthProvider } from "@/components/koda/AuthProvider";
+import { ScrollAnimations } from "@/components/koda/ScrollAnimations";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+    <div className="grid min-h-screen place-items-center bg-[#f5f5f7] px-5 text-[#1d1d1f]">
+      <div className="max-w-2xl text-center">
+        <p className="text-sm font-semibold text-[#0071e3]">Erro 404</p>
+        <h1 className="mt-4 text-5xl font-semibold tracking-[-0.05em] sm:text-7xl">Hmm. O KodaBot não encontrou essa página.</h1>
+        <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-[#6e6e73]">
+          Talvez o endereço tenha mudado. Você pode voltar para a Koda ou procurar o que precisa na Central de Suporte.
         </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go home
-          </Link>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link to="/" className="rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white">Voltar ao início</Link>
+          <a href="/suporte" className="rounded-full border border-black/15 px-6 py-3 text-sm font-semibold">Central de Suporte</a>
         </div>
       </div>
     </div>
@@ -131,8 +129,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <AuthProvider>
+        <ScrollAnimations />
+        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+        <Outlet />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

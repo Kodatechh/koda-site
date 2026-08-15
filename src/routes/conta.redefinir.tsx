@@ -1,0 +1,9 @@
+import { FormEvent, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { KeyRound } from "lucide-react";
+
+import { supabase } from "@/integrations/supabase/client";
+
+export const Route = createFileRoute("/conta/redefinir")({ head: () => ({ meta: [{ title: "Nova senha — KodaCloud" }] }), component: ResetPassword });
+
+function ResetPassword(){const[p,setP]=useState("");const[c,setC]=useState("");const[msg,setMsg]=useState<string|null>(null);const[err,setErr]=useState<string|null>(null);async function submit(e:FormEvent){e.preventDefault();setErr(null);if(p.length<8){setErr("Use pelo menos 8 caracteres.");return;}if(p!==c){setErr("As senhas não são iguais.");return;}const{error}=await supabase.auth.updateUser({password:p});if(error){setErr(error.message);return;}setMsg("Senha atualizada. Você já pode continuar usando sua Conta KodaCloud.");}return <main className="mx-auto grid min-h-[650px] max-w-6xl place-items-center px-5 py-16"><div className="w-full max-w-md rounded-[30px] bg-white p-8"><KeyRound className="h-8 w-8 text-[#0071e3]"/><h1 className="mt-6 text-4xl font-semibold tracking-[-0.045em]">Escolha uma nova senha.</h1><form onSubmit={submit} className="mt-7 space-y-4"><input required type="password" value={p} onChange={(e)=>setP(e.target.value)} placeholder="Nova senha" className="h-12 w-full rounded-xl border border-black/15 px-4 outline-none focus:border-[#0071e3]"/><input required type="password" value={c} onChange={(e)=>setC(e.target.value)} placeholder="Confirmar senha" className="h-12 w-full rounded-xl border border-black/15 px-4 outline-none focus:border-[#0071e3]"/>{err&&<p className="text-xs text-red-600">{err}</p>}{msg&&<p className="text-xs text-green-700">{msg}</p>}<button className="h-12 w-full rounded-full bg-[#0071e3] text-sm font-semibold text-white">Salvar nova senha</button></form></div></main>}

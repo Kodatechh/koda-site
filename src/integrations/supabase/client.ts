@@ -2,6 +2,52 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+const SUPABASE_MIGRATION_KEY = 'koda:supabase-project-id';
+
+function getSupabaseConfig() {
+  const url = import.meta.env['VITE_SUPABASE_URL'] || process.env['SUPABASE_URL'];
+  const publishableKey =
+    import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'];
+  const configuredProjectId =
+    import.meta.env['VITE_SUPABASE_PROJECT_ID'] || process.env['SUPABASE_PROJECT_ID'];
+
+  if (!url || !publishableKey) {
+    const missing = [
+      ...(!url ? ['VITE_SUPABASE_URL'] : []),
+      ...(!publishableKey ? ['VITE_SUPABASE_PUBLISHABLE_KEY'] : []),
+    ];
+    throw new Error(`Missing Supabase environment variable(s): ${missing.join(', ')}`);
+  }
+
+  const projectId = new URL(url).hostname.split('.')[0];
+  if (configuredProjectId && configuredProjectId !== projectId) {
+    throw new Error('Supabase project ID does not match the configured Supabase URL');
+  }
+
+  return { url, publishableKey, projectId };
+}
+
+function migrateBrowserAuthStorage(projectId: string) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    if (localStorage.getItem(SUPABASE_MIGRATION_KEY) === projectId) return;
+
+    // Supabase stores sessions and PKCE data under sb-<project>-auth-token keys.
+    // Remove only those auth entries once when this site changes Supabase projects.
+    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith('sb-') && key.includes('-auth-token')) {
+        localStorage.removeItem(key);
+      }
+    }
+
+    localStorage.setItem(SUPABASE_MIGRATION_KEY, projectId);
+  } catch {
+    // Supabase will fall back to its normal behavior when browser storage is unavailable.
+  }
+}
+
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
@@ -28,29 +74,18 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 
 function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || process.env['SUPABASE_URL'];
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'];
+  const { url, publishableKey, projectId } = getSupabaseConfig();
+  migrateBrowserAuthStorage(projectId);
 
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
-  }
-
-  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  return createClient<Database>(url, publishableKey, {
     global: {
-      fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
+      fetch: createSupabaseFetch(publishableKey),
     },
     auth: {
       storage: typeof window !== 'undefined' ? localStorage : undefined,
       persistSession: true,
       autoRefreshToken: true,
+      storageKey: `sb-${projectId}-auth-token`,
     }
   });
 }
@@ -65,4 +100,3 @@ export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>,
     return Reflect.get(_supabase, prop, receiver);
   },
 });
-

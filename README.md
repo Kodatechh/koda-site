@@ -1,29 +1,46 @@
-# Welcome to your Lovable project
+# Koda Site
 
-This project was built with [Lovable](https://lovable.dev).
+Site oficial da Koda, construído com TanStack Start, React, TypeScript, Tailwind CSS e Supabase.
 
-## Build with Lovable
+## Rodar localmente
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+```bash
+npm install
 npm run dev
 ```
 
-## Built with
+O Vite normalmente inicia em `http://localhost:8080` neste projeto.
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+## Build
+
+```bash
+npm run build
+```
+
+## KodaCloud
+
+O projeto inclui autenticação, Meu KodaBot, Menu de Fábrica, registro de dispositivos, garantia, suporte e o fluxo de ativação KodaCloud.
+
+Antes de usar essas funções em produção, aplique as migrations de `supabase/migrations/` no mesmo projeto Supabase usado pelo site. A migration principal desta versão é:
+
+```text
+supabase/migrations/20260815163200_kodacloud_devices.sql
+```
+
+Leia `IMPLEMENTACAO-KODACLOUD.md` antes de ativar o painel de fábrica.
+
+## Fotos dos produtos
+
+Os renders provisórios do KodaBot I foram removidos das áreas redesenhadas. Onde ainda não há fotografia oficial, o site exibe um espaço reservado explícito. Quando as fotos reais estiverem disponíveis, substitua esses slots pelos assets oficiais em `public/`.
+
+## Deploy
+
+O repositório pode continuar conectado à Vercel. Após validar localmente:
+
+```bash
+git add .
+git commit -m "Atualização do ecossistema Koda"
+git push
+```
+
+A Vercel fará um novo deploy automaticamente se a integração com o GitHub estiver ativa.
