@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, CreditCard, LoaderCircle, LockKeyhole, QrCode, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Copy, CreditCard, ExternalLink, LoaderCircle, LockKeyhole, QrCode, ShieldCheck } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
 import { Nav } from "@/components/koda/Nav";
@@ -18,8 +18,10 @@ type CatalogProduct = {
 };
 
 type KodaPayStatus = {
+  provider: "mercado_pago";
   payment_ready: boolean;
   methods: Array<"pix" | "card">;
+  ready_methods: Array<"pix" | "card">;
   message: string;
 };
 
@@ -35,6 +37,18 @@ type CreatedOrder = {
   status: string;
   currency: string;
   total_cents: number;
+};
+
+type PixPayment = {
+  id: string;
+  provider_order_id: string;
+  provider_payment_id: string | null;
+  status: string;
+  status_detail: string | null;
+  local_status: string;
+  qr_code: string;
+  qr_code_base64: string | null;
+  ticket_url: string | null;
 };
 
 export const Route = createFileRoute("/checkout/$productSlug")({
@@ -65,6 +79,8 @@ function CheckoutPage() {
   const [quantity, setQuantity] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState<CreatedOrder | null>(null);
+  const [pix, setPix] = useState<PixPayment | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -97,8 +113,22 @@ function CheckoutPage() {
     return unit == null ? null : unit * quantity;
   }, [catalog, quantity]);
 
+  async function generatePix(orderId: string) {
+    const { data, error: invokeError } = await supabase.functions.invoke<{ payment: PixPayment }>("koda-pay-mercadopago-pix", {
+      body: { orderId },
+    });
+
+    if (invokeError || !data?.payment?.qr_code) {
+      setError("O pedido foi criado, mas não foi possível gerar o Pix. Nenhuma cobrança foi concluída.");
+      return false;
+    }
+
+    setPix(data.payment);
+    return true;
+  }
+
   async function createOrder() {
-    if (!user || !catalog?.product.available || !catalog.koda_pay.payment_ready || submitting) return;
+    if (!user || !catalog?.product.available || !catalog.koda_pay.ready_methods.includes("pix") || submitting) return;
 
     setSubmitting(true);
     setError(null);
@@ -113,7 +143,19 @@ function CheckoutPage() {
     }
 
     setOrder(data.order);
+    await generatePix(data.order.id);
     setSubmitting(false);
+  }
+
+  async function copyPix() {
+    if (!pix?.qr_code) return;
+    try {
+      await navigator.clipboard.writeText(pix.qr_code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError("Não foi possível copiar automaticamente. Selecione o código Pix manualmente.");
+    }
   }
 
   return (
@@ -190,24 +232,59 @@ function CheckoutPage() {
               </div>
 
               <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                <div className="rounded-2xl border border-black/10 p-5">
+                <div className={`rounded-2xl border p-5 ${catalog.koda_pay.ready_methods.includes("pix") ? "border-[#0071e3] bg-[#f5f9ff]" : "border-black/10"}`}>
                   <QrCode className="h-6 w-6 text-[#0071e3]" />
-                  <p className="mt-4 font-semibold">Pix</p>
-                  <p className="mt-1 text-xs leading-relaxed text-[#6e6e73]">Confirmação automática quando o conector bancário estiver ativo.</p>
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <p className="font-semibold">Pix</p>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#0071e3]">{catalog.koda_pay.ready_methods.includes("pix") ? "Pronto" : "Preparado"}</span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-[#6e6e73]">QR Code e confirmação automática pelo Koda Pay.</p>
                 </div>
-                <div className="rounded-2xl border border-black/10 p-5">
+                <div className="rounded-2xl border border-black/10 p-5 opacity-70">
                   <CreditCard className="h-6 w-6 text-[#0071e3]" />
-                  <p className="mt-4 font-semibold">Cartão</p>
-                  <p className="mt-1 text-xs leading-relaxed text-[#6e6e73]">A Koda não armazenará número completo nem CVV do cartão.</p>
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <p className="font-semibold">Cartão</p>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#86868b]">Próxima etapa</span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-[#6e6e73]">Tokenização segura sem armazenar número completo nem CVV.</p>
                 </div>
               </div>
 
-              {!catalog.koda_pay.payment_ready ? (
+              {pix ? (
+                <div className="mt-6 rounded-[24px] border border-[#b8d9ff] bg-[#f5f9ff] p-5">
+                  <div className="flex items-start gap-3">
+                    <QrCode className="mt-0.5 h-5 w-5 shrink-0 text-[#0071e3]" />
+                    <div>
+                      <p className="text-sm font-semibold">Escaneie para pagar com Pix</p>
+                      <p className="mt-1 text-xs leading-relaxed text-[#6e6e73]">O pedido só será confirmado depois que o Koda Pay receber a confirmação do pagamento.</p>
+                    </div>
+                  </div>
+
+                  {pix.qr_code_base64 && (
+                    <div className="mx-auto mt-5 w-fit rounded-2xl bg-white p-3 shadow-sm">
+                      <img src={`data:image/png;base64,${pix.qr_code_base64}`} alt="QR Code Pix do Koda Pay" className="h-52 w-52" />
+                    </div>
+                  )}
+
+                  <div className="mt-5 rounded-2xl bg-white p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Pix Copia e Cola</p>
+                    <p className="mt-2 max-h-20 overflow-hidden break-all font-mono text-[11px] leading-relaxed text-[#424245]">{pix.qr_code}</p>
+                    <button type="button" onClick={copyPix} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#0071e3] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0077ed]">
+                      <Copy className="h-3.5 w-3.5" />{copied ? "Copiado" : "Copiar código Pix"}
+                    </button>
+                    {pix.ticket_url && (
+                      <a href={pix.ticket_url} target="_blank" rel="noreferrer" className="ml-3 inline-flex items-center gap-1 text-xs font-semibold text-[#0066cc] hover:underline">
+                        Abrir instruções <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ) : !catalog.koda_pay.payment_ready ? (
                 <div className="mt-6 rounded-2xl bg-[#f5f5f7] p-5">
                   <div className="flex gap-3">
                     <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#0071e3]" />
                     <div>
-                      <p className="text-sm font-semibold">Pagamentos ainda não liberados.</p>
+                      <p className="text-sm font-semibold">Integração preparada.</p>
                       <p className="mt-1 text-xs leading-relaxed text-[#6e6e73]">{catalog.koda_pay.message}</p>
                     </div>
                   </div>
@@ -218,7 +295,8 @@ function CheckoutPage() {
                     <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-700" />
                     <div>
                       <p className="text-sm font-semibold text-green-950">Pedido {order.display_number} iniciado.</p>
-                      <p className="mt-1 text-xs text-green-900/75">Nenhuma cobrança é considerada concluída até a confirmação do Koda Pay.</p>
+                      <p className="mt-1 text-xs text-green-900/75">A cobrança Pix ainda não foi gerada.</p>
+                      <button type="button" onClick={() => generatePix(order.id)} className="mt-3 text-xs font-semibold text-[#0066cc] hover:underline">Tentar gerar Pix novamente</button>
                     </div>
                   </div>
                 </div>
@@ -232,10 +310,10 @@ function CheckoutPage() {
                 <button
                   type="button"
                   onClick={createOrder}
-                  disabled={!catalog.product.available || !catalog.koda_pay.payment_ready || submitting || Boolean(order)}
+                  disabled={!catalog.product.available || !catalog.koda_pay.ready_methods.includes("pix") || submitting || Boolean(order)}
                   className="mt-7 flex w-full justify-center rounded-full bg-[#0071e3] px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#0077ed] disabled:cursor-not-allowed disabled:bg-[#d2d2d7]"
                 >
-                  {submitting ? "Preparando pedido…" : order ? "Pedido iniciado" : "Continuar com Koda Pay"}
+                  {submitting ? "Gerando Pix…" : pix ? "Pix gerado" : order ? "Pedido iniciado" : "Pagar com Pix"}
                 </button>
               )}
 
@@ -243,8 +321,8 @@ function CheckoutPage() {
 
               <div className="mt-7 space-y-3 border-t border-black/10 pt-6 text-xs leading-relaxed text-[#6e6e73]">
                 <p>• O preço do pedido é calculado no servidor da Koda, não no navegador.</p>
-                <p>• Dados sensíveis do meio de pagamento ficarão com a instituição financeira responsável pelo processamento.</p>
-                <p>• O Koda Pay mantém pedido, status, conciliação e histórico dentro do ecossistema Koda.</p>
+                <p>• O QR Code é criado pelo processador financeiro e exibido dentro do Koda Pay.</p>
+                <p>• O pagamento é confirmado por webhook assinado antes de o pedido ser marcado como pago.</p>
               </div>
             </section>
           </div>
