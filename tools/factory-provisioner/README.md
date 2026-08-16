@@ -1,265 +1,114 @@
 # Koda Factory Provisioner
 
-Ferramenta de linha de comando para provisionar KodaBots durante a fabricação.
+O `provision.py` é a ferramenta oficial para gravar a identidade de fábrica de um KodaBot por USB, verificar a gravação e confirmar o provisionamento no KodaCloud. Ele usa `mpremote` diretamente: não há bridge, servidor local, pairing, Web Serial, WebUSB ou serviço em background.
 
-## Overview
+## Fluxo oficial
 
-O Koda Factory Provisioner é responsável por programar a identidade do dispositivo, versão de firmware e credenciais de ativação no hardware do KodaBot antes da entrega.
-
-## Fluxo Completo de Provisionamento
-
-```
-1. CADASTRO DE UNIDADE
-   └─ Administrador acessa Menu de Fábrica
-   └─ Clica "Adicionar KodaBot"
-   └─ Preenche dados: serial, modelo, datas, garantia
-   └─ KodaCloud gera credencial única e a exibe
-   └─ Administrador baixa "Pacote de Provisionamento" (JSON)
-
-2. DESCARGA DO PACOTE
-   └─ Arquivo: KBP-0001.koda-provision.json
-   └─ Contém:
-      • Número de série
-      • Modelo (kodabot-i, kodabot-i-pro)
-      • Credencial de ativação (apenas nessa sessão)
-      • Versão KODA OS
-      • URL da nuvem
-
-3. PROVISIONAMENTO (USB)
-   └─ Conectar KodaBot ao PC via USB
-   └─ Executar: python3 provision.py KBP-0001.koda-provision.json
-   └─ Script valida o pacote
-   └─ Script grava identidade no Pico/microcontroller
-   └─ Mensagem de sucesso exibida
-
-4. CHECK-IN NA FÁBRICA
-   └─ KodaBot é desconectado e ligado
-   └─ Firmware confirma a identidade gravada
-   └─ Chama RPC factory_device_checkin com serial + credencial
-   └─ KodaCloud marca como "Provisionado"
-
-5. TESTES DE FÁBRICA
-   └─ Administrador acessa relatório de testes
-   └─ Para KodaBot I, testa:
-      • Display
-      • Touch
-      • Wi-Fi
-      • Buzzer
-      • BME280 (sensor)
-      • Versão KODA OS
-      • Conectividade KodaCloud
-   └─ Marca cada teste como "Aprovado", "Reprovado" ou "N/A"
-   └─ Quando todos os testes obrigatórios passam, clica "Marcar como Testado"
-   └─ KodaCloud muda status para "Testado"
-
-6. PRONTO PARA VENDA
-   └─ Administrador clica "Marcar como Pronto para Venda"
-   └─ Status muda para "Pronto para Venda"
-   └─ Apenas assim o cliente pode ativar
-
-7. ATIVAÇÃO DO CLIENTE
-   └─ Cliente recebe KodaBot
-   └─ Liga pela primeira vez
-   └─ KodaBot se conecta à Wi-Fi (ou USB)
-   └─ Usa credencial gravada para provar identidade
-   └─ Obtém código de ativação temporário
-   └─ Acessa koda.cloud/conta para reclamar como seu
-   └─ KodaCloud muda status para "Ativado"
-```
+1. Abra `/fabrica` com uma conta de fábrica.
+2. Cadastre o KodaBot.
+3. Baixe o pacote `<serial>.koda-provision.json`.
+4. Conecte somente esse KodaBot ao computador por USB.
+5. Clique em **Copiar comando**.
+6. Execute o comando no Terminal.
+7. Volte para `/fabrica` e atualize o status.
+8. Confirme que a produção mostra **Provisionado**.
+9. Execute e aprove todos os testes de fábrica.
+10. Marque o dispositivo como **Pronto para venda**.
 
 ## Instalação
 
-### Pré-requisitos
-
-- Python 3.8+
-- `mpremote` (para gravação em hardware Raspberry Pi Pico W)
-  ```bash
-  pip install mpremote
-  ```
-
-### Setup
-
-1. Coloque o arquivo `provision.py` em `tools/factory-provisioner/`
-2. Torne executável:
-   ```bash
-   chmod +x tools/factory-provisioner/provision.py
-   ```
-
-## Uso
-
-### Validar Pacote (Dry Run)
-
-Verifica se o pacote é válido **sem** escrever no dispositivo:
+Requer Python 3.8 ou mais recente e `mpremote`:
 
 ```bash
-python3 provision.py KBP-0001.koda-provision.json --dry-run
+python3 -m pip install mpremote
 ```
 
-**Saída esperada:**
-```
-Koda Factory Provisioner
+O check-in usa `SUPABASE_PUBLISHABLE_KEY` ou `VITE_SUPABASE_PUBLISHABLE_KEY`. O provisionador procura primeiro no ambiente e depois em `.env.local` e `.env` na raiz do projeto. Ele nunca imprime a chave ou a credencial do dispositivo.
 
-✓ Pacote válido
-✓ Modelo: KodaBot I
-✓ Serial: KBP-0001
-✓ KODA OS: 0.4
-✓ Hardware: Rev B
+## Comando recomendado
 
-Pronto para provisionamento.
+Na raiz do projeto:
 
-Device identity (será escrito no KodaBot):
-{
-  "schema": 1,
-  "serial": "KBP-0001",
-  "model": "kodabot-i",
-  "secret_hash": "d2d9b7e...",
-  "kodaos_version": "0.4",
-  "cloud_url": "https://qqvwnsemihkknzodkxob.supabase.co"
-}
-
-⚠️  A credencial de ativação foi validada mas NÃO será exibida.
-   Ela existe apenas durante esta sessão de provisionamento.
+```bash
+python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --write --check-in
 ```
 
-### Provisionar Hardware
+Esse comando:
 
-1. **Conecte** o KodaBot (Raspberry Pi Pico W) via USB ao PC
-2. **Execute** o provisioner:
-   ```bash
-   python3 provision.py KBP-0001.koda-provision.json
-   ```
+1. valida todos os campos do pacote;
+2. exige que exatamente um dispositivo MicroPython esteja conectado;
+3. cria `/factory` caso necessário;
+4. grava somente `/factory/device_identity.json`;
+5. lê o arquivo de volta e compara todos os campos;
+6. somente após a verificação chama `factory_device_checkin`.
 
-3. **Aguarde** a conclusão:
-   ```
-   Koda Factory Provisioner
+O script nunca formata a flash, apaga o filesystem, reinstala firmware ou altera arquivos do KODA OS fora de `/factory`.
 
-   ✓ Pacote válido
-   ✓ Dispositivo encontrado
-   ✓ Credenciais gravadas com sucesso
-   ✓ Serial: KBP-0001
-   ✓ Modelo: KodaBot I
+## Modos disponíveis
 
-   Próximas etapas:
-   1. Desconecte o KodaBot do USB
-   2. Conecte-o à energia
-   3. Acesse https://koda.cloud para completar a ativação
-   ```
+Validar o pacote sem alterar hardware ou nuvem:
 
-## Estrutura do Pacote JSON
+```bash
+python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --dry-run
+```
 
-### Exemplo: `KBP-0001.koda-provision.json`
+Gravar e verificar, sem check-in:
+
+```bash
+python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --write
+```
+
+Repetir somente o check-in, sem regravar:
+
+```bash
+python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --check-in
+```
+
+Gravar, verificar e fazer check-in:
+
+```bash
+python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --write --check-in
+```
+
+`--write` é idempotente: pode sobrescrever a mesma identidade e sempre confere o conteúdo final. `--check-in` também pode ser repetido com segurança.
+
+## Pacote
+
+O arquivo baixado por `/fabrica` tem este formato exato:
 
 ```json
 {
   "schema": 1,
-  "serial_number": "KBP-0001",
+  "serial_number": "KBP-0003",
   "model": "kodabot-i",
-  "activation_secret": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9",
+  "activation_secret": "credencial-gerada-na-sessao",
   "kodaos_version": "0.4",
-  "cloud_url": "https://qqvwnsemihkknzodkxob.supabase.co",
-  "hardware_revision": "Rev B",
-  "production_batch_id": "BATCH-2026-08-15"
+  "cloud_url": "https://projeto.supabase.co"
 }
 ```
 
-### Campos
+O pacote contém uma credencial sensível. Ela existe em texto puro somente na memória da sessão que cadastrou o dispositivo, no arquivo baixado e durante a execução do provisionador. O banco mantém apenas seu hash. Apague o pacote com segurança depois do provisionamento.
 
-| Campo | Obrigatório | Descrição |
-|-------|-------------|-----------|
-| `schema` | ✅ | Versão do schema (atualmente 1) |
-| `serial_number` | ✅ | Número de série único (ex: KBP-0001) |
-| `model` | ✅ | `kodabot-i` ou `kodabot-i-pro` |
-| `activation_secret` | ✅ | Credencial aleatória gerada (min 16 caracteres) |
-| `kodaos_version` | ✅ | Versão do firmware (ex: 0.4) |
-| `cloud_url` | ✅ | URL da instância Supabase |
-| `hardware_revision` | ❌ | Revisão do hardware (ex: Rev B) |
-| `production_batch_id` | ❌ | ID do lote de produção |
+## Solução de problemas
 
-## Segurança
-
-### Credencial de Ativação
-
-- ✅ **Gerada aleatoriamente** no KodaCloud
-- ✅ **Exibida apenas uma vez** durante o registro
-- ✅ **Armazenada como SHA-256** no banco de dados
-- ✅ **Nunca salva em plaintext**
-- ✅ **Nunca impressa pelo provisioner**
-- ❌ **Não coloque em URLs ou query strings**
-- ❌ **Não commit no Git**
-
-### Arquivo de Pacote
-
-- Deve ser baixado via HTTPS do KodaCloud
-- Contém a credencial apenas durante a sessão do navegador
-- Após recarregar a página, é impossível recuperar do banco
-- Deve ser armazenado de forma segura durante o provisionamento
-- Recomenda-se deletar após uso
-
-## Validações
-
-O provisioner valida:
-
-✅ Formato JSON válido  
-✅ Schema version 1  
-✅ Campos obrigatórios presentes  
-✅ Número de série (alphanumeric + hyphens)  
-✅ Modelo suportado (kodabot-i, kodabot-i-pro)  
-✅ Credencial com mínimo 16 caracteres  
-✅ Versão KODA OS com dígitos  
-✅ URL da nuvem com protocolo HTTP/HTTPS  
-
-## Troubleshooting
-
-### "mpremote não encontrado"
+### `mpremote não está instalado`
 
 ```bash
-# Instale a ferramenta
-pip install mpremote
-
-# Verifique a instalação
-mpremote --version
+python3 -m pip install mpremote
 ```
 
-### "Nenhum dispositivo MicroPython encontrado"
+### Nenhum KodaBot encontrado
 
-1. Verifique conexão USB
-2. Procure drivers de USB no PC/Mac
-3. Tente outro cabo USB
-4. Verifique se o Pico está em modo bootloader:
-   - Desconecte
-   - Pressione BOOTSEL enquanto conecta
-   - Deve aparecer como `RPI-RP2` no explorador de arquivos
+Confirme que o KodaBot está ligado, que o cabo transmite dados e que o sistema reconheceu a porta USB. Não é necessário formatar, apagar ou colocar o Pico em modo de reinstalação.
 
-### "Credencial inválida"
+### Mais de um KodaBot encontrado
 
-1. Verifique que o arquivo JSON foi baixado do KodaCloud
-2. Confirme que a sessão no navegador ainda está ativa
-3. Gere um novo pacote se necessário
+Desconecte os demais dispositivos. O provisionador nunca escolhe um deles aleatoriamente.
 
-## Desenvolvimento
+### O KodaCloud não confirmou
 
-### Estrutura do Código
+Se a gravação e a verificação já foram concluídas, corrija a conexão ou a configuração da chave pública e repita somente:
 
+```bash
+python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --check-in
 ```
-provision.py
-├── ProvisioningPackage  # Representa o pacote validado
-├── load_provision_package()  # Carrega e valida JSON
-├── provision_dry_run()  # Modo validação
-├── provision_hardware()  # Escreve no hardware via mpremote
-└── main()  # Entrada principal
-```
-
-### Extensões Futuras
-
-- [ ] Suporte a gravação via serial port direto (sem mpremote)
-- [ ] Verificação de firmware antes do provisionamento
-- [ ] Logging detalhado de operações
-- [ ] Suporte a lotes múltiplos
-- [ ] Integração com banco de dados local para auditoria
-
-## Referências
-
-- [KodaBot I Specs](/src/routes/kodabot.tech-specs.tsx)
-- [KodaOS Changelog](/src/routes/kodaos.changelog.tsx)
-- [Supabase Docs](https://supabase.com/docs)
-- [MicroPython mpremote](https://docs.micropython.org/en/latest/reference/mpremote.html)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate, write, and check in a KodaBot factory provisioning package."""
+"""Provisiona com segurança a identidade de fábrica de um KodaBot."""
 
 import argparse
 import json
@@ -13,240 +13,201 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
-
 SCHEMA_VERSION = 1
 SUPPORTED_MODELS = {"kodabot-i", "kodabot-i-pro"}
-MIN_SECRET_LENGTH = 16
-REQUIRED_FIELDS = {"schema", "serial_number", "model", "activation_secret", "cloud_url"}
-OPTIONAL_FIELDS = {"kodaos_version"}
+REQUIRED_FIELDS = {"schema", "serial_number", "model", "activation_secret", "kodaos_version", "cloud_url"}
 
 
 @dataclass(frozen=True)
 class ProvisioningPackage:
     serial_number: str
     model: str
-    activation_secret: str  # Never log or print this value.
+    activation_secret: str  # Nunca imprimir este valor.
+    kodaos_version: str
     cloud_url: str
-    kodaos_version: Optional[str] = None
 
-    def to_device_identity(self) -> Dict[str, Any]:
-        identity: Dict[str, Any] = {
+    def identity(self) -> Dict[str, Any]:
+        return {
             "schema": SCHEMA_VERSION,
             "serial_number": self.serial_number,
             "model": self.model,
             "activation_secret": self.activation_secret,
             "cloud_url": self.cloud_url,
+            "kodaos_version": self.kodaos_version,
         }
-        if self.kodaos_version:
-            identity["kodaos_version"] = self.kodaos_version
-        return identity
 
 
-def load_provision_package(file_path: str) -> ProvisioningPackage:
-    path = Path(file_path)
-    if not path.is_file():
-        raise FileNotFoundError(f"Provisioning package not found: {file_path}")
-
-    try:
-        with path.open("r", encoding="utf-8") as package_file:
-            data = json.load(package_file)
-    except json.JSONDecodeError as error:
-        raise ValueError(f"Invalid JSON: {error}") from error
-
-    if not isinstance(data, dict):
-        raise ValueError("Provisioning package must be a JSON object")
-    if data.get("schema") != SCHEMA_VERSION:
-        raise ValueError(
-            f"Unsupported schema version: {data.get('schema')}. Expected {SCHEMA_VERSION}."
-        )
-
-    missing = sorted(REQUIRED_FIELDS - data.keys())
-    if missing:
-        raise ValueError(f"Missing required fields: {', '.join(missing)}")
-
-    unexpected = sorted(data.keys() - REQUIRED_FIELDS - OPTIONAL_FIELDS)
-    if unexpected:
-        raise ValueError(f"Unsupported provisioning fields: {', '.join(unexpected)}")
-
-    serial = _required_string(data, "serial_number").upper()
-    model = _required_string(data, "model").lower()
-    secret = _required_string(data, "activation_secret")
-    cloud_url = _required_string(data, "cloud_url").rstrip("/")
-    version = _optional_string(data, "kodaos_version")
-
-    if not all(character.isalnum() or character == "-" for character in serial):
-        raise ValueError("Serial number may contain only letters, numbers, and hyphens")
-    if model not in SUPPORTED_MODELS:
-        raise ValueError(f"Unsupported model: {model}")
-    if len(secret) < MIN_SECRET_LENGTH:
-        raise ValueError(f"Activation secret must contain at least {MIN_SECRET_LENGTH} characters")
-    if version and not any(character.isdigit() for character in version):
-        raise ValueError("KODA OS version must contain a number")
-
-    parsed_url = urlparse(cloud_url)
-    if parsed_url.scheme != "https" or not parsed_url.netloc or parsed_url.path not in ("", "/"):
-        raise ValueError("Cloud URL must be an HTTPS origin without a path")
-
-    return ProvisioningPackage(serial, model, secret, cloud_url, version)
+class ProvisionError(Exception):
+    """Erro esperado e seguro para exibição, sem dados do pacote."""
 
 
-def _required_string(data: Dict[str, Any], field: str) -> str:
+def required_string(data: Dict[str, Any], field: str) -> str:
     value = data.get(field)
     if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{field} must be a non-empty string")
+        raise ProvisionError(f'O campo "{field}" deve ser um texto não vazio.')
     return value.strip()
 
 
-def _optional_string(data: Dict[str, Any], field: str) -> Optional[str]:
-    value = data.get(field)
-    if value is None:
-        return None
-    if not isinstance(value, str):
-        raise ValueError(f"{field} must be a string when provided")
-    return value.strip() or None
+def load_package(file_path: str) -> ProvisioningPackage:
+    path = Path(file_path).expanduser()
+    if not path.is_file():
+        raise ProvisionError("Arquivo de provisionamento não encontrado.")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        raise ProvisionError("O arquivo de provisionamento não contém um JSON válido.") from None
+    if not isinstance(data, dict):
+        raise ProvisionError("O pacote deve ser um objeto JSON.")
+    if set(data) != REQUIRED_FIELDS:
+        raise ProvisionError("O pacote não contém exatamente os campos esperados.")
+    if data.get("schema") != SCHEMA_VERSION:
+        raise ProvisionError("A versão do pacote não é suportada.")
+
+    serial = required_string(data, "serial_number").upper()
+    model = required_string(data, "model").lower()
+    secret = required_string(data, "activation_secret")
+    version = required_string(data, "kodaos_version")
+    cloud_url = required_string(data, "cloud_url").rstrip("/")
+    if not all(char.isalnum() or char == "-" for char in serial):
+        raise ProvisionError("O número de série contém caracteres inválidos.")
+    if model not in SUPPORTED_MODELS:
+        raise ProvisionError("O modelo do pacote não é suportado.")
+    if len(secret) < 16:
+        raise ProvisionError("A credencial do pacote é inválida.")
+    if not any(char.isdigit() for char in version):
+        raise ProvisionError("A versão do KODA OS é inválida.")
+    parsed = urlparse(cloud_url)
+    if parsed.scheme != "https" or not parsed.netloc or parsed.path not in ("", "/"):
+        raise ProvisionError("A URL do KodaCloud deve ser uma origem HTTPS.")
+    return ProvisioningPackage(serial, model, secret, version, cloud_url)
 
 
-def provision_dry_run(package: ProvisioningPackage) -> bool:
-    print("Koda Factory Provisioner")
-    print("✓ Pacote válido")
-    print(f"✓ Modelo: {_model_name(package.model)}")
-    print(f"✓ Serial: {package.serial_number}")
-    if package.kodaos_version:
-        print(f"✓ KODA OS: {package.kodaos_version}")
-    print("✓ Identidade contém somente os campos permitidos")
-    print("✓ Credencial validada e ocultada")
-    print("Dry-run concluído; nenhum dispositivo ou serviço remoto foi alterado.")
-    return True
+def run_mpremote(arguments: list[str], timeout: int = 12) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(["mpremote", *arguments], capture_output=True, text=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired:
+        raise ProvisionError("A comunicação USB com o KodaBot expirou.") from None
 
 
-def write_identity(package: ProvisioningPackage) -> bool:
-    if not _mpremote_available():
-        print("✗ mpremote não encontrado ou indisponível", file=sys.stderr)
-        return False
+def find_single_device() -> str:
+    try:
+        result = run_mpremote(["connect", "list"], timeout=5)
+    except FileNotFoundError:
+        raise ProvisionError("mpremote não está instalado.\n\n  python3 -m pip install mpremote") from None
+    if result.returncode != 0:
+        raise ProvisionError("Não foi possível consultar os dispositivos USB com mpremote.")
+    devices = [line.split()[0] for line in result.stdout.splitlines() if line.strip()]
+    if not devices:
+        raise ProvisionError("Nenhum KodaBot encontrado via USB.")
+    if len(devices) > 1:
+        raise ProvisionError("Mais de um KodaBot foi encontrado via USB. Desconecte os demais e tente novamente.")
+    return devices[0]
 
-    listed = subprocess.run(
-        ["mpremote", "list"], capture_output=True, text=True, timeout=5, check=False
-    )
-    if listed.returncode != 0 or not listed.stdout.strip():
-        print("✗ Nenhum dispositivo MicroPython encontrado", file=sys.stderr)
-        return False
 
-    identity_json = json.dumps(package.to_device_identity(), separators=(",", ":"))
-    write_code = (
-        'with open("_koda_identity.json", "w") as identity_file: '
-        f"identity_file.write({identity_json!r})"
-    )
-    written = subprocess.run(
-        ["mpremote", "exec", write_code],
-        capture_output=True,
-        text=True,
-        timeout=10,
-        check=False,
-    )
+def write_and_verify(package: ProvisioningPackage, port: str) -> None:
+    mkdir_code = "import os\ntry:\n os.mkdir('/factory')\nexcept OSError:\n pass"
+    made = run_mpremote(["connect", port, "exec", mkdir_code])
+    if made.returncode != 0:
+        raise ProvisionError("Não foi possível preparar a pasta /factory no KodaBot.")
+
+    identity_json = json.dumps(package.identity(), separators=(",", ":"), ensure_ascii=True)
+    write_code = f"data={identity_json!r}\nwith open('/factory/device_identity.json','w') as f:\n f.write(data)"
+    written = run_mpremote(["connect", port, "exec", write_code])
     if written.returncode != 0:
-        print("✗ Não foi possível gravar a identidade no KodaBot", file=sys.stderr)
-        return False
+        raise ProvisionError("Não foi possível gravar a identidade no KodaBot.")
 
-    print("✓ Identidade gravada localmente no KodaBot")
-    print("  O KodaCloud ainda não foi atualizado.")
-    return True
+    read_code = "print(open('/factory/device_identity.json','r').read())"
+    read = run_mpremote(["connect", port, "exec", read_code])
+    if read.returncode != 0:
+        raise ProvisionError("A identidade foi gravada, mas não pôde ser lida para verificação.")
+    try:
+        recorded = json.loads(read.stdout.strip())
+    except json.JSONDecodeError:
+        raise ProvisionError("A leitura de verificação do KodaBot não é válida.") from None
+    if recorded != package.identity():
+        raise ProvisionError("A identidade lida do KodaBot não corresponde ao pacote.")
 
 
-def factory_check_in(package: ProvisioningPackage) -> bool:
-    publishable_key = os.environ.get("SUPABASE_PUBLISHABLE_KEY") or os.environ.get(
-        "VITE_SUPABASE_PUBLISHABLE_KEY"
-    )
-    if not publishable_key:
-        print(
-            "✗ SUPABASE_PUBLISHABLE_KEY ou VITE_SUPABASE_PUBLISHABLE_KEY é obrigatória para --check-in",
-            file=sys.stderr,
-        )
-        return False
+def read_env_file(name: str) -> Optional[str]:
+    for filename in (".env.local", ".env"):
+        path = Path.cwd() / filename
+        if not path.is_file():
+            continue
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                key, separator, value = line.partition("=")
+                if separator and key.strip() == name:
+                    return value.strip().strip('"').strip("'") or None
+        except OSError:
+            continue
+    return None
 
-    payload: Dict[str, Any] = {
-        "_serial_number": package.serial_number,
-        "_activation_secret": package.activation_secret,
-        "_kodaos_version": package.kodaos_version,
-        "_hardware_revision": None,
-    }
-    request = urllib.request.Request(
-        f"{package.cloud_url}/rest/v1/rpc/factory_device_checkin",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"apikey": publishable_key, "Content-Type": "application/json"},
-        method="POST",
-    )
 
+def publishable_key() -> Optional[str]:
+    for name in ("SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_PUBLISHABLE_KEY"):
+        value = os.environ.get(name) or read_env_file(name)
+        if value:
+            return value
+    return None
+
+
+def check_in(package: ProvisioningPackage) -> None:
+    key = publishable_key()
+    if not key:
+        raise ProvisionError("A chave pública do KodaCloud não foi encontrada no ambiente ou no arquivo .env.")
+    payload = {"_serial_number": package.serial_number, "_activation_secret": package.activation_secret, "_kodaos_version": package.kodaos_version, "_hardware_revision": None}
+    request = urllib.request.Request(f"{package.cloud_url}/rest/v1/rpc/factory_device_checkin", data=json.dumps(payload).encode("utf-8"), headers={"apikey": key, "Content-Type": "application/json"}, method="POST")
     try:
         with urllib.request.urlopen(request, timeout=15) as response:
             result = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as error:
-        print(f"✗ Check-in no KodaCloud falhou: {_safe_http_error(error)}", file=sys.stderr)
-        return False
-
-    if not isinstance(result, dict) or result.get("provisioning_status") not in {
-        "provisioned",
-        "factory_tested",
-        "ready",
-    }:
-        print("✗ KodaCloud retornou uma resposta de check-in inválida", file=sys.stderr)
-        return False
-
-    print(f"✓ Check-in confirmado pelo KodaCloud para {package.serial_number}")
-    return True
+    except (urllib.error.URLError, urllib.error.HTTPError, UnicodeError, json.JSONDecodeError):
+        raise ProvisionError("O KodaBot foi gravado, mas o KodaCloud não confirmou o provisionamento.\n\nVocê pode tentar novamente, sem regravar:\n\n  python3 tools/factory-provisioner/provision.py <arquivo> --check-in") from None
+    if not isinstance(result, dict) or result.get("provisioning_status") not in {"provisioned", "factory_tested", "ready"}:
+        raise ProvisionError("O KodaBot foi gravado, mas o KodaCloud não confirmou o provisionamento.\n\nVocê pode executar --check-in novamente sem regravar.")
 
 
-def _safe_http_error(error: Exception) -> str:
-    if isinstance(error, urllib.error.HTTPError):
-        return f"HTTP {error.code}"
-    if isinstance(error, urllib.error.URLError):
-        return str(error.reason)
-    return type(error).__name__
-
-
-def _mpremote_available() -> bool:
-    try:
-        result = subprocess.run(
-            ["mpremote", "--version"], capture_output=True, timeout=2, check=False
-        )
-        return result.returncode == 0
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
-
-
-def _model_name(model: str) -> str:
-    return {"kodabot-i": "KodaBot I", "kodabot-i-pro": "KodaBot I Pro"}.get(model, model)
-
-
-def parse_args() -> argparse.Namespace:
+def args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("package", help="Provisioning package JSON")
-    parser.add_argument("--dry-run", action="store_true", help="Validate only")
-    parser.add_argument("--write", action="store_true", help="Write identity over USB")
-    parser.add_argument("--check-in", action="store_true", help="Confirm provisioning with KodaCloud")
-    args = parser.parse_args()
-    if not (args.dry_run or args.write or args.check_in):
-        parser.error("choose --dry-run, --write, --check-in, or --write --check-in")
-    if args.dry_run and (args.write or args.check_in):
-        parser.error("--dry-run cannot be combined with --write or --check-in")
-    return args
+    parser.add_argument("package", help="arquivo .koda-provision.json")
+    parser.add_argument("--dry-run", action="store_true", help="somente validar o pacote")
+    parser.add_argument("--write", action="store_true", help="gravar e verificar a identidade via USB")
+    parser.add_argument("--check-in", action="store_true", help="confirmar o provisionamento no KodaCloud")
+    parsed = parser.parse_args()
+    if not (parsed.dry_run or parsed.write or parsed.check_in):
+        parser.error("use --dry-run, --write, --check-in ou --write --check-in")
+    if parsed.dry_run and (parsed.write or parsed.check_in):
+        parser.error("--dry-run não pode ser combinado com outras ações")
+    return parsed
 
 
 def main() -> int:
-    args = parse_args()
+    options = args()
+    print("Koda Factory Provisioner")
+    print("────────────────────────")
     try:
-        package = load_provision_package(args.package)
-        if args.dry_run:
-            return 0 if provision_dry_run(package) else 1
-        if args.write and not write_identity(package):
-            return 1
-        if args.check_in and not factory_check_in(package):
-            return 1
+        package = load_package(options.package)
+        print(f"\nSerial: {package.serial_number}")
+        print(f"Modelo: {'KodaBot I Pro' if package.model == 'kodabot-i-pro' else 'KodaBot I'}\n")
+        print("✓ Pacote validado")
+        if options.dry_run:
+            print("\nDry-run concluído. Nenhum dispositivo ou serviço foi alterado.")
+            return 0
+        if options.write:
+            port = find_single_device()
+            print("✓ KodaBot encontrado via USB")
+            write_and_verify(package, port)
+            print("✓ Identidade gravada")
+            print("✓ Gravação verificada")
+        if options.check_in:
+            check_in(package)
+            print("✓ KodaCloud confirmou o provisionamento")
+        print(f"\n{package.serial_number} está provisionado." if options.check_in else "\nOperação concluída.")
         return 0
-    except (FileNotFoundError, ValueError) as error:
-        print(f"✗ Pacote inválido: {error}", file=sys.stderr)
+    except ProvisionError as error:
+        print(f"\n✕ {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
-        print("Provisionamento cancelado", file=sys.stderr)
+        print("\n✕ Provisionamento cancelado.", file=sys.stderr)
         return 130
 
 
