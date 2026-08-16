@@ -34,7 +34,8 @@ async function validateSignature(xSignature: string, xRequestId: string, dataId:
   const expected = parts.v1;
   if (!timestamp || !expected) return false;
 
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${timestamp};`;
+  const normalizedDataId = /[A-Za-z]/.test(dataId) ? dataId.toLowerCase() : dataId;
+  const manifest = `id:${normalizedDataId};request-id:${xRequestId};ts:${timestamp};`;
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -49,20 +50,17 @@ async function validateSignature(xSignature: string, xRequestId: string, dataId:
 function mapPaymentStatus(status: string) {
   if (status === "processed") return "paid";
   if (status === "failed") return "failed";
-  if (status === "canceled") return "canceled";
+  if (status === "canceled") return "cancelled";
   if (status === "expired") return "expired";
   if (status === "refunded") return "refunded";
-  if (status === "charged_back") return "charged_back";
+  if (status === "charged_back") return "failed";
   return "pending";
 }
 
 function mapOrderStatus(status: string) {
   if (status === "processed") return "paid";
-  if (status === "failed") return "payment_failed";
-  if (status === "canceled") return "canceled";
-  if (status === "expired") return "payment_expired";
+  if (status === "canceled" || status === "expired" || status === "charged_back") return "cancelled";
   if (status === "refunded") return "refunded";
-  if (status === "charged_back") return "charged_back";
   return "pending_payment";
 }
 
@@ -142,6 +140,8 @@ Deno.serve(async (req: Request) => {
         amount_cents: localOrder.total_cents,
         pix_copy_paste: paymentMethod?.qr_code ?? null,
         paid_at: localPaymentStatus === "paid" ? now : null,
+        failure_code: localPaymentStatus === "failed" ? providerStatusDetail : null,
+        failure_message: localPaymentStatus === "failed" ? "Pagamento não concluído pelo processador." : null,
       })
       .select("id,paid_at")
       .single();
@@ -152,7 +152,7 @@ Deno.serve(async (req: Request) => {
       pix_copy_paste: paymentMethod?.qr_code ?? undefined,
       paid_at: localPaymentStatus === "paid" ? (payment.paid_at ?? now) : payment.paid_at,
       failure_code: localPaymentStatus === "failed" ? providerStatusDetail : null,
-      failure_message: localPaymentStatus === "failed" ? "Pagamento recusado pelo processador." : null,
+      failure_message: localPaymentStatus === "failed" ? "Pagamento não concluído pelo processador." : null,
     }).eq("id", payment.id);
   }
 
@@ -160,22 +160,27 @@ Deno.serve(async (req: Request) => {
   if (localPaymentStatus === "paid") orderUpdate.paid_at = localOrder.paid_at ?? now;
   await admin.from("orders").update(orderUpdate).eq("id", localOrder.id);
 
-  const providerEventId = notification?.id != null ? String(notification.id) : `${dataId}:${providerStatus}:${providerStatusDetail ?? ""}`;
+  const rawProviderEventId = notification?.id != null
+    ? String(notification.id)
+    : `${dataId}:${providerStatus}:${providerStatusDetail ?? ""}`;
+  const providerEventId = `mercadopago:webhook:${rawProviderEventId}`;
+
   if (payment?.id) {
     const { data: existingEvent } = await admin
       .from("payment_events")
       .select("id")
-      .eq("source", "mercado_pago")
+      .eq("source", "provider")
       .eq("provider_event_id", providerEventId)
       .maybeSingle();
 
     if (!existingEvent) {
       await admin.from("payment_events").insert({
         payment_id: payment.id,
-        source: "mercado_pago",
+        source: "provider",
         event_type: notification?.action ?? `order.${providerStatus}`,
         provider_event_id: providerEventId,
         payload: {
+          provider: "mercado_pago",
           provider_order_id: dataId,
           provider_payment_id: providerPayment?.id ?? null,
           status: providerStatus,
