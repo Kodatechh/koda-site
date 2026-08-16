@@ -2,8 +2,10 @@
 """Provisiona com segurança a identidade de fábrica de um KodaBot."""
 
 import argparse
+import importlib.util
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.error
@@ -16,6 +18,7 @@ from urllib.parse import urlparse
 SCHEMA_VERSION = 1
 SUPPORTED_MODELS = {"kodabot-i", "kodabot-i-pro"}
 REQUIRED_FIELDS = {"schema", "serial_number", "model", "activation_secret", "kodaos_version", "cloud_url"}
+USB_ID_PATTERN = re.compile(r"^[0-9a-fA-F]{4}:[0-9a-fA-F]{4}$")
 
 
 @dataclass(frozen=True)
@@ -83,20 +86,52 @@ def load_package(file_path: str) -> ProvisioningPackage:
 
 
 def run_mpremote(arguments: list[str], timeout: int = 12) -> subprocess.CompletedProcess[str]:
+    if importlib.util.find_spec("mpremote") is None:
+        raise ProvisionError("mpremote não está instalado.\n\n  python3 -m pip install mpremote")
     try:
-        return subprocess.run(["mpremote", *arguments], capture_output=True, text=True, timeout=timeout, check=False)
+        return subprocess.run(
+            [sys.executable, "-m", "mpremote", *arguments],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
     except subprocess.TimeoutExpired:
         raise ProvisionError("A comunicação USB com o KodaBot expirou.") from None
 
 
-def find_single_device() -> str:
+def plausible_usb_ports(output: str) -> list[str]:
+    """Extrai somente portas que têm uma identificação VID:PID USB real."""
+    ports: list[str] = []
+    for line in output.splitlines():
+        fields = line.split()
+        if len(fields) < 3 or not USB_ID_PATTERN.fullmatch(fields[2]) or fields[2].lower() == "0000:0000":
+            continue
+        port = fields[0]
+        port_name = port.lower()
+        if "bluetooth-incoming-port" in port_name or "debug-console" in port_name:
+            continue
+        if port not in ports:
+            ports.append(port)
+    return ports
+
+
+def responds_as_micropython(port: str) -> bool:
+    check_code = "import sys; print(sys.implementation.name)"
     try:
-        result = run_mpremote(["connect", "list"], timeout=5)
-    except FileNotFoundError:
-        raise ProvisionError("mpremote não está instalado.\n\n  python3 -m pip install mpremote") from None
+        result = run_mpremote(["connect", port, "exec", check_code], timeout=5)
+    except ProvisionError:
+        return False
+    return result.returncode == 0 and any(
+        line.strip().lower() == "micropython" for line in result.stdout.splitlines()
+    )
+
+
+def find_single_device() -> str:
+    result = run_mpremote(["connect", "list"], timeout=5)
     if result.returncode != 0:
         raise ProvisionError("Não foi possível consultar os dispositivos USB com mpremote.")
-    devices = [line.split()[0] for line in result.stdout.splitlines() if line.strip()]
+    devices = [port for port in plausible_usb_ports(result.stdout) if responds_as_micropython(port)]
     if not devices:
         raise ProvisionError("Nenhum KodaBot encontrado via USB.")
     if len(devices) > 1:

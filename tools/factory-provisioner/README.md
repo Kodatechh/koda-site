@@ -1,6 +1,6 @@
 # Koda Factory Provisioner
 
-O `provision.py` é a ferramenta oficial para gravar a identidade de fábrica de um KodaBot por USB, verificar a gravação e confirmar o provisionamento no KodaCloud. Ele usa `mpremote` diretamente: não há bridge, servidor local, pairing, Web Serial, WebUSB ou serviço em background.
+O `provision.py` é a ferramenta oficial para gravar a identidade de fábrica de um KodaBot por USB, verificar a gravação e confirmar o provisionamento no KodaCloud. Ele usa `mpremote` pelo mesmo interpretador Python que executa o script (`sys.executable -m mpremote`), sem depender do `PATH`: não há bridge, servidor local, pairing, Web Serial, WebUSB ou serviço em background.
 
 ## Fluxo oficial
 
@@ -36,13 +36,15 @@ python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provisi
 Esse comando:
 
 1. valida todos os campos do pacote;
-2. exige que exatamente um dispositivo MicroPython esteja conectado;
-3. cria `/factory` caso necessário;
-4. grava somente `/factory/device_identity.json`;
-5. lê o arquivo de volta e compara todos os campos;
-6. somente após a verificação chama `factory_device_checkin`.
+2. ignora portas seriais virtuais e entradas sem VID:PID USB válido;
+3. testa os candidatos sem alterar o dispositivo e exige que exatamente um responda como MicroPython;
+4. cria `/factory` caso necessário;
+5. grava somente `/factory/device_identity.json`;
+6. lê o arquivo de volta e compara todos os campos;
+7. somente após a verificação chama `factory_device_checkin`.
 
 O script nunca formata a flash, apaga o filesystem, reinstala firmware ou altera arquivos do KODA OS fora de `/factory`.
+A detecção executa apenas `import sys; print(sys.implementation.name)` em cada candidato e aceita somente a resposta `micropython`; ela não lê nem grava arquivos no Pico.
 
 ## Modos disponíveis
 

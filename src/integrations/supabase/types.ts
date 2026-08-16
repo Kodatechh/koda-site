@@ -290,9 +290,19 @@ export type Database = {
         Args: { _device_id: string };
         Returns: undefined;
       };
+      support_factory_reset_device: {
+        Args: { _device_id: string; _reason: string };
+        Returns: {
+          serial_number: string;
+          model: string;
+          activation_secret: string;
+          kodaos_version: string | null;
+          cloud_url: string;
+        }[];
+      };
     };
     Enums: {
-      app_role: "admin";
+      app_role: "admin" | "support_agent" | "support_advanced";
       koda_activation_session_status: "pending" | "claimed" | "expired";
       koda_device_status: "not_activated" | "activated" | "service" | "retired";
       koda_provisioning_status: "registered" | "provisioned" | "factory_tested" | "ready";
@@ -387,7 +397,7 @@ export type Enums<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin"],
+      app_role: ["admin", "support_agent", "support_advanced"],
       koda_activation_session_status: ["pending", "claimed", "expired"],
       koda_device_status: ["not_activated", "activated", "service", "retired"],
       koda_support_status: ["open", "in_progress", "waiting_customer", "resolved", "closed"],
