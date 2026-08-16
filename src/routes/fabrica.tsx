@@ -1,11 +1,11 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import {
   AlertCircle,
   Check,
   CheckCircle2,
   Circle,
-  Copy,
   Download,
   Factory,
   Pencil,
@@ -50,12 +50,22 @@ type Test = {
   tested_at: string | null;
   notes: string | null;
 };
-type Credential = {
+type FactoryIdentity = {
   serial: string;
-  secret: string;
   model: string;
-  kodaos_version: string;
-  cloud_url: string;
+  board_uid: string;
+  device_secret_hex: string;
+};
+type FactoryProvisionResponse = {
+  ok: true;
+  device: {
+    device_id: string;
+    serial: string;
+    model: string;
+    board_uid: string;
+    activation_status: "not_activated";
+  };
+  factory_identity: FactoryIdentity;
 };
 const TESTS: Record<string, string[]> = {
   "kodabot-i": ["display", "touch", "wifi", "buzzer", "bme280", "kodaos", "kodacloud"],
@@ -70,7 +80,6 @@ const TESTS: Record<string, string[]> = {
     "kodacloud",
   ],
 };
-const CLOUD_URL = import.meta.env["VITE_SUPABASE_URL"];
 const STAGE: Record<Device["provisioning_status"], number> = {
   registered: 0,
   provisioned: 1,
@@ -88,17 +97,15 @@ const color = (s: Device["provisioning_status"]) =>
     factory_tested: "bg-violet-50 text-violet-700",
     ready: "bg-emerald-50 text-emerald-700",
   })[s];
+const displayModel = (model: string) => productNames[model as ProductId] ?? model;
 
 function FactoryPage() {
   const { user, loading, isFactoryAdmin } = useAuth();
   const [devices, setDevices] = useState<Device[]>([]);
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
-  const [registering, setRegistering] = useState(false);
+  const [provisioning, setProvisioning] = useState(false);
   const [editing, setEditing] = useState<Device | null>(null);
-  const [credentials, setCredentials] = useState<Record<string, Credential>>({});
-  const [latest, setLatest] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   async function load() {
     setBusy(true);
@@ -123,13 +130,6 @@ function FactoryPage() {
         )
       : devices;
   }, [devices, query]);
-  async function copy(c: Credential) {
-    await navigator.clipboard.writeText(
-      `python3 tools/factory-provisioner/provision.py ~/Downloads/${c.serial}.koda-provision.json --write --check-in`,
-    );
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2200);
-  }
   if (loading)
     return (
       <div className="grid min-h-screen place-items-center bg-[#f5f5f7] text-sm text-[#6e6e73]">
@@ -156,8 +156,6 @@ function FactoryPage() {
         action="Voltar para minha conta ›"
       />
     );
-  const credential = latest ? credentials[latest] : undefined;
-  const latestDevice = latest ? devices.find((d) => d.serial_number === latest) : undefined;
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
       <Nav />
@@ -179,10 +177,10 @@ function FactoryPage() {
               </p>
             </div>
             <button
-              onClick={() => setRegistering(true)}
+              onClick={() => setProvisioning(true)}
               className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white"
             >
-              <Plus className="h-4 w-4" /> Novo KodaBot
+              <Plus className="h-4 w-4" /> Provisionar KodaBot
             </button>
           </div>
           <div className="mt-8 grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -199,16 +197,6 @@ function FactoryPage() {
             ))}
           </div>
         </section>
-        {credential && latestDevice?.provisioning_status === "registered" && (
-          <ProvisionCard
-            credential={credential}
-            busy={busy}
-            copied={copied}
-            close={() => setLatest(null)}
-            refresh={load}
-            copy={copy}
-          />
-        )}
         <section className="mt-5 rounded-[32px] bg-white p-6 sm:p-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -253,9 +241,7 @@ function FactoryPage() {
                 {filtered.map((d) => (
                   <tr key={d.id} className="border-b border-black/10">
                     <td className="py-4 pr-5 font-mono text-xs font-semibold">{d.serial_number}</td>
-                    <td className="py-4 pr-5 font-medium">
-                      {productNames[d.model as ProductId] ?? d.model}
-                    </td>
+                    <td className="py-4 pr-5 font-medium">{displayModel(d.model)}</td>
                     <td className="py-4 pr-5">
                       <span
                         className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${color(d.provisioning_status)}`}
@@ -272,7 +258,7 @@ function FactoryPage() {
                       </span>
                     </td>
                     <td className="py-4 pr-5 text-xs text-[#6e6e73]">
-                      {d.owner_email_masked ?? "—"}
+                      {d.owner_email_masked ?? "Nenhum"}
                     </td>
                     <td>
                       <button
@@ -295,33 +281,17 @@ function FactoryPage() {
         </section>
       </main>
       <SiteFooter />
-      {registering && (
-        <Register
-          onClose={() => setRegistering(false)}
-          onSuccess={(c) => {
-            setRegistering(false);
-            setCredentials((old) => ({ ...old, [c.serial]: c }));
-            setLatest(c.serial);
-            void load();
-          }}
-        />
+      {provisioning && (
+        <FactoryProvision onClose={() => setProvisioning(false)} onProvisioned={load} />
       )}
       {editing && (
         <DeviceModal
           device={editing}
-          credential={credentials[editing.serial_number]}
           onClose={() => setEditing(null)}
           refresh={load}
-          copy={copy}
           onDeleted={(device) => {
             setEditing(null);
             setDevices((current) => current.filter((item) => item.id !== device.id));
-            setCredentials((current) =>
-              Object.fromEntries(
-                Object.entries(current).filter(([serial]) => serial !== device.serial_number),
-              ),
-            );
-            if (latest === device.serial_number) setLatest(null);
             setFeedback(`${device.serial_number} foi excluído.`);
             window.setTimeout(() => setFeedback(null), 3500);
             void load();
@@ -332,235 +302,218 @@ function FactoryPage() {
   );
 }
 
-function ProvisionCard({
-  credential,
-  busy,
-  copied,
-  close,
-  refresh,
-  copy,
-}: {
-  credential: Credential;
-  busy: boolean;
-  copied: boolean;
-  close: () => void;
-  refresh: () => Promise<void>;
-  copy: (c: Credential) => Promise<void>;
-}) {
-  return (
-    <section className="mt-5 rounded-[30px] border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-6 sm:p-8">
-      <div className="flex justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-[#0071e3]">
-            KodaBot pronto para provisionamento
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold">KodaBot registrado</h2>
-          <p className="mt-2 text-sm text-[#6e6e73]">
-            {credential.serial} já existe no KodaCloud. Agora grave a identidade de fábrica no
-            aparelho.
-          </p>
-        </div>
-        <button onClick={close} aria-label="Fechar aviso">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-      <div className="mt-5 grid gap-2 sm:grid-cols-3">
-        <MiniStep text="Cadastro no KodaCloud" done />
-        <MiniStep text="Gravação no KodaBot" />
-        <MiniStep text="Confirmação do KodaCloud" />
-      </div>
-      <div className="mt-5 grid gap-2 sm:grid-cols-3">
-        <Info title="Serial" value={credential.serial} />
-        <Info
-          title="Modelo"
-          value={productNames[credential.model as ProductId] ?? credential.model}
-        />
-        <Info title="KODA OS" value={credential.kodaos_version} />
-      </div>
-      <p className="mt-5 text-sm">
-        Conecte o KodaBot ao computador por USB e execute o provisionador local.
-      </p>
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-        <button
-          onClick={() => download(credential)}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-[#0071e3] px-5 py-3 text-sm font-semibold text-white"
-        >
-          <Download className="h-4 w-4" /> Baixar pacote de provisionamento
-        </button>
-        <button
-          onClick={() => void copy(credential)}
-          className="inline-flex items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold"
-        >
-          <Copy className="h-4 w-4" /> {copied ? "Comando copiado" : "Copiar comando"}
-        </button>
-        <button
-          onClick={() => void refresh()}
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-[#0066cc]"
-        >
-          <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} /> Atualizar status
-        </button>
-      </div>
-      <p className="mt-3 text-xs text-[#6e6e73]">
-        Se seu navegador salvar o arquivo em outra pasta, ajuste o caminho no comando. Depois de
-        executar o comando, atualize esta página.
-      </p>
-    </section>
-  );
-}
-function download(c: Credential) {
-  const json = JSON.stringify(
-    {
-      schema: 1,
-      serial_number: c.serial,
-      model: c.model,
-      activation_secret: c.secret,
-      kodaos_version: c.kodaos_version,
-      cloud_url: c.cloud_url,
-    },
-    null,
-    2,
-  );
-  const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${c.serial}.koda-provision.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+const PROVISION_ERRORS: Record<string, string> = {
+  serial_already_provisioned: "Este número de série já foi provisionado.",
+  board_uid_already_provisioned: "Este Board UID já pertence a outro KodaBot.",
+  invalid_serial: "Número de série inválido.",
+  invalid_model: "Modelo inválido.",
+  invalid_board_uid: "Board UID inválido.",
+  forbidden: "Somente administradores podem provisionar dispositivos.",
+};
 
-function Register({
+function FactoryProvision({
   onClose,
-  onSuccess,
+  onProvisioned,
 }: {
   onClose: () => void;
-  onSuccess: (c: Credential) => void;
+  onProvisioned: () => Promise<void>;
 }) {
   const [serial, setSerial] = useState("");
-  const [model, setModel] = useState<ProductId>("kodabot-i");
-  const [made, setMade] = useState("");
-  const [purchase, setPurchase] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
-  const [version, setVersion] = useState("0.4");
-  const [notes, setNotes] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [boardUid, setBoardUid] = useState("");
   const [saving, setSaving] = useState(false);
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    const secret = Array.from(crypto.getRandomValues(new Uint8Array(24)), (b) =>
-      b.toString(16).padStart(2, "0"),
-    ).join("");
-    const { data, error: err } = await supabase.rpc("factory_register_device", {
-      _serial_number: serial,
-      _model: model,
-      _activation_secret: secret,
-      _manufactured_at: made || null,
-      _purchase_date: purchase || null,
-      _warranty_start: start || null,
-      _warranty_end: end || null,
-      _kodaos_version: version || null,
-      _notes: notes || null,
-    });
-    setSaving(false);
-    if (err) {
-      setError(err.message);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<FactoryProvisionResponse["device"] | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+
+  useEffect(
+    () => () => {
+      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    },
+    [downloadUrl],
+  );
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    const normalizedSerial = serial.trim().toUpperCase();
+    const normalizedBoardUid = boardUid.trim().toLowerCase();
+
+    if (normalizedSerial.length < 4) {
+      setError(PROVISION_ERRORS["invalid_serial"] ?? "Número de série inválido.");
       return;
     }
-    if (data)
-      onSuccess({
-        serial: serial.trim().toUpperCase(),
-        secret,
-        model,
-        kodaos_version: version || "0.4",
-        cloud_url: CLOUD_URL,
-      });
+    if (!/^[0-9a-f]{8,}$/.test(normalizedBoardUid)) {
+      setError(PROVISION_ERRORS["invalid_board_uid"] ?? "Board UID inválido.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    const { data: authData, error: authError } = await supabase.auth.getSession();
+    if (authError || !authData.session) {
+      setSaving(false);
+      setError("Sua sessão expirou. Entre novamente para provisionar o KodaBot.");
+      return;
+    }
+
+    const { data, error: invokeError } = await supabase.functions.invoke(
+      "kodacloud-factory-provision",
+      {
+        body: { serial: normalizedSerial, model: "kodabot-i", board_uid: normalizedBoardUid },
+        headers: { Authorization: `Bearer ${authData.session.access_token}` },
+      },
+    );
+
+    if (invokeError) {
+      let code = "provision_failed";
+      if (invokeError instanceof FunctionsHttpError) {
+        try {
+          const payload = (await invokeError.context.json()) as { error?: unknown };
+          if (typeof payload.error === "string") code = payload.error;
+        } catch {
+          // The response did not contain a JSON error code.
+        }
+      }
+      setSaving(false);
+      setError(
+        PROVISION_ERRORS[code] ?? "Não foi possível provisionar o KodaBot. Tente novamente.",
+      );
+      return;
+    }
+
+    const response = data as FactoryProvisionResponse | null;
+    const identity = response?.factory_identity;
+    if (
+      !response?.ok ||
+      !identity ||
+      typeof identity.serial !== "string" ||
+      typeof identity.model !== "string" ||
+      typeof identity.board_uid !== "string" ||
+      typeof identity.device_secret_hex !== "string"
+    ) {
+      setSaving(false);
+      setError("O KodaCloud retornou uma resposta inválida.");
+      return;
+    }
+
+    const nextUrl = URL.createObjectURL(
+      new Blob([JSON.stringify(identity, null, 2)], { type: "application/json" }),
+    );
+    setDownloadUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return nextUrl;
+    });
+    setResult(response.device);
+    setSaving(false);
+    await onProvisioned();
   }
+
+  function consumeDownload() {
+    window.setTimeout(() => {
+      setDownloadUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return null;
+      });
+    }, 0);
+  }
+
   return (
-    <Modal title="Novo KodaBot" close={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+    <Modal title="Provisionar novo KodaBot" close={onClose}>
+      {result ? (
+        <div className="space-y-5">
+          <div className="rounded-2xl bg-emerald-50 p-5 text-emerald-900">
+            <div className="flex items-center gap-2 font-semibold">
+              <CheckCircle2 className="h-5 w-5" /> KodaBot provisionado com sucesso
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Info title="Serial" value={result.serial} />
+            <Info title="Modelo" value={displayModel(result.model)} />
+            <Info title="Board UID" value={result.board_uid} />
+            <Info title="Status" value="Não ativado" />
+          </div>
+          {downloadUrl ? (
+            <a
+              href={downloadUrl}
+              download="factory_identity.json"
+              onClick={consumeDownload}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white"
+            >
+              <Download className="h-4 w-4" /> Baixar factory_identity.json
+            </a>
+          ) : (
+            <p className="rounded-2xl bg-[#f5f5f7] p-4 text-sm text-[#6e6e73]">
+              O arquivo de identidade já foi disponibilizado. Por segurança, o segredo não pode ser
+              consultado novamente nesta página.
+            </p>
+          )}
+          <p className="text-xs leading-relaxed text-[#6e6e73]">
+            Guarde o arquivo em local seguro e grave-o no aparelho. O segredo de fábrica não é
+            exibido nem armazenado pelo site.
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-4">
+          <Field label="Modelo">
+            <select className="input" value="kodabot-i" disabled>
+              <option value="kodabot-i">KodaBot I</option>
+            </select>
+          </Field>
           <Field label="Número de série">
             <input
               required
               value={serial}
-              onChange={(e) => setSerial(e.target.value.toUpperCase())}
+              onChange={(event) => setSerial(event.target.value.toUpperCase())}
               placeholder="KBP-0001"
+              autoComplete="off"
+              spellCheck={false}
               className="input font-mono"
             />
           </Field>
-          <Field label="Modelo">
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value as ProductId)}
-              className="input"
-            >
-              <option value="kodabot-i">KodaBot I</option>
-              <option value="kodabot-i-pro">KodaBot I Pro</option>
-            </select>
+          <Field label="Board UID">
+            <input
+              required
+              value={boardUid}
+              onChange={(event) => setBoardUid(event.target.value.toLowerCase())}
+              placeholder="49b0eb4b537cd293"
+              autoComplete="off"
+              spellCheck={false}
+              className="input font-mono"
+            />
           </Field>
-          {[
-            ["Data de fabricação", made, setMade],
-            ["Data de compra", purchase, setPurchase],
-            ["Início da garantia", start, setStart],
-            ["Expiração da garantia", end, setEnd],
-          ].map(([l, v, s]) => (
-            <Field key={l as string} label={l as string}>
-              <input
-                type="date"
-                value={v as string}
-                onChange={(e) => (s as (x: string) => void)(e.target.value)}
-                className="input"
-              />
-            </Field>
-          ))}
-          <Field label="Versão KODA OS">
-            <input value={version} onChange={(e) => setVersion(e.target.value)} className="input" />
-          </Field>
-        </div>
-        <Field label="Notas internas">
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            className="input"
-          />
-        </Field>
-        <div className="rounded-2xl bg-[#f5f5f7] p-4 text-xs text-[#6e6e73]">
-          A credencial será mantida somente nesta sessão para gerar o pacote. O banco armazena
-          apenas o hash.
-        </div>
-        {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <button
-          disabled={saving}
-          className="w-full rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {saving ? "Cadastrando…" : "Cadastrar KodaBot"}
-        </button>
-      </form>
+          <div className="rounded-2xl bg-[#f5f5f7] p-4 text-xs leading-relaxed text-[#6e6e73]">
+            A identidade será criada uma única vez pelo KodaCloud. O segredo ficará disponível
+            somente no arquivo gerado para gravação no aparelho.
+          </div>
+          {error && (
+            <p className="flex gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+              <AlertCircle className="h-4 w-4 shrink-0" /> {error}
+            </p>
+          )}
+          <button
+            disabled={saving}
+            className="w-full rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {saving ? "Provisionando…" : "Provisionar KodaBot"}
+          </button>
+        </form>
+      )}
     </Modal>
   );
 }
 
 function DeviceModal({
   device,
-  credential,
   onClose,
   refresh,
-  copy,
   onDeleted,
 }: {
   device: Device;
-  credential?: Credential;
   onClose: () => void;
   refresh: () => Promise<void>;
-  copy: (c: Credential) => Promise<void>;
   onDeleted: (device: Device) => void;
 }) {
   const [tests, setTests] = useState<Test[]>([]);
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmationSerial, setConfirmationSerial] = useState("");
@@ -592,12 +545,6 @@ function DeviceModal({
     setBusy(false);
     if (result.error) setError(result.error.message);
     else await refresh();
-  }
-  async function copyCommand() {
-    if (!credential) return;
-    await copy(credential);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2200);
   }
   async function deleteDevice() {
     if (confirmationSerial !== device.serial_number) return;
@@ -682,35 +629,9 @@ function DeviceModal({
           {stage === 0 && (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
               <p className="text-sm font-semibold">Aguardando provisionamento</p>
-              {credential ? (
-                <>
-                  <p className="mt-2 text-xs">Conecte por USB e execute o provisionador local.</p>
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      onClick={() => download(credential)}
-                      className="rounded-full bg-white px-4 py-2 text-xs font-semibold"
-                    >
-                      Baixar pacote
-                    </button>
-                    <button
-                      onClick={() => void copyCommand()}
-                      className="rounded-full bg-white px-4 py-2 text-xs font-semibold"
-                    >
-                      {copied ? "Comando copiado" : "Copiar comando"}
-                    </button>
-                    <button
-                      onClick={() => void refresh()}
-                      className="px-3 text-xs font-semibold text-[#0066cc]"
-                    >
-                      Atualizar status
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p className="mt-2 text-xs">
-                  A credencial de provisionamento não está mais disponível nesta sessão.
-                </p>
-              )}
+              <p className="mt-2 text-xs">
+                Conclua o provisionamento pela ação principal da Central de fábrica.
+              </p>
             </div>
           )}
           {stage >= 1 && (

@@ -10,7 +10,7 @@ function safeNext(value: unknown) {
 }
 
 export const Route = createFileRoute("/conta/criar")({
-  validateSearch: (search: Record<string, unknown>) => ({ next: safeNext(search.next) }),
+  validateSearch: (search: Record<string, unknown>) => ({ next: safeNext(search["next"]) }),
   head: () => ({ meta: [{ title: "Criar Conta KodaCloud — Koda" }] }),
   component: SignUp,
 });

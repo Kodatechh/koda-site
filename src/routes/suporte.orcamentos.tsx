@@ -10,9 +10,13 @@ function Estimates() {
   return (
     <main>
       <section className="bg-[#f5f5f7] px-5 py-16 text-center sm:py-20">
-        <p className="text-sm font-semibold text-[#0071e3]">Estimativa</p>
-        <h1 className="mt-3 text-5xl font-semibold tracking-[-0.05em] sm:text-6xl">Comece identificando o aparelho.</h1>
-        <p className="mx-auto mt-4 max-w-xl text-base text-[#6e6e73]">Os valores definitivos serão informados após avaliação técnica; esta etapa identifica a categoria de serviço disponível.</p>
+        <p className="text-sm font-semibold text-[#0071e3]">Serviço e Reparos Koda</p>
+        <h1 className="mt-3 text-5xl font-semibold tracking-[-0.05em] sm:text-6xl">
+          Preços de reparo.
+        </h1>
+        <p className="mx-auto mt-4 max-w-xl text-base text-[#6e6e73]">
+          Escolha o modelo e o serviço para consultar o preço e a cobertura KodaCare+ aplicável.
+        </p>
       </section>
       <RepairFlow />
     </main>

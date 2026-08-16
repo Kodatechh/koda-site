@@ -35,3 +35,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Koda device identity packages
+*.koda-provision.json
+*.koda-support-restore.json
+factory_identity.json

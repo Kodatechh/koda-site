@@ -15,6 +15,8 @@ import {
   Wifi,
 } from "lucide-react";
 
+import { ProductPhotoSlot } from "@/components/koda/ProductPhotoSlot";
+
 const title = "KODA OS — o sistema do KodaBot";
 const description =
   "KODA OS: o sistema do KodaBot I, com configuração Wi‑Fi simples, painel local e uma base pronta para receber novas funções.";
@@ -69,7 +71,7 @@ const features = [
 const osSpecs = [
   { label: "Base", value: "MicroPython" },
   { label: "Placa suportada", value: "Raspberry Pi Pico 2 W" },
-  { label: "Tela", value: "TFT Touch 2,8\" 240×320 ST7789V" },
+  { label: "Tela", value: 'TFT Touch 2,8" 240×320 ST7789V' },
   { label: "Touch", value: "Resistivo, 1 ponto" },
   { label: "Sensores nativos", value: "BME280 (temp/umidade/pressão)" },
   { label: "Hora e data", value: "Sincronização via internet" },
@@ -78,7 +80,6 @@ const osSpecs = [
   { label: "Fonte visual", value: "Sora" },
   { label: "Temas", value: "Escuro (padrão) · Claro (em breve)" },
 ];
-
 
 const requirements = [
   { label: "KodaBot I", value: true, note: "Plataforma principal" },
@@ -101,7 +102,8 @@ export function KodaOS() {
             KODA OS
           </h1>
           <p className="fade-up mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-ink-foreground/65">
-            O sistema operacional feito sob medida para o KodaBot. Leve, rápido e pensado para quem quer foco no que importa — tarefas, alarmes, hora e ambiente.
+            O sistema operacional feito sob medida para o KodaBot. Leve, rápido e pensado para quem
+            quer foco no que importa — tarefas, alarmes, hora e ambiente.
           </p>
           <div className="fade-up mt-9 flex flex-wrap items-center justify-center gap-3 text-sm">
             <a
@@ -119,14 +121,11 @@ export function KodaOS() {
           </div>
 
           <div className="fade-up relative mx-auto mt-16 max-w-4xl">
-            <img
-              src="/kodaos-interface.jpg"
-              alt="Interface do KODA OS mostrando widgets de tarefas, relógio, temperatura e assistente"
-              width={1440}
-              height={1024}
-              className="mx-auto w-full rounded-[2.5rem] shadow-2xl"
+            <ProductPhotoSlot
+              label="Aguardando kodabot-i-kodaos-dark"
+              className="h-[420px] rounded-[2.5rem] sm:h-[620px]"
+              dark
             />
-            <div className="pointer-events-none absolute inset-x-0 -bottom-1 h-40 bg-gradient-to-t from-[oklch(0.09_0.004_260)] to-transparent" />
           </div>
         </div>
       </section>
@@ -160,12 +159,15 @@ export function KodaOS() {
       <section className="border-y border-border bg-secondary/60">
         <div className="mx-auto grid max-w-6xl gap-12 px-5 py-28 lg:grid-cols-2 lg:items-center">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Experiência</p>
+            <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">
+              Experiência
+            </p>
             <h2 className="mt-4 text-4xl font-semibold sm:text-5xl">
               Pensado para o dia a dia, não para complicar.
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              O KODA OS não tenta ser um computador. Ele é um assistente: liga, mostra o que importa e desliga quando você não precisa. Sem mil apps, sem distração.
+              O KODA OS não tenta ser um computador. Ele é um assistente: liga, mostra o que importa
+              e desliga quando você não precisa. Sem mil apps, sem distração.
             </p>
             <ul className="mt-8 space-y-4">
               {[
@@ -235,8 +237,14 @@ export function KodaOS() {
       <section className="bg-black px-5 py-24 text-white sm:py-32">
         <div className="mx-auto max-w-6xl">
           <p className="text-sm font-semibold text-white/45">KodaCloud</p>
-          <h2 className="mt-4 max-w-4xl text-5xl font-semibold tracking-[-0.05em] sm:text-6xl">O setup também sabe quem é o seu KodaBot.</h2>
-          <p className="mt-6 max-w-3xl text-lg leading-relaxed text-white/55">No fluxo de ativação em desenvolvimento, cada aparelho sai da fábrica previamente cadastrado como Não ativado. Durante o primeiro setup, o comprador entra na Conta KodaCloud e o próprio dispositivo participa da validação.</p>
+          <h2 className="mt-4 max-w-4xl text-5xl font-semibold tracking-[-0.05em] sm:text-6xl">
+            O setup também sabe quem é o seu KodaBot.
+          </h2>
+          <p className="mt-6 max-w-3xl text-lg leading-relaxed text-white/55">
+            No fluxo de ativação em desenvolvimento, cada aparelho sai da fábrica previamente
+            cadastrado como Não ativado. Durante o primeiro setup, o comprador entra na Conta
+            KodaCloud e o próprio dispositivo participa da validação.
+          </p>
           <div className="mt-12 grid gap-3 md:grid-cols-4">
             {[
               ["01", "Fábrica", "Serial e dados do produto são cadastrados."],
@@ -251,13 +259,20 @@ export function KodaOS() {
               </div>
             ))}
           </div>
-          <a href="/suporte/configurar" className="mt-8 inline-flex text-sm font-semibold text-[#2997ff] hover:underline">Entender a ativação ›</a>
+          <a
+            href="/suporte/configurar"
+            className="mt-8 inline-flex text-sm font-semibold text-[#2997ff] hover:underline"
+          >
+            Entender a ativação ›
+          </a>
         </div>
       </section>
 
       <section id="especificacoes" className="mx-auto max-w-6xl px-5 py-28">
         <div className="text-center">
-          <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Especificações</p>
+          <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">
+            Especificações
+          </p>
           <h2 className="mx-auto mt-4 max-w-2xl text-4xl font-semibold sm:text-5xl">
             O que faz o KODA OS rodar.
           </h2>
@@ -278,8 +293,12 @@ export function KodaOS() {
       <section className="border-y border-border bg-secondary/60">
         <div className="mx-auto max-w-6xl px-5 py-28">
           <div className="text-center">
-            <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">Compatibilidade</p>
-            <h2 className="mt-4 text-4xl font-semibold sm:text-5xl">Funciona em todos os KodaBots.</h2>
+            <p className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">
+              Compatibilidade
+            </p>
+            <h2 className="mt-4 text-4xl font-semibold sm:text-5xl">
+              Funciona em todos os KodaBots.
+            </h2>
           </div>
           <div className="mt-14 grid gap-5 sm:grid-cols-3">
             {requirements.map((r) => (
@@ -289,7 +308,11 @@ export function KodaOS() {
               >
                 <h3 className="text-xl font-semibold">{r.label}</h3>
                 <div className="mt-4 inline-flex items-center justify-center rounded-full bg-accent/10 p-2">
-                  {r.value ? <Check className="h-5 w-5 text-accent" /> : <Minus className="h-5 w-5 text-muted-foreground" />}
+                  {r.value ? (
+                    <Check className="h-5 w-5 text-accent" />
+                  ) : (
+                    <Minus className="h-5 w-5 text-muted-foreground" />
+                  )}
                 </div>
                 <p className="mt-3 text-sm text-muted-foreground">{r.note}</p>
               </div>
@@ -298,14 +321,14 @@ export function KodaOS() {
         </div>
       </section>
 
-
       <section className="mx-auto max-w-6xl px-5 pb-28">
         <div className="ink-panel relative overflow-hidden rounded-[2.5rem] px-6 py-20 text-center">
           <div className="pointer-events-none absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 accent-glow opacity-50 blur-2xl" />
           <div className="relative">
             <h2 className="text-4xl font-semibold sm:text-6xl">Experimente o KODA OS.</h2>
             <p className="mx-auto mt-4 max-w-lg text-ink-foreground/65">
-              O KODA OS vem instalado em todo KodaBot. Escolha o seu modelo e comece a organizar o dia.
+              O KODA OS vem instalado em todo KodaBot. Escolha o seu modelo e comece a organizar o
+              dia.
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3 text-sm">
               <a

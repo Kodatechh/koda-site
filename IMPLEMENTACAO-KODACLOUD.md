@@ -1,122 +1,67 @@
-# Implementação KodaCloud
+# KodaCloud — Arquitetura Atual
 
-Esta versão prepara a conta única da Koda para site, ativação, garantia, suporte e dispositivos.
+## Fonte canônica
 
-## 1. Banco de dados
+`public.devices` é o único cadastro de dispositivos. Identidade, ownership, estado de ativação, produção e vínculos de KodaCare usam o mesmo `device_id`.
 
-Aplique a migration:
+## Fábrica
 
-```text
-supabase/migrations/20260815163200_kodacloud_devices.sql
+`kodacloud-factory-provision` valida o administrador e chama `koda_factory_provision_device`. O provisionamento:
+
+1. cria ou encontra o registro em `devices`;
+2. valida serial, modelo e Board UID;
+3. gera uma credencial HMAC de 32 bytes;
+4. grava `koda_device_credentials`;
+5. muda a produção para `provisioned`;
+6. devolve uma única vez o conteúdo de `factory_identity.json`.
+
+Formato oficial:
+
+```json
+{
+  "serial": "KBP-0000",
+  "model": "kodabot-i",
+  "board_uid": "0000000000000000",
+  "device_secret_hex": "<64 caracteres hexadecimais minúsculos>"
+}
 ```
 
-Ela cria:
+## Autenticação do hardware
 
-- `profiles`
-- `devices`
-- `device_activation_secrets`
-- `device_activation_sessions`
-- `device_events`
-- `support_cases`
-- RLS para proprietários e administradores
-- RPCs para fábrica e ativação
+1. O aparelho envia serial, modelo e Board UID para `POST /v1/device/challenge`.
+2. KodaCloud cria um nonce curto em `koda_device_challenges`.
+3. O aparelho calcula HMAC SHA-256 usando `device_secret_hex`.
+4. A mensagem assinada é `serial|model|board_uid|challenge_id|nonce`.
+5. `POST /v1/device/auth` consome o challenge e retorna um device token temporário.
+6. O hash do token fica em `koda_device_tokens`; o token em texto puro existe somente no aparelho.
 
-## 2. Conta de fábrica
+Challenges são de uso único e expiram. Tokens podem ser revogados.
 
-A interface não libera o Menu de Fábrica comparando um e-mail no navegador. A autorização real usa a role `admin` no banco.
+## Ativação e Conta Koda
 
-A migration tenta conceder a role automaticamente à conta confirmada:
+Um dispositivo autenticado e Ready cria uma sessão em `koda_activation_sessions`. KodaCloud devolve uma URL do site no formato `/ativar?token=...`.
 
-```text
-Kodatechproducts@gmail.com
-```
+O site preserva o token durante login ou criação da conta e chama `kodacloud-claim`. A função `koda_claim_device` valida a sessão, atribui `devices.owner_user_id`, marca o dispositivo como `activated` e conclui a sessão. O aparelho consulta a sessão até receber o estado final.
 
-Se essa conta for criada ou confirmada depois da migration, execute uma vez no SQL Editor do Supabase:
+Conhecer apenas serial ou Board UID não permite reivindicar um dispositivo.
 
-```sql
-insert into public.user_roles(user_id, role)
-select id, 'admin'::public.app_role
-from auth.users
-where lower(email) = 'kodatechproducts@gmail.com'
-on conflict (user_id, role) do nothing;
-```
+## Runtime e OTA
 
-Depois, saia e entre novamente no site para o menu `Fábrica` aparecer.
+Com device token válido, o aparelho pode consultar status e enviar heartbeat. O heartbeat atualiza presença e versão sem reduzir uma versão já armazenada. OTA usa o mesmo dispositivo canônico e autenticação do hardware.
 
-## 3. Fluxo de fábrica
+## Suporte e restauração de fábrica
 
-Em `/fabrica`:
+`support_factory_reset_device`:
 
-1. Cadastre o número de série.
-2. Escolha o modelo.
-3. Informe as datas e versão inicial do software, quando existirem.
-4. O navegador gera uma credencial aleatória de ativação.
-5. O banco guarda somente o hash dessa credencial.
-6. A credencial em texto deve ser provisionada no KodaBot durante a fabricação.
-7. O dispositivo nasce com status `not_activated` e sem proprietário.
+- revoga device tokens;
+- invalida challenges;
+- cancela activation sessions pendentes;
+- rotaciona `koda_device_credentials`;
+- remove ownership;
+- retorna uma nova identidade one-time no formato canônico.
 
-A credencial não deve ser impressa na carcaça nem mostrada ao comprador.
+O Board UID permanece associado ao mesmo dispositivo.
 
-## 4. Fluxo de ativação no KodaBot
+## Fluxo descontinuado
 
-Depois de concluir o Wi-Fi durante o primeiro setup, o firmware deve chamar a RPC `begin_device_activation` usando:
-
-- número de série do próprio aparelho;
-- credencial de ativação provisionada na fábrica.
-
-A resposta inclui:
-
-- `session_id`
-- `activation_code`
-- `expires_at`
-
-O KODA OS deve então abrir ou apresentar ao usuário o endereço:
-
-```text
-https://SEU-DOMINIO/ativar?code=ACTIVATION_CODE
-```
-
-A sessão expira em 15 minutos.
-
-## 5. Conta do comprador
-
-Em `/ativar?code=...`:
-
-- se o comprador não estiver autenticado, o site pede login ou criação de Conta KodaCloud;
-- o retorno do login mantém a sessão de ativação;
-- estando autenticado, o site chama `claim_device_activation`;
-- o KodaBot passa para `activated`;
-- `owner_user_id` recebe o usuário;
-- `activated_at` é gravado;
-- o dispositivo aparece automaticamente em `/conta`.
-
-O cliente não reivindica o aparelho digitando apenas o serial.
-
-## 6. Confirmação pelo firmware
-
-O firmware pode consultar `check_device_activation` com o `session_id`, serial e credencial de fábrica. Quando `device_activated` se tornar `true`, o setup pode avançar para a tela final.
-
-## 7. Google Login
-
-O botão de Google já existe no frontend, mas o provedor precisa ser habilitado em:
-
-```text
-Supabase Dashboard → Authentication → Providers → Google
-```
-
-Cadastre também os domínios/redirect URLs usados em produção e desenvolvimento.
-
-## 8. Variáveis de ambiente
-
-O frontend espera as variáveis existentes do projeto:
-
-```text
-VITE_SUPABASE_URL
-VITE_SUPABASE_PUBLISHABLE_KEY
-```
-
-Não coloque service role/secret key em variáveis `VITE_*`.
-
-## 9. Fotos oficiais
-
-A ativação e o KodaCloud não dependem das fotos. Os espaços reservados podem ser trocados por material oficial depois sem alterar essa arquitetura.
+O fluxo antigo baseado em credencial de ativação compartilhada e código digitável foi descontinuado e não deve possuir callers operacionais.

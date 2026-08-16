@@ -9,32 +9,32 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/ativar")({
   validateSearch: (search: Record<string, unknown>) => ({
-    code: typeof search.code === "string" ? search.code.trim().toUpperCase() : "",
+    token: typeof search["token"] === "string" ? search["token"].trim() : "",
   }),
-  head: () => ({ meta: [{ title: "Ativar KodaBot — KodaCloud" }, { name: "robots", content: "noindex,nofollow" }] }),
+  head: () => ({ meta: [{ title: "Ativar KodaBot — KodaCloud" }, { name: "robots", content: "noindex,nofollow" }, { name: "referrer", content: "no-referrer" }] }),
   component: Activate,
 });
 
 type ActivationState = "idle" | "claiming" | "success" | "error";
 
 function Activate() {
-  const { code } = Route.useSearch();
+  const { token } = Route.useSearch();
   const { user, loading } = useAuth();
   const [state, setState] = useState<ActivationState>("idle");
   const [error, setError] = useState<string | null>(null);
-  const attemptedCode = useRef<string | null>(null);
+  const attemptedToken = useRef<string | null>(null);
 
-  const currentPath = useMemo(() => `/ativar${code ? `?code=${encodeURIComponent(code)}` : ""}`, [code]);
+  const currentPath = useMemo(() => `/ativar${token ? `?token=${encodeURIComponent(token)}` : ""}`, [token]);
   const signInHref = `/conta/entrar?next=${encodeURIComponent(currentPath)}`;
   const signUpHref = `/conta/criar?next=${encodeURIComponent(currentPath)}`;
 
   useEffect(() => {
-    if (loading || !user || !code || attemptedCode.current === code) return;
-    attemptedCode.current = code;
+    if (loading || !user || !token || attemptedToken.current === token) return;
+    attemptedToken.current = token;
     setState("claiming");
     setError(null);
 
-    supabase.rpc("claim_device_activation", { _activation_code: code }).then(({ error: activationError }) => {
+    supabase.functions.invoke("kodacloud-claim", { body: { claim_token: token } }).then(({ error: activationError }) => {
       if (activationError) {
         setState("error");
         setError(
@@ -46,7 +46,7 @@ function Activate() {
       }
       setState("success");
     });
-  }, [code, loading, user]);
+  }, [token, loading, user]);
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
@@ -54,7 +54,7 @@ function Activate() {
       <main className="mx-auto grid min-h-[690px] max-w-6xl place-items-center px-5 py-16">
         {loading ? (
           <div className="text-center"><LoaderCircle className="mx-auto h-9 w-9 animate-spin text-[#0071e3]" /><p className="mt-4 text-sm text-[#6e6e73]">Preparando ativação…</p></div>
-        ) : !code ? (
+        ) : !token ? (
           <div className="max-w-xl text-center">
             <ShieldCheck className="mx-auto h-11 w-11 text-[#0071e3]" />
             <h1 className="mt-6 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">A ativação começa no próprio KodaBot.</h1>

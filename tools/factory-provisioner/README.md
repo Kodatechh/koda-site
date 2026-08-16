@@ -1,116 +1,72 @@
 # Koda Factory Provisioner
 
-O `provision.py` é a ferramenta oficial para gravar a identidade de fábrica de um KodaBot por USB, verificar a gravação e confirmar o provisionamento no KodaCloud. Ele usa `mpremote` pelo mesmo interpretador Python que executa o script (`sys.executable -m mpremote`), sem depender do `PATH`: não há bridge, servidor local, pairing, Web Serial, WebUSB ou serviço em background.
+Ferramenta oficial para validar e gravar a identidade canônica de fábrica de um KodaBot via USB. Ela grava somente `/factory/device_identity.json` e nunca imprime a credencial.
 
 ## Fluxo oficial
 
-1. Abra `/fabrica` com uma conta de fábrica.
-2. Cadastre o KodaBot.
-3. Baixe o pacote `<serial>.koda-provision.json`.
-4. Conecte somente esse KodaBot ao computador por USB.
-5. Clique em **Copiar comando**.
-6. Execute o comando no Terminal.
-7. Volte para `/fabrica` e atualize o status.
-8. Confirme que a produção mostra **Provisionado**.
-9. Execute e aprove todos os testes de fábrica.
-10. Marque o dispositivo como **Pronto para venda**.
+1. Em `/fabrica`, informe serial, modelo e Board UID.
+2. Provisione o dispositivo e baixe `factory_identity.json`.
+3. Conecte somente o Pico correspondente por USB.
+4. Execute o provisionador com `--write`.
+5. O UID físico é lido com `machine.unique_id()` e precisa coincidir com o pacote antes de qualquer gravação.
+6. A identidade é escrita e lida novamente para validação.
+7. Opcionalmente, use `--verify-cloud` para testar challenge, HMAC e status.
+8. Continue os testes de fábrica e marque o dispositivo como Ready.
 
-## Instalação
+## Requisitos
 
-Requer Python 3.8 ou mais recente e `mpremote`:
+- Python 3.8 ou superior
+- `mpremote` instalado para operações USB
 
 ```bash
 python3 -m pip install mpremote
 ```
 
-O check-in usa `SUPABASE_PUBLISHABLE_KEY` ou `VITE_SUPABASE_PUBLISHABLE_KEY`. O provisionador procura primeiro no ambiente e depois em `.env.local` e `.env` na raiz do projeto. Ele nunca imprime a chave ou a credencial do dispositivo.
+## Formato aceito
 
-## Comando recomendado
-
-Na raiz do projeto:
-
-```bash
-python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --write --check-in
-```
-
-Esse comando:
-
-1. valida todos os campos do pacote;
-2. ignora portas seriais virtuais e entradas sem VID:PID USB válido;
-3. testa os candidatos sem alterar o dispositivo e exige que exatamente um responda como MicroPython;
-4. cria `/factory` caso necessário;
-5. grava somente `/factory/device_identity.json`;
-6. lê o arquivo de volta e compara todos os campos;
-7. somente após a verificação chama `factory_device_checkin`.
-
-O script nunca formata a flash, apaga o filesystem, reinstala firmware ou altera arquivos do KODA OS fora de `/factory`.
-A detecção executa apenas `import sys; print(sys.implementation.name)` em cada candidato e aceita somente a resposta `micropython`; ela não lê nem grava arquivos no Pico.
-
-## Modos disponíveis
-
-Validar o pacote sem alterar hardware ou nuvem:
-
-```bash
-python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --dry-run
-```
-
-Gravar e verificar, sem check-in:
-
-```bash
-python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --write
-```
-
-Repetir somente o check-in, sem regravar:
-
-```bash
-python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --check-in
-```
-
-Gravar, verificar e fazer check-in:
-
-```bash
-python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --write --check-in
-```
-
-`--write` é idempotente: pode sobrescrever a mesma identidade e sempre confere o conteúdo final. `--check-in` também pode ser repetido com segurança.
-
-## Pacote
-
-O arquivo baixado por `/fabrica` tem este formato exato:
+Somente o formato canônico é aceito:
 
 ```json
 {
-  "schema": 1,
-  "serial_number": "KBP-0003",
+  "serial": "KBP-0000",
   "model": "kodabot-i",
-  "activation_secret": "credencial-gerada-na-sessao",
-  "kodaos_version": "0.4",
-  "cloud_url": "https://projeto.supabase.co"
+  "board_uid": "0000000000000000",
+  "device_secret_hex": "<64 caracteres hexadecimais minúsculos>"
 }
 ```
 
-O pacote contém uma credencial sensível. Ela existe em texto puro somente na memória da sessão que cadastrou o dispositivo, no arquivo baixado e durante a execução do provisionador. O banco mantém apenas seu hash. Apague o pacote com segurança depois do provisionamento.
+Modelos aceitos: `kodabot-i` e `kodabot-i-pro`. O segredo representa 32 bytes, permanece apenas em memória durante a execução e nunca aparece no terminal.
 
-## Solução de problemas
+## Comandos
 
-### `mpremote não está instalado`
-
-```bash
-python3 -m pip install mpremote
-```
-
-### Nenhum KodaBot encontrado
-
-Confirme que o KodaBot está ligado, que o cabo transmite dados e que o sistema reconheceu a porta USB. Não é necessário formatar, apagar ou colocar o Pico em modo de reinstalação.
-
-### Mais de um KodaBot encontrado
-
-Desconecte os demais dispositivos. O provisionador nunca escolhe um deles aleatoriamente.
-
-### O KodaCloud não confirmou
-
-Se a gravação e a verificação já foram concluídas, corrija a conexão ou a configuração da chave pública e repita somente:
+Validar sem alterar hardware ou nuvem:
 
 ```bash
-python3 tools/factory-provisioner/provision.py ~/Downloads/KBP-0003.koda-provision.json --check-in
+python3 tools/factory-provisioner/provision.py factory_identity.json --dry-run
 ```
+
+Validar o UID físico, gravar e fazer readback:
+
+```bash
+python3 tools/factory-provisioner/provision.py factory_identity.json --write
+```
+
+Gravar e verificar a autenticação no KodaCloud:
+
+```bash
+KODA_CLOUD_URL=https://seu-projeto.supabase.co \
+python3 tools/factory-provisioner/provision.py factory_identity.json --write --verify-cloud
+```
+
+A verificação remota usa exclusivamente:
+
+1. `POST /v1/device/challenge`
+2. HMAC SHA-256 de `serial|model|board_uid|challenge_id|nonce`
+3. `POST /v1/device/auth`
+4. `GET /v1/device/status`
+
+O device token fica somente em memória. A verificação não cria sessão de ativação, não altera proprietário e não envia heartbeat.
+
+## Segurança e falhas
+
+Se o UID físico não coincidir, nada é gravado. O script não formata a flash, não altera o KODA OS e não grava arquivos temporários. Em caso de falha no KodaCloud, a identidade já gravada permanece válida e a verificação pode ser repetida separadamente com `--verify-cloud`.

@@ -20,6 +20,9 @@ function getSupabaseConfig() {
   }
 
   const projectId = new URL(url).hostname.split('.')[0];
+  if (!projectId) {
+    throw new Error('Supabase project ID could not be derived from the configured URL');
+  }
   if (configuredProjectId && configuredProjectId !== projectId) {
     throw new Error('Supabase project ID does not match the configured Supabase URL');
   }

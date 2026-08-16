@@ -30,7 +30,7 @@ function Account() {
       supabase.from("support_cases").select("id,category,subject,status,created_at").order("created_at", { ascending: false }).limit(6),
     ]).then(([devicesResult, profileResult, casesResult]) => {
       if (!devicesResult.error) setDevices((devicesResult.data ?? []) as DeviceSummary[]);
-      if (!profileResult.error) setProfileName(profileResult.data?.full_name ?? user.user_metadata?.full_name ?? "");
+      if (!profileResult.error) setProfileName(profileResult.data?.full_name ?? user.user_metadata?.["full_name"] ?? "");
       if (!casesResult.error) setCases((casesResult.data ?? []) as SupportCaseSummary[]);
       setLoadingDevices(false);
     });
