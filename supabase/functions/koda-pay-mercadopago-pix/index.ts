@@ -76,7 +76,7 @@ Deno.serve(async (req: Request) => {
   if (order.currency !== "BRL" || !Number.isInteger(order.total_cents) || order.total_cents <= 0) {
     return json({ error: "order_not_payable" }, 409);
   }
-  if (["paid", "processing", "shipped", "delivered", "refunded", "canceled"].includes(order.status)) {
+  if (["paid", "processing", "shipped", "delivered", "refunded", "cancelled"].includes(order.status)) {
     return json({ error: "order_not_payable" }, 409);
   }
   if (!order.customer_email) return json({ error: "payer_email_required" }, 409);
@@ -140,6 +140,7 @@ Deno.serve(async (req: Request) => {
   const pix = extractPix(providerBody);
   if (!pix.provider_order_id || !pix.qr_code) return json({ error: "provider_invalid_response" }, 502);
 
+  const now = new Date().toISOString();
   const { data: payment, error: paymentError } = await admin
     .from("payments")
     .insert({
@@ -152,31 +153,32 @@ Deno.serve(async (req: Request) => {
       amount_cents: order.total_cents,
       pix_copy_paste: pix.qr_code,
       pix_expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      paid_at: pix.status === "processed" ? new Date().toISOString() : null,
+      paid_at: pix.status === "processed" ? now : null,
     })
     .select("id,status")
     .single();
 
   if (paymentError || !payment) return json({ error: "payment_record_failed" }, 500);
 
-  await Promise.all([
-    admin.from("orders").update({
-      status: pix.status === "processed" ? "paid" : "pending_payment",
-      paid_at: pix.status === "processed" ? new Date().toISOString() : null,
-    }).eq("id", order.id),
-    admin.from("payment_events").insert({
-      payment_id: payment.id,
-      source: "mercado_pago",
-      event_type: "provider_order_created",
-      provider_event_id: pix.provider_order_id,
-      payload: {
-        provider_order_id: pix.provider_order_id,
-        provider_payment_id: pix.provider_payment_id,
-        status: pix.status,
-        status_detail: pix.status_detail,
-      },
-    }),
-  ]);
+  const { error: orderUpdateError } = await admin.from("orders").update({
+    status: pix.status === "processed" ? "paid" : "pending_payment",
+    paid_at: pix.status === "processed" ? now : null,
+  }).eq("id", order.id);
+  if (orderUpdateError) return json({ error: "order_status_update_failed" }, 500);
+
+  await admin.from("payment_events").insert({
+    payment_id: payment.id,
+    source: "provider",
+    event_type: "provider_order_created",
+    provider_event_id: `mercadopago:create:${pix.provider_order_id}`,
+    payload: {
+      provider: "mercado_pago",
+      provider_order_id: pix.provider_order_id,
+      provider_payment_id: pix.provider_payment_id,
+      status: pix.status,
+      status_detail: pix.status_detail,
+    },
+  });
 
   return json({
     payment: {
