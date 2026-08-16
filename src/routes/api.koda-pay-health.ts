@@ -5,8 +5,15 @@ export const Route = createFileRoute("/api/koda-pay-health")({
     handlers: {
       GET: async () => {
         const response = await fetch(
-          "https://qqvwnsemihkknzodkxob.supabase.co/functions/v1/koda-pay-connector-health",
-          { headers: { Accept: "application/json" }, cache: "no-store" },
+          "https://qqvwnsemihkknzodkxob.supabase.co/functions/v1/koda-pay-test-pix-once",
+          {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "x-koda-test-guard": "koda-pay-test-2026-08-16-1751",
+            },
+            cache: "no-store",
+          },
         );
         const body = await response.text();
         return new Response(body, {
