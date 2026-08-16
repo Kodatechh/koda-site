@@ -14,6 +14,7 @@ import { Route as AtivarRouteImport } from './routes/ativar'
 import { Route as CompararRouteImport } from './routes/comparar'
 import { Route as ContaRouteImport } from './routes/conta'
 import { Route as FabricaRouteImport } from './routes/fabrica'
+import { Route as FinanceiroInternoRouteImport } from './routes/financeiro-interno'
 import { Route as KodabotRouteImport } from './routes/kodabot'
 import { Route as KodabotProRouteImport } from './routes/kodabot-pro'
 import { Route as KodacareRouteImport } from './routes/kodacare'
@@ -22,6 +23,7 @@ import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as SuporteRouteImport } from './routes/suporte'
 import { Route as SuporteInternoRouteImport } from './routes/suporte-interno'
+import { Route as CheckoutProductSlugRouteImport } from './routes/checkout.$productSlug'
 import { Route as ContaIndexRouteImport } from './routes/conta.index'
 import { Route as ContaCriarRouteImport } from './routes/conta.criar'
 import { Route as ContaEntrarRouteImport } from './routes/conta.entrar'
@@ -72,6 +74,11 @@ const FabricaRoute = FabricaRouteImport.update({
   path: '/fabrica',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FinanceiroInternoRoute = FinanceiroInternoRouteImport.update({
+  id: '/financeiro-interno',
+  path: '/financeiro-interno',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KodabotRoute = KodabotRouteImport.update({
   id: '/kodabot',
   path: '/kodabot',
@@ -110,6 +117,11 @@ const SuporteRoute = SuporteRouteImport.update({
 const SuporteInternoRoute = SuporteInternoRouteImport.update({
   id: '/suporte-interno',
   path: '/suporte-interno',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutProductSlugRoute = CheckoutProductSlugRouteImport.update({
+  id: '/checkout/$productSlug',
+  path: '/checkout/$productSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContaIndexRoute = ContaIndexRouteImport.update({
@@ -240,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/comparar': typeof CompararRoute
   '/conta': typeof ContaRouteWithChildren
   '/fabrica': typeof FabricaRoute
+  '/financeiro-interno': typeof FinanceiroInternoRoute
   '/kodabot': typeof KodabotRouteWithChildren
   '/kodabot-pro': typeof KodabotProRouteWithChildren
   '/kodacare': typeof KodacareRoute
@@ -248,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/sobre': typeof SobreRoute
   '/suporte': typeof SuporteRouteWithChildren
   '/suporte-interno': typeof SuporteInternoRoute
+  '/checkout/$productSlug': typeof CheckoutProductSlugRoute
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/recuperar': typeof ContaRecuperarRoute
@@ -278,10 +292,12 @@ export interface FileRoutesByTo {
   '/ativar': typeof AtivarRoute
   '/comparar': typeof CompararRoute
   '/fabrica': typeof FabricaRoute
+  '/financeiro-interno': typeof FinanceiroInternoRoute
   '/kodacare': typeof KodacareRoute
   '/privacidade': typeof PrivacidadeRoute
   '/sobre': typeof SobreRoute
   '/suporte-interno': typeof SuporteInternoRoute
+  '/checkout/$productSlug': typeof CheckoutProductSlugRoute
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/recuperar': typeof ContaRecuperarRoute
@@ -314,6 +330,7 @@ export interface FileRoutesById {
   '/comparar': typeof CompararRoute
   '/conta': typeof ContaRouteWithChildren
   '/fabrica': typeof FabricaRoute
+  '/financeiro-interno': typeof FinanceiroInternoRoute
   '/kodabot': typeof KodabotRouteWithChildren
   '/kodabot-pro': typeof KodabotProRouteWithChildren
   '/kodacare': typeof KodacareRoute
@@ -322,6 +339,7 @@ export interface FileRoutesById {
   '/sobre': typeof SobreRoute
   '/suporte': typeof SuporteRouteWithChildren
   '/suporte-interno': typeof SuporteInternoRoute
+  '/checkout/$productSlug': typeof CheckoutProductSlugRoute
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/recuperar': typeof ContaRecuperarRoute
@@ -355,6 +373,7 @@ export interface FileRouteTypes {
     | '/comparar'
     | '/conta'
     | '/fabrica'
+    | '/financeiro-interno'
     | '/kodabot'
     | '/kodabot-pro'
     | '/kodacare'
@@ -363,6 +382,7 @@ export interface FileRouteTypes {
     | '/sobre'
     | '/suporte'
     | '/suporte-interno'
+    | '/checkout/$productSlug'
     | '/conta/criar'
     | '/conta/entrar'
     | '/conta/recuperar'
@@ -393,10 +413,12 @@ export interface FileRouteTypes {
     | '/ativar'
     | '/comparar'
     | '/fabrica'
+    | '/financeiro-interno'
     | '/kodacare'
     | '/privacidade'
     | '/sobre'
     | '/suporte-interno'
+    | '/checkout/$productSlug'
     | '/conta/criar'
     | '/conta/entrar'
     | '/conta/recuperar'
@@ -428,6 +450,7 @@ export interface FileRouteTypes {
     | '/comparar'
     | '/conta'
     | '/fabrica'
+    | '/financeiro-interno'
     | '/kodabot'
     | '/kodabot-pro'
     | '/kodacare'
@@ -436,6 +459,7 @@ export interface FileRouteTypes {
     | '/sobre'
     | '/suporte'
     | '/suporte-interno'
+    | '/checkout/$productSlug'
     | '/conta/criar'
     | '/conta/entrar'
     | '/conta/recuperar'
@@ -468,6 +492,7 @@ export interface RootRouteChildren {
   CompararRoute: typeof CompararRoute
   ContaRoute: typeof ContaRouteWithChildren
   FabricaRoute: typeof FabricaRoute
+  FinanceiroInternoRoute: typeof FinanceiroInternoRoute
   KodabotRoute: typeof KodabotRouteWithChildren
   KodabotProRoute: typeof KodabotProRouteWithChildren
   KodacareRoute: typeof KodacareRoute
@@ -476,6 +501,7 @@ export interface RootRouteChildren {
   SobreRoute: typeof SobreRoute
   SuporteRoute: typeof SuporteRouteWithChildren
   SuporteInternoRoute: typeof SuporteInternoRoute
+  CheckoutProductSlugRoute: typeof CheckoutProductSlugRoute
   KodabotIComprarRoute: typeof KodabotIComprarRoute
 }
 
@@ -514,6 +540,13 @@ declare module '@tanstack/react-router' {
       path: '/fabrica'
       fullPath: '/fabrica'
       preLoaderRoute: typeof FabricaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/financeiro-interno': {
+      id: '/financeiro-interno'
+      path: '/financeiro-interno'
+      fullPath: '/financeiro-interno'
+      preLoaderRoute: typeof FinanceiroInternoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kodabot': {
@@ -570,6 +603,13 @@ declare module '@tanstack/react-router' {
       path: '/suporte-interno'
       fullPath: '/suporte-interno'
       preLoaderRoute: typeof SuporteInternoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/$productSlug': {
+      id: '/checkout/$productSlug'
+      path: '/checkout/$productSlug'
+      fullPath: '/checkout/$productSlug'
+      preLoaderRoute: typeof CheckoutProductSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/conta/': {
@@ -840,6 +880,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompararRoute: CompararRoute,
   ContaRoute: ContaRouteWithChildren,
   FabricaRoute: FabricaRoute,
+  FinanceiroInternoRoute: FinanceiroInternoRoute,
   KodabotRoute: KodabotRouteWithChildren,
   KodabotProRoute: KodabotProRouteWithChildren,
   KodacareRoute: KodacareRoute,
@@ -848,6 +889,7 @@ const rootRouteChildren: RootRouteChildren = {
   SobreRoute: SobreRoute,
   SuporteRoute: SuporteRouteWithChildren,
   SuporteInternoRoute: SuporteInternoRoute,
+  CheckoutProductSlugRoute: CheckoutProductSlugRoute,
   KodabotIComprarRoute: KodabotIComprarRoute,
 }
 export const routeTree = rootRouteImport
