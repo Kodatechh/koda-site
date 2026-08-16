@@ -48,6 +48,17 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
+        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-left">
+          <p className="text-xs font-semibold text-red-700">DETALHES DO ERRO (debug local)</p>
+          <p className="mt-2 break-words font-mono text-xs text-red-800">
+            {error?.message || String(error)}
+          </p>
+          {error?.stack ? (
+            <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-relaxed text-red-700">
+              {error.stack}
+            </pre>
+          ) : null}
+        </div>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {

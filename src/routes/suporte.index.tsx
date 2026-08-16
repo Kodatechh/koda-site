@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, BookOpen, CircleHelp, Cloud, Search, Settings2, ShieldCheck, UserRound, Wrench } from "lucide-react";
 
@@ -20,10 +20,26 @@ const cards = [
 
 function Support() {
   const [query, setQuery] = useState("");
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return supportTopics.filter((topic) => `${topic.title} ${topic.keywords}`.toLowerCase().includes(q)).slice(0, 6);
+  }, [query]);
+
+  // Fechar resultados ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setQuery("");
+      }
+    }
+
+    if (query) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
   }, [query]);
 
   return (
@@ -32,13 +48,15 @@ function Support() {
         <Cloud className="mx-auto h-9 w-9 text-[#0071e3]" />
         <h1 className="mt-5 text-5xl font-semibold tracking-[-0.055em] sm:text-7xl">Como podemos ajudar?</h1>
         <p className="mx-auto mt-5 max-w-xl text-lg text-[#6e6e73]">Encontre configuração, reparo, garantia, manuais e ajuda para sua Conta KodaCloud.</p>
-        <div className="relative mx-auto mt-8 max-w-2xl text-left">
-          <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#86868b]" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar no suporte" className="h-14 w-full rounded-2xl border border-black/10 bg-white pl-14 pr-5 text-base outline-none focus:border-[#0071e3]" />
+        <div ref={searchContainerRef} className="mx-auto mt-8 max-w-2xl text-left">
+          <div className="relative">
+            <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#86868b]" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar no suporte" className="h-14 w-full rounded-2xl border border-black/10 bg-white pl-14 pr-5 text-base outline-none focus:border-[#0071e3]" />
+          </div>
           {query && (
-            <div className="absolute inset-x-0 top-[64px] z-20 overflow-hidden rounded-2xl border border-black/10 bg-white p-2 shadow-2xl">
+            <div className="mt-3 w-full overflow-hidden rounded-2xl border border-black/10 bg-white p-2 shadow-2xl">
               {results.length ? results.map((item) => (
-                <a key={item.href} href={item.href} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-[#f5f5f7]">
+                <a key={item.href} href={item.href} onClick={() => setQuery("")} className="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-[#f5f5f7]">
                   <span className="text-sm font-medium">{item.title}</span><ArrowRight className="h-4 w-4 text-[#86868b]" />
                 </a>
               )) : <p className="px-4 py-6 text-center text-sm text-[#6e6e73]">Nenhum resultado. Tente “Wi‑Fi”, “garantia” ou “reparo”.</p>}

@@ -34,6 +34,12 @@ export type Database = {
           serial_number: string;
           model: string;
           status: Database["public"]["Enums"]["koda_device_status"];
+          provisioning_status: Database["public"]["Enums"]["koda_provisioning_status"];
+          provisioned_at: string | null;
+          factory_tested_at: string | null;
+          ready_at: string | null;
+          batch_id: string | null;
+          hardware_revision: string | null;
           manufactured_at: string | null;
           purchase_date: string | null;
           warranty_start: string | null;
@@ -51,6 +57,12 @@ export type Database = {
           serial_number: string;
           model: string;
           status?: Database["public"]["Enums"]["koda_device_status"];
+          provisioning_status?: Database["public"]["Enums"]["koda_provisioning_status"];
+          provisioned_at?: string | null;
+          factory_tested_at?: string | null;
+          ready_at?: string | null;
+          batch_id?: string | null;
+          hardware_revision?: string | null;
           manufactured_at?: string | null;
           purchase_date?: string | null;
           warranty_start?: string | null;
@@ -68,6 +80,12 @@ export type Database = {
           serial_number?: string;
           model?: string;
           status?: Database["public"]["Enums"]["koda_device_status"];
+          provisioning_status?: Database["public"]["Enums"]["koda_provisioning_status"];
+          provisioned_at?: string | null;
+          factory_tested_at?: string | null;
+          ready_at?: string | null;
+          batch_id?: string | null;
+          hardware_revision?: string | null;
           manufactured_at?: string | null;
           purchase_date?: string | null;
           warranty_start?: string | null;
@@ -200,22 +218,55 @@ export type Database = {
           serial_number: string;
           model: string;
           status: Database["public"]["Enums"]["koda_device_status"];
+          provisioning_status: Database["public"]["Enums"]["koda_provisioning_status"];
           manufactured_at: string | null;
           purchase_date: string | null;
           warranty_start: string | null;
           warranty_end: string | null;
           kodaos_version: string | null;
+          hardware_revision: string | null;
           activated_at: string | null;
           owner_email_masked: string | null;
           notes: string | null;
           created_at: string;
         }[];
       };
+      factory_device_checkin: {
+        Args: {
+          _serial_number: string;
+          _activation_secret: string;
+          _kodaos_version?: string | null;
+          _hardware_revision?: string | null;
+        };
+        Returns: Json;
+      };
+      get_device_factory_tests: {
+        Args: { _device_id: string };
+        Returns: {
+          component_name: string;
+          status: string;
+          tested_at: string | null;
+          notes: string | null;
+        }[];
+      };
+      update_device_factory_test: {
+        Args: { _device_id: string; _component_name: string; _status: string };
+        Returns: undefined;
+      };
+      mark_device_factory_tested: {
+        Args: { _device_id: string };
+        Returns: undefined;
+      };
+      mark_device_ready_for_sale: {
+        Args: { _device_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       app_role: "admin";
       koda_activation_session_status: "pending" | "claimed" | "expired";
       koda_device_status: "not_activated" | "activated" | "service" | "retired";
+      koda_provisioning_status: "registered" | "provisioned" | "factory_tested" | "ready";
       koda_support_status: "open" | "in_progress" | "waiting_customer" | "resolved" | "closed";
     };
     CompositeTypes: { [_ in never]: never };

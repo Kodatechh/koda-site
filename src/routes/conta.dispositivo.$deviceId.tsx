@@ -3,8 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Activity, ArrowLeft, Clock3, DownloadCloud, Gauge, History, MessageSquareText, RefreshCw, RotateCcw, Settings2, ShieldCheck, SlidersHorizontal, Unplug, Wifi } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
-import { Nav } from "@/components/koda/Nav";
-import { SiteFooter } from "@/components/koda/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
 import { productNames, type ProductId } from "@/lib/koda-data";
 
@@ -95,13 +93,12 @@ function DevicePage() {
   const warrantyActive = useMemo(() => device?.warranty_end ? new Date(`${device.warranty_end}T23:59:59`) >= new Date() : null, [device]);
 
   if (loading) return <div className="grid min-h-screen place-items-center bg-[#f5f5f7] text-sm text-[#6e6e73]">Carregando KodaCloud…</div>;
-  if (!user) return <div className="min-h-screen bg-[#f5f5f7]"><Nav/><main className="grid min-h-[650px] place-items-center px-5 text-center"><div><h1 className="text-4xl font-semibold">Entre para gerenciar seu KodaBot.</h1><a href="/conta/entrar" className="mt-6 inline-flex rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white">Entrar</a></div></main><SiteFooter/></div>;
-  if (!device) return <div className="min-h-screen bg-[#f5f5f7]"><Nav/><main className="grid min-h-[650px] place-items-center px-5 text-center"><div><h1 className="text-4xl font-semibold">KodaBot não encontrado.</h1><a href="/conta" className="mt-6 inline-flex text-sm font-semibold text-[#0066cc]">Voltar para Minha Conta ›</a></div></main><SiteFooter/></div>;
+  if (!user) return <main className="grid min-h-[650px] place-items-center px-5 text-center"><div><h1 className="text-4xl font-semibold">Entre para gerenciar seu KodaBot.</h1><a href="/conta/entrar" className="mt-6 inline-flex rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white">Entrar</a></div></main>;
+  if (!device) return <main className="grid min-h-[650px] place-items-center px-5 text-center"><div><h1 className="text-4xl font-semibold">KodaBot não encontrado.</h1><a href="/conta" className="mt-6 inline-flex text-sm font-semibold text-[#0066cc]">Voltar para Minha Conta ›</a></div></main>;
 
   const modelName = productNames[device.model as ProductId] ?? device.model;
 
   return <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
-    <Nav />
     <main className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
       <a href="/conta" className="inline-flex items-center gap-1 text-xs font-semibold text-[#0066cc]"><ArrowLeft className="h-3.5 w-3.5"/> Minha Conta</a>
       <section className="mt-4 rounded-[34px] bg-white p-7 sm:p-10">
@@ -150,7 +147,6 @@ function DevicePage() {
         <div className="rounded-[32px] bg-white p-7 sm:p-9"><Unplug className="h-7 w-7 text-[#ff3b30]"/><h2 className="mt-7 text-2xl font-semibold">Transferir propriedade.</h2><p className="mt-2 text-sm leading-relaxed text-[#6e6e73]">Desvincula este KodaBot da sua Conta KodaCloud. O próximo proprietário ainda precisará ativá-lo fisicamente pelo primeiro setup.</p><a href="/suporte/contato" className="mt-5 inline-flex text-xs font-semibold text-[#0066cc]">Solicitar transferência com o suporte ›</a></div>
       </section>
     </main>
-    <SiteFooter />
   </div>;
 }
 

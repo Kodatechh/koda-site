@@ -20,6 +20,7 @@ import { Route as KodaosRouteImport } from './routes/kodaos'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as SuporteRouteImport } from './routes/suporte'
+import { Route as SuporteInternoRouteImport } from './routes/suporte-interno'
 import { Route as ContaIndexRouteImport } from './routes/conta.index'
 import { Route as ContaCriarRouteImport } from './routes/conta.criar'
 import { Route as ContaEntrarRouteImport } from './routes/conta.entrar'
@@ -41,6 +42,7 @@ import { Route as SuporteGarantiaRouteImport } from './routes/suporte.garantia'
 import { Route as SuporteManuaisRouteImport } from './routes/suporte.manuais'
 import { Route as SuporteOrcamentosRouteImport } from './routes/suporte.orcamentos'
 import { Route as SuporteReparoRouteImport } from './routes/suporte.reparo'
+import { Route as ContaDispositivoDeviceIdRouteImport } from './routes/conta.dispositivo.$deviceId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -95,6 +97,11 @@ const SobreRoute = SobreRouteImport.update({
 const SuporteRoute = SuporteRouteImport.update({
   id: '/suporte',
   path: '/suporte',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SuporteInternoRoute = SuporteInternoRouteImport.update({
+  id: '/suporte-interno',
+  path: '/suporte-interno',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContaIndexRoute = ContaIndexRouteImport.update({
@@ -202,6 +209,12 @@ const SuporteReparoRoute = SuporteReparoRouteImport.update({
   path: '/reparo',
   getParentRoute: () => SuporteRoute,
 } as any)
+const ContaDispositivoDeviceIdRoute =
+  ContaDispositivoDeviceIdRouteImport.update({
+    id: '/dispositivo/$deviceId',
+    path: '/dispositivo/$deviceId',
+    getParentRoute: () => ContaRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -215,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/privacidade': typeof PrivacidadeRoute
   '/sobre': typeof SobreRoute
   '/suporte': typeof SuporteRouteWithChildren
+  '/suporte-interno': typeof SuporteInternoRoute
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/recuperar': typeof ContaRecuperarRoute
@@ -236,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/kodabot/': typeof KodabotIndexRoute
   '/kodaos/': typeof KodaosIndexRoute
   '/suporte/': typeof SuporteIndexRoute
+  '/conta/dispositivo/$deviceId': typeof ContaDispositivoDeviceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -244,6 +259,7 @@ export interface FileRoutesByTo {
   '/fabrica': typeof FabricaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/sobre': typeof SobreRoute
+  '/suporte-interno': typeof SuporteInternoRoute
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/recuperar': typeof ContaRecuperarRoute
@@ -265,6 +281,7 @@ export interface FileRoutesByTo {
   '/kodabot': typeof KodabotIndexRoute
   '/kodaos': typeof KodaosIndexRoute
   '/suporte': typeof SuporteIndexRoute
+  '/conta/dispositivo/$deviceId': typeof ContaDispositivoDeviceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -279,6 +296,7 @@ export interface FileRoutesById {
   '/privacidade': typeof PrivacidadeRoute
   '/sobre': typeof SobreRoute
   '/suporte': typeof SuporteRouteWithChildren
+  '/suporte-interno': typeof SuporteInternoRoute
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/recuperar': typeof ContaRecuperarRoute
@@ -300,6 +318,7 @@ export interface FileRoutesById {
   '/kodabot/': typeof KodabotIndexRoute
   '/kodaos/': typeof KodaosIndexRoute
   '/suporte/': typeof SuporteIndexRoute
+  '/conta/dispositivo/$deviceId': typeof ContaDispositivoDeviceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -315,6 +334,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/sobre'
     | '/suporte'
+    | '/suporte-interno'
     | '/conta/criar'
     | '/conta/entrar'
     | '/conta/recuperar'
@@ -336,6 +356,7 @@ export interface FileRouteTypes {
     | '/kodabot/'
     | '/kodaos/'
     | '/suporte/'
+    | '/conta/dispositivo/$deviceId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -344,6 +365,7 @@ export interface FileRouteTypes {
     | '/fabrica'
     | '/privacidade'
     | '/sobre'
+    | '/suporte-interno'
     | '/conta/criar'
     | '/conta/entrar'
     | '/conta/recuperar'
@@ -365,6 +387,7 @@ export interface FileRouteTypes {
     | '/kodabot'
     | '/kodaos'
     | '/suporte'
+    | '/conta/dispositivo/$deviceId'
   id:
     | '__root__'
     | '/'
@@ -378,6 +401,7 @@ export interface FileRouteTypes {
     | '/privacidade'
     | '/sobre'
     | '/suporte'
+    | '/suporte-interno'
     | '/conta/criar'
     | '/conta/entrar'
     | '/conta/recuperar'
@@ -399,6 +423,7 @@ export interface FileRouteTypes {
     | '/kodabot/'
     | '/kodaos/'
     | '/suporte/'
+    | '/conta/dispositivo/$deviceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -413,6 +438,7 @@ export interface RootRouteChildren {
   PrivacidadeRoute: typeof PrivacidadeRoute
   SobreRoute: typeof SobreRoute
   SuporteRoute: typeof SuporteRouteWithChildren
+  SuporteInternoRoute: typeof SuporteInternoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -492,6 +518,13 @@ declare module '@tanstack/react-router' {
       path: '/suporte'
       fullPath: '/suporte'
       preLoaderRoute: typeof SuporteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/suporte-interno': {
+      id: '/suporte-interno'
+      path: '/suporte-interno'
+      fullPath: '/suporte-interno'
+      preLoaderRoute: typeof SuporteInternoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/conta/': {
@@ -641,6 +674,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuporteReparoRouteImport
       parentRoute: typeof SuporteRoute
     }
+    '/conta/dispositivo/$deviceId': {
+      id: '/conta/dispositivo/$deviceId'
+      path: '/dispositivo/$deviceId'
+      fullPath: '/conta/dispositivo/$deviceId'
+      preLoaderRoute: typeof ContaDispositivoDeviceIdRouteImport
+      parentRoute: typeof ContaRoute
+    }
   }
 }
 
@@ -650,6 +690,7 @@ interface ContaRouteChildren {
   ContaRecuperarRoute: typeof ContaRecuperarRoute
   ContaRedefinirRoute: typeof ContaRedefinirRoute
   ContaIndexRoute: typeof ContaIndexRoute
+  ContaDispositivoDeviceIdRoute: typeof ContaDispositivoDeviceIdRoute
 }
 
 const ContaRouteChildren: ContaRouteChildren = {
@@ -658,6 +699,7 @@ const ContaRouteChildren: ContaRouteChildren = {
   ContaRecuperarRoute: ContaRecuperarRoute,
   ContaRedefinirRoute: ContaRedefinirRoute,
   ContaIndexRoute: ContaIndexRoute,
+  ContaDispositivoDeviceIdRoute: ContaDispositivoDeviceIdRoute,
 }
 
 const ContaRouteWithChildren = ContaRoute._addFileChildren(ContaRouteChildren)
@@ -743,6 +785,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeRoute: PrivacidadeRoute,
   SobreRoute: SobreRoute,
   SuporteRoute: SuporteRouteWithChildren,
+  SuporteInternoRoute: SuporteInternoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
