@@ -6,6 +6,7 @@ import { useAuth } from "@/components/koda/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { productNames, type ProductId } from "@/lib/koda-data";
 import type { CoverageStatus } from "@/lib/kodacare";
+import { isDeviceOnline } from "@/lib/device-presence";
 
 export const Route = createFileRoute("/conta/dispositivo/$deviceId")({
   head: () => ({ meta: [{ title: "Meu KodaBot — Conta Koda" }] }),
@@ -22,6 +23,7 @@ type Device = {
   warranty_end: string | null;
   kodaos_version: string | null;
   activated_at: string | null;
+  last_seen_at: string | null;
 };
 type Health = { online: boolean; last_seen_at: string | null };
 function DevicePage() {
@@ -31,13 +33,18 @@ function DevicePage() {
   const [health, setHealth] = useState<Health | null>(null);
   const [coverage, setCoverage] = useState<CoverageStatus | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [presenceNow, setPresenceNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setPresenceNow(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
   useEffect(() => {
     if (!user) return;
     Promise.all([
       supabase
         .from("devices")
         .select(
-          "id,serial_number,model,status,purchase_date,warranty_start,warranty_end,kodaos_version,activated_at",
+          "id,serial_number,model,status,purchase_date,warranty_start,warranty_end,kodaos_version,activated_at,last_seen_at",
         )
         .eq("id", deviceId)
         .maybeSingle(),
@@ -92,6 +99,7 @@ function DevicePage() {
       </main>
     );
   const modelName = productNames[device.model as ProductId] ?? device.model;
+  const online = isDeviceOnline(device.last_seen_at ?? health?.last_seen_at, presenceNow);
   const careName = coverage?.plan
     ? coverage.plan === "kodacare"
       ? "KodaCare"
@@ -118,9 +126,9 @@ function DevicePage() {
           </div>
           <p className="inline-flex items-center gap-2 text-sm font-semibold">
             <span
-              className={`h-2.5 w-2.5 rounded-full ${health?.online ? "bg-[#34c759]" : "bg-[#86868b]"}`}
+              className={`h-2.5 w-2.5 rounded-full ${online ? "bg-[#34c759]" : "bg-[#86868b]"}`}
             />
-            {health?.online ? "Online" : "Offline"}
+            {online ? "Online" : "Offline"}
           </p>
         </div>
       </header>
