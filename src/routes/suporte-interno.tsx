@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { productNames, type ProductId } from "@/lib/koda-data";
+import { isDeviceOnline } from "@/lib/device-presence";
 
 export const Route = createFileRoute("/suporte-interno")({
   head: () => ({
@@ -42,6 +43,7 @@ type Device = {
   warranty_end: string | null;
   owner_user_id: string | null;
   activated_at: string | null;
+  last_seen_at: string | null;
 };
 type CaseItem = {
   id: string;
@@ -58,8 +60,16 @@ type Health = {
   last_seen_at: string | null;
   wifi_status: string | null;
   wifi_signal: number | null;
-  checks: Record<string, string>;
-  last_diagnostic_at: string | null;
+  diagnostics: Record<string, unknown>;
+  updated_at: string;
+};
+type DeviceCommand = {
+  id: string;
+  device_id: string;
+  status: "pending" | "delivered" | "completed" | "failed" | "cancelled";
+  result: Record<string, unknown>;
+  created_at: string;
+  completed_at: string | null;
 };
 
 function SupportConsole() {
@@ -67,6 +77,10 @@ function SupportConsole() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [health, setHealth] = useState<Health[]>([]);
+  const [commands, setCommands] = useState<DeviceCommand[]>([]);
+  const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
+  const [requestingDiagnostic, setRequestingDiagnostic] = useState<string | null>(null);
+  const [presenceNow, setPresenceNow] = useState(Date.now());
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
@@ -79,11 +93,11 @@ function SupportConsole() {
   async function load() {
     if (!isSupportAgent) return;
     setRefreshing(true);
-    const [devicesResult, casesResult, healthResult] = await Promise.all([
+    const [devicesResult, casesResult, healthResult, commandsResult] = await Promise.all([
       supabase
         .from("devices")
         .select(
-          "id,serial_number,model,status,kodaos_version,warranty_end,owner_user_id,activated_at",
+          "id,serial_number,model,status,kodaos_version,warranty_end,owner_user_id,activated_at,last_seen_at",
         )
         .order("created_at", { ascending: false })
         .limit(100),
@@ -94,23 +108,41 @@ function SupportConsole() {
         .limit(100),
       supabase
         .from("device_health")
-        .select("device_id,online,last_seen_at,wifi_status,wifi_signal,checks,last_diagnostic_at")
+        .select("device_id,online,last_seen_at,wifi_status,wifi_signal,diagnostics,updated_at")
+        .limit(100),
+      supabase
+        .from("device_commands")
+        .select("id,device_id,status,result,created_at,completed_at")
+        .eq("command", "run_diagnostics")
+        .order("created_at", { ascending: false })
         .limit(100),
     ]);
     if (!devicesResult.error) setDevices((devicesResult.data ?? []) as Device[]);
     if (!casesResult.error) setCases((casesResult.data ?? []) as CaseItem[]);
     if (!healthResult.error) setHealth((healthResult.data ?? []) as Health[]);
+    if (!commandsResult.error) setCommands((commandsResult.data ?? []) as DeviceCommand[]);
     setRefreshing(false);
   }
 
   useEffect(() => {
     load();
   }, [isSupportAgent]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setPresenceNow(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const healthByDevice = useMemo(
     () => new Map(health.map((item) => [item.device_id, item])),
     [health],
   );
+  const commandByDevice = useMemo(() => {
+    const result = new Map<string, DeviceCommand>();
+    commands.forEach((command) => {
+      if (!result.has(command.device_id)) result.set(command.device_id, command);
+    });
+    return result;
+  }, [commands]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return devices;
@@ -120,21 +152,19 @@ function SupportConsole() {
   }, [devices, query]);
 
   async function runDiagnostic(device: Device) {
-    if (!user || !isSupportAdvanced) return;
-    await supabase.from("device_commands").insert({
-      device_id: device.id,
-      requested_by: user.id,
-      command: "run_diagnostic",
-      payload: { source: "koda_support" },
+    if (!user || !isSupportAdvanced || requestingDiagnostic) return;
+    const current = commandByDevice.get(device.id);
+    if (current && ["pending", "delivered"].includes(current.status)) return;
+    setRequestingDiagnostic(device.id);
+    setDiagnosticError(null);
+    const { error } = await supabase.rpc("request_device_command", {
+      _device_id: device.id,
+      _command: "run_diagnostics",
+      _payload: { source: "koda_support" },
     });
-    await supabase.from("admin_audit_log").insert({
-      actor_user_id: user.id,
-      action: "support_run_diagnostic",
-      entity_type: "device",
-      entity_id: device.id,
-      details: { serial_number: device.serial_number },
-    });
-    await load();
+    if (error) setDiagnosticError(error.message);
+    else await load();
+    setRequestingDiagnostic(null);
   }
 
   function openDeviceDetails(device: Device) {
@@ -280,7 +310,14 @@ function SupportConsole() {
           <Metric label="Dispositivos" value={String(devices.length)} />
           <Metric
             label="Online agora"
-            value={String(health.filter((item) => item.online).length)}
+            value={String(
+              devices.filter((device) =>
+                isDeviceOnline(
+                  device.last_seen_at ?? healthByDevice.get(device.id)?.last_seen_at,
+                  presenceNow,
+                ),
+              ).length,
+            )}
           />
           <Metric
             label="Atendimentos abertos"
@@ -299,6 +336,14 @@ function SupportConsole() {
             <Activity className="h-8 w-8 text-[#0071e3]" />
           </div>
           <div className="mt-6 overflow-x-auto">
+            {diagnosticError && (
+              <p
+                role="alert"
+                className="mb-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-700"
+              >
+                Não foi possível solicitar o diagnóstico: {diagnosticError}
+              </p>
+            )}
             <table className="w-full min-w-[980px] text-left text-sm">
               <thead>
                 <tr className="border-b border-black/10 text-[11px] uppercase tracking-[0.12em] text-[#86868b]">
@@ -314,6 +359,15 @@ function SupportConsole() {
               <tbody>
                 {filtered.map((device) => {
                   const itemHealth = healthByDevice.get(device.id);
+                  const online = isDeviceOnline(
+                    device.last_seen_at ?? itemHealth?.last_seen_at,
+                    presenceNow,
+                  );
+                  const diagnostic = commandByDevice.get(device.id);
+                  const diagnosticBusy =
+                    requestingDiagnostic === device.id ||
+                    diagnostic?.status === "pending" ||
+                    diagnostic?.status === "delivered";
                   return (
                     <tr key={device.id} className="border-b border-black/10">
                       <td className="py-4 pr-5 font-mono text-xs font-semibold">
@@ -324,9 +378,9 @@ function SupportConsole() {
                       </td>
                       <td className="py-4 pr-5">
                         <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${itemHealth?.online ? "bg-green-50 text-green-700" : "bg-[#f5f5f7] text-[#6e6e73]"}`}
+                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${online ? "bg-green-50 text-green-700" : "bg-[#f5f5f7] text-[#6e6e73]"}`}
                         >
-                          {itemHealth?.online ? "Online" : "Offline"}
+                          {online ? "Online" : "Offline"}
                         </span>
                       </td>
                       <td className="py-4 pr-5">{device.kodaos_version ?? "—"}</td>
@@ -347,9 +401,19 @@ function SupportConsole() {
                           {isSupportAdvanced && (
                             <button
                               onClick={() => runDiagnostic(device)}
-                              className="inline-flex items-center gap-1 font-semibold text-[#0066cc]"
+                              disabled={!online || diagnosticBusy}
+                              className="inline-flex items-center gap-1 font-semibold text-[#0066cc] disabled:cursor-not-allowed disabled:text-[#86868b]"
                             >
-                              <Wrench className="h-3.5 w-3.5" /> Diagnosticar
+                              <Wrench className="h-3.5 w-3.5" />{" "}
+                              {requestingDiagnostic === device.id
+                                ? "Solicitando…"
+                                : diagnostic?.status === "pending"
+                                  ? "Aguardando aparelho"
+                                  : diagnostic?.status === "delivered"
+                                    ? "Diagnosticando…"
+                                    : diagnostic?.status === "completed"
+                                      ? "Diagnosticar novamente"
+                                      : "Diagnosticar"}
                             </button>
                           )}
                           <button

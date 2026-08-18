@@ -20,6 +20,7 @@ import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
 import { productNames, type ProductId } from "@/lib/koda-data";
+import { isDeviceOnline } from "@/lib/device-presence";
 
 export const Route = createFileRoute("/fabrica")({
   head: () => ({
@@ -43,6 +44,7 @@ type Device = {
   owner_email_masked: string | null;
   notes: string | null;
   created_at: string;
+  last_seen_at: string | null;
 };
 type Test = {
   component_name: string;
@@ -107,11 +109,28 @@ function FactoryPage() {
   const [provisioning, setProvisioning] = useState(false);
   const [editing, setEditing] = useState<Device | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [presenceNow, setPresenceNow] = useState(Date.now());
   async function load() {
     setBusy(true);
-    const { data, error } = await supabase.rpc("factory_list_devices");
-    if (!error) {
-      const next = (data ?? []) as Device[];
+    const [deviceResult, presenceResult, healthResult] = await Promise.all([
+      supabase.rpc("factory_list_devices"),
+      supabase.from("devices").select("id,last_seen_at"),
+      supabase.from("device_health").select("device_id,last_seen_at"),
+    ]);
+    if (!deviceResult.error) {
+      const legacyLastSeen = new Map(
+        (healthResult.data ?? []).map((health) => [health.device_id, health.last_seen_at]),
+      );
+      const lastSeen = new Map(
+        (presenceResult.data ?? []).map((device) => [
+          device.id,
+          device.last_seen_at ?? legacyLastSeen.get(device.id) ?? null,
+        ]),
+      );
+      const next = (deviceResult.data ?? []).map((device) => ({
+        ...device,
+        last_seen_at: lastSeen.get(device.id) ?? null,
+      })) as Device[];
       setDevices(next);
       setEditing((old) => (old ? (next.find((d) => d.id === old.id) ?? null) : null));
     }
@@ -120,6 +139,10 @@ function FactoryPage() {
   useEffect(() => {
     if (isFactoryAdmin) void load();
   }, [isFactoryAdmin]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setPresenceNow(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q
@@ -232,6 +255,7 @@ function FactoryPage() {
                   <th className="py-3 pr-5">Modelo</th>
                   <th className="py-3 pr-5">Produção</th>
                   <th className="py-3 pr-5">KODA OS</th>
+                  <th className="py-3 pr-5">Conexão</th>
                   <th className="py-3 pr-5">Ativação</th>
                   <th className="py-3 pr-5">Proprietário</th>
                   <th className="py-3">Ações</th>
@@ -250,6 +274,13 @@ function FactoryPage() {
                       </span>
                     </td>
                     <td className="py-4 pr-5 text-xs">{d.kodaos_version ?? "—"}</td>
+                    <td className="py-4 pr-5">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${isDeviceOnline(d.last_seen_at, presenceNow) ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-700"}`}
+                      >
+                        {isDeviceOnline(d.last_seen_at, presenceNow) ? "Online" : "Offline"}
+                      </span>
+                    </td>
                     <td className="py-4 pr-5">
                       <span
                         className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${d.status === "activated" ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-700"}`}
