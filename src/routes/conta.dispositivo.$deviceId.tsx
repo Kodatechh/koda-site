@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, ChevronRight, CircleHelp, ShieldCheck, Wrench } from "lucide-react";
+import {
+  Activity,
+  ArrowLeft,
+  ChevronRight,
+  CircleHelp,
+  CloudDownload,
+  ShieldCheck,
+  Wrench,
+} from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -197,11 +205,17 @@ function DevicePage() {
         <div className="mt-6 grid gap-3 sm:mt-0 sm:grid-cols-3">
           <ServiceLink href="/suporte/contato" icon={CircleHelp} title="Obter suporte" />
           <ServiceLink
-            href={`/suporte/contato?assunto=reparo&modelo=${device.model}`}
+            href={`/reparos/solicitar?device=${device.id}`}
             icon={Wrench}
             title="Solicitar reparo"
           />
           <ServiceLink href="/suporte/reparo" icon={ShieldCheck} title="Ver preços de reparo" />
+          <ServiceLink
+            href={`/conta/diagnostico/${device.id}`}
+            icon={Activity}
+            title="Ver diagnóstico"
+          />
+          <ServiceLink href="/kodaos/updates" icon={CloudDownload} title="Ver atualizações" />
         </div>
       </section>
       <section className="border-t border-black/10 py-12 sm:grid sm:grid-cols-[220px_1fr] sm:gap-14">

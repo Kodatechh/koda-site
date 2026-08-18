@@ -39,27 +39,27 @@ function KodaCarePage() {
     <div className="min-h-screen bg-white text-[#1d1d1f]">
       <Nav />
       <main>
-        <section className="px-5 py-24 text-center sm:py-40">
-          <ShieldCheck className="mx-auto h-11 w-11 text-[#0071e3]" />
-          <p className="mt-7 text-sm font-semibold text-[#0066cc]">KodaCare</p>
+        <section className="bg-[linear-gradient(145deg,var(--kodacare-red-dark),var(--kodacare-red))] px-5 py-24 text-center text-white sm:py-40">
+          <ShieldCheck className="mx-auto h-11 w-11 text-white" />
+          <p className="mt-7 text-sm font-semibold text-white/80">KodaCare</p>
           <h1 className="mx-auto mt-3 max-w-5xl text-6xl font-semibold tracking-[-0.065em] sm:text-8xl">
             Mais tranquilidade para aproveitar seu KodaBot.
           </h1>
-          <p className="mx-auto mt-7 max-w-2xl text-xl leading-relaxed text-[#6e6e73]">
+          <p className="mx-auto mt-7 max-w-2xl text-xl leading-relaxed text-white/75">
             Mais tempo de garantia ou proteção adicional para os imprevistos do dia a dia.
           </p>
         </section>
 
-        <section className="bg-[#f5f5f7] px-5 py-20 sm:py-28">
+        <section className="bg-[var(--kodacare-red-soft)] px-5 py-20 sm:py-28">
           <div className="mx-auto max-w-6xl">
             <div className="grid gap-5 lg:grid-cols-3">
               {kodaCarePlans.map((plan, index) => (
                 <article
                   key={plan.id}
-                  className={`flex min-h-[440px] flex-col rounded-[32px] p-8 ${index === 0 ? "bg-white" : "bg-[#1d1d1f] text-white"}`}
+                  className={`flex min-h-[440px] flex-col rounded-[32px] p-8 shadow-[0_18px_60px_rgba(140,0,18,.08)] ${index === 0 ? "bg-white" : "bg-[var(--kodacare-red)] text-white"}`}
                 >
                   <p
-                    className={`text-sm font-semibold ${index === 0 ? "text-[#0066cc]" : "text-[#2997ff]"}`}
+                    className={`text-sm font-semibold ${index === 0 ? "text-[var(--kodacare-red)]" : "text-white/75"}`}
                   >
                     {plan.duration}
                   </p>
@@ -73,7 +73,7 @@ function KodaCarePage() {
                     {plan.benefits.map((benefit) => (
                       <li key={benefit} className="flex gap-3">
                         <Check
-                          className={`mt-0.5 h-4 w-4 shrink-0 ${index === 0 ? "text-[#0071e3]" : "text-[#2997ff]"}`}
+                          className={`mt-0.5 h-4 w-4 shrink-0 ${index === 0 ? "text-[var(--kodacare-red)]" : "text-white"}`}
                         />
                         {benefit}
                       </li>
@@ -81,7 +81,7 @@ function KodaCarePage() {
                   </ul>
                   <a
                     href="/kodabot-i/comprar"
-                    className={`mt-auto inline-flex w-fit rounded-full px-5 py-2.5 text-sm font-semibold ${index === 0 ? "bg-[#0071e3] text-white" : "bg-white text-black"}`}
+                    className={`mt-auto inline-flex w-fit rounded-full px-5 py-2.5 text-sm font-semibold ${index === 0 ? "bg-[var(--kodacare-red)] text-white" : "bg-white text-[var(--kodacare-red-dark)]"}`}
                   >
                     Escolher plano
                   </a>

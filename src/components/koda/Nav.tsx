@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Menu, Search, UserRound, X } from "lucide-react";
+import { Bell, ChevronDown, Menu, Search, UserRound, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 import { useAuth } from "@/components/koda/AuthProvider";
 import { SearchOverlay } from "@/components/koda/SearchOverlay";
@@ -75,19 +77,65 @@ const navItems: NavItem[] = [
 
 export function Nav() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [renderedMenu, setRenderedMenu] = useState<string | null>(null);
+  const [menuClosing, setMenuClosing] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [mobileMenu, setMobileMenu] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
   const headerRef = useRef<HTMLElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unmountTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { user, loading } = useAuth();
+
+  const clearMenuTimers = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    if (unmountTimerRef.current) clearTimeout(unmountTimerRef.current);
+    closeTimerRef.current = null;
+    unmountTimerRef.current = null;
+  };
+
+  const showMenu = (menu: string) => {
+    clearMenuTimers();
+    setRenderedMenu(menu);
+    setOpenMenu(menu);
+    setMenuClosing(false);
+  };
+
+  const hideMenu = (withGrace = false) => {
+    clearMenuTimers();
+    const close = () => {
+      setOpenMenu(null);
+      setMenuClosing(true);
+      unmountTimerRef.current = setTimeout(() => {
+        setRenderedMenu(null);
+        setMenuClosing(false);
+      }, 240);
+    };
+    if (withGrace) closeTimerRef.current = setTimeout(close, 140);
+    else close();
+  };
+
+  useEffect(() => {
+    if (!user) {
+      setUnread(0);
+      return;
+    }
+    (supabase as any)
+      .from("user_notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .is("read_at", null)
+      .then(({ count }: { count: number | null }) => setUnread(count ?? 0));
+  }, [user]);
 
   useEffect(() => {
     const outside = (event: MouseEvent) => {
-      if (headerRef.current && !headerRef.current.contains(event.target as Node)) setOpenMenu(null);
+      if (headerRef.current && !headerRef.current.contains(event.target as Node)) hideMenu();
     };
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setOpenMenu(null);
+        hideMenu();
         setMobileMenu(null);
         setMobile(false);
       }
@@ -95,13 +143,14 @@ export function Nav() {
     document.addEventListener("mousedown", outside);
     document.addEventListener("keydown", escape);
     return () => {
+      clearMenuTimers();
       document.removeEventListener("mousedown", outside);
       document.removeEventListener("keydown", escape);
     };
   }, []);
 
   const closeNavigation = () => {
-    setOpenMenu(null);
+    hideMenu();
     setMobileMenu(null);
     setMobile(false);
   };
@@ -119,14 +168,14 @@ export function Nav() {
 
           <ul className="hidden items-center gap-8 md:flex">
             {navItems.map((item) => (
-              <li key={item.label} onMouseEnter={() => item.menu && setOpenMenu(item.label)}>
+              <li key={item.label} onMouseEnter={() => item.menu && showMenu(item.label)}>
                 {item.menu ? (
                   <button
                     type="button"
                     aria-expanded={openMenu === item.label}
                     aria-controls={`nav-${item.label.toLowerCase().replaceAll(" ", "-")}`}
-                    onClick={() => setOpenMenu((open) => (open === item.label ? null : item.label))}
-                    onMouseEnter={() => setOpenMenu(item.menu ? item.label : null)}
+                    onClick={() => (openMenu === item.label ? hideMenu() : showMenu(item.label))}
+                    onMouseEnter={() => showMenu(item.label)}
                     className="flex items-center gap-1 rounded-md text-xs text-foreground/72 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/50"
                   >
                     {item.label}
@@ -148,6 +197,20 @@ export function Nav() {
           </ul>
 
           <div className="flex items-center gap-4">
+            {user && (
+              <a
+                href="/conta/notificacoes"
+                aria-label={`${unread} notificações não lidas`}
+                className="relative rounded-full p-1 transition-opacity hover:opacity-60"
+              >
+                <Bell className="h-3.5 w-3.5 text-foreground/72" />
+                {unread > 0 && (
+                  <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--kodacare-red)] px-1 text-[9px] font-bold text-white">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
+              </a>
+            )}
             <button
               onClick={() => setSearchOpen(true)}
               aria-label="Buscar"
@@ -178,12 +241,17 @@ export function Nav() {
         {navItems.map(
           (item) =>
             item.menu &&
-            openMenu === item.label && (
+            renderedMenu === item.label && (
               <div
                 id={`nav-${item.label.toLowerCase().replaceAll(" ", "-")}`}
                 key={item.label}
-                onMouseLeave={() => setOpenMenu(null)}
-                className="hidden origin-top border-t border-black/5 bg-background/95 shadow-[0_18px_45px_rgba(0,0,0,.07)] backdrop-blur-xl motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2 motion-safe:zoom-in-95 motion-safe:duration-200 md:block"
+                onMouseEnter={() => showMenu(item.label)}
+                onMouseLeave={() => hideMenu(true)}
+                className={`hidden origin-top border-t border-black/5 bg-background/95 shadow-[0_18px_45px_rgba(0,0,0,.07)] backdrop-blur-xl transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none md:block ${
+                  menuClosing
+                    ? "pointer-events-none -translate-y-1 scale-[.985] opacity-0"
+                    : "translate-y-0 scale-100 opacity-100"
+                }`}
               >
                 <div className="mx-auto grid max-w-5xl gap-12 px-5 pb-12 pt-8 sm:grid-cols-3">
                   {item.menu.map((group) => (

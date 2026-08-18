@@ -2,6 +2,13 @@
 @source "../src";
 @import "tw-animate-css";
 
+:root {
+  --kodacare-red: #e21b2d;
+  --kodacare-red-dark: #a60818;
+  --kodacare-red-soft: #fff1f2;
+  --kodacare-white: #ffffff;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /*
