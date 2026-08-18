@@ -159,7 +159,7 @@ export function Nav() {
     <>
       <header
         ref={headerRef}
-        className="sticky top-0 z-50 border-b border-black/5 bg-background/85 text-foreground backdrop-blur-xl"
+        className="sticky top-0 z-50 border-b border-black/5 bg-white/92 text-foreground backdrop-blur-xl"
       >
         <nav className="mx-auto flex h-11 max-w-5xl items-center justify-between px-5">
           <a href="/" className="text-sm font-semibold tracking-tight" aria-label="Koda — início">
