@@ -7,8 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const integrationTestSlug = "koda-pay-integration-test-20260819";
-
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -83,16 +81,6 @@ Deno.serve(async (req: Request) => {
   }
   if (!order.customer_email) return json({ error: "payer_email_required" }, 409);
 
-  const { data: testItem } = await admin
-    .from("order_items")
-    .select("product_slug")
-    .eq("order_id", order.id)
-    .eq("product_slug", integrationTestSlug)
-    .limit(1)
-    .maybeSingle();
-
-  const isIntegrationTest = Boolean(testItem) && order.total_cents === 5000;
-
   const { data: existingPayment } = await admin
     .from("payments")
     .select("id,provider_payment_id,status,pix_copy_paste,pix_expires_at")
@@ -120,32 +108,22 @@ Deno.serve(async (req: Request) => {
   }
 
   const amount = centsToAmount(order.total_cents);
-  const body = isIntegrationTest
-    ? {
-        type: "online",
-        external_reference: order.id,
-        total_amount: amount,
-        payer: { email: "test_user_br@testuser.com", first_name: "APRO" },
-        transactions: {
-          payments: [{ amount, payment_method: { id: "pix", type: "bank_transfer" } }],
+  const body = {
+    type: "online",
+    total_amount: amount,
+    external_reference: order.id,
+    processing_mode: "automatic",
+    transactions: {
+      payments: [
+        {
+          amount,
+          payment_method: { id: "pix", type: "bank_transfer" },
+          expiration_time: "PT1H",
         },
-      }
-    : {
-        type: "online",
-        total_amount: amount,
-        external_reference: order.id,
-        processing_mode: "automatic",
-        transactions: {
-          payments: [
-            {
-              amount,
-              payment_method: { id: "pix", type: "bank_transfer" },
-              expiration_time: "PT1H",
-            },
-          ],
-        },
-        payer: { email: order.customer_email },
-      };
+      ],
+    },
+    payer: { email: order.customer_email },
+  };
 
   const providerResponse = await fetch("https://api.mercadopago.com/v1/orders", {
     method: "POST",
@@ -153,7 +131,7 @@ Deno.serve(async (req: Request) => {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
       "Content-Type": "application/json",
-      "X-Idempotency-Key": isIntegrationTest ? `koda-pay-pix-test-v2-${order.id}` : `koda-pay-pix-${order.id}`,
+      "X-Idempotency-Key": `koda-pay-pix-${order.id}`,
     },
     body: JSON.stringify(body),
   });
@@ -208,7 +186,6 @@ Deno.serve(async (req: Request) => {
       provider_payment_id: pix.provider_payment_id,
       status: pix.status,
       status_detail: pix.status_detail,
-      integration_test: isIntegrationTest,
     },
   });
 
