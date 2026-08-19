@@ -82,6 +82,7 @@ Deno.serve(async (req: Request) => {
     installments?: number;
     payerEmail?: string;
     identification?: { type?: string; number?: string };
+    cardLast4?: string;
   };
   try { input = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
 
@@ -90,6 +91,7 @@ Deno.serve(async (req: Request) => {
   const paymentMethodId = typeof input.paymentMethodId === "string" ? input.paymentMethodId.trim().toLowerCase() : "";
   const paymentTypeId = input.paymentTypeId === "debit_card" ? "debit_card" : "credit_card";
   const installments = Number.isInteger(input.installments) ? Number(input.installments) : 1;
+  const cardLast4 = typeof input.cardLast4 === "string" && /^\d{4}$/.test(input.cardLast4.trim()) ? input.cardLast4.trim() : null;
   if (!orderId || !cardToken || cardToken.length < 12 || !/^[a-z0-9_-]+$/i.test(paymentMethodId) || installments < 1 || installments > 24) {
     return json({ error: "invalid_payment_data" }, 400);
   }
@@ -181,6 +183,7 @@ Deno.serve(async (req: Request) => {
     amount_cents: order.total_cents,
     installments,
     card_brand: paymentMethodId,
+    card_last4: cardLast4,
     paid_at: localPaymentStatus === "paid" ? now : null,
     failure_code: localPaymentStatus === "failed" ? card.status_detail : null,
     failure_message: localPaymentStatus === "failed" ? "Pagamento não concluído pelo processador." : null,
@@ -206,6 +209,7 @@ Deno.serve(async (req: Request) => {
       payment_method_id: paymentMethodId,
       payment_type: paymentTypeId,
       installments,
+      card_last4: cardLast4,
       three_ds_required: Boolean(card.challenge_url),
     },
   });
