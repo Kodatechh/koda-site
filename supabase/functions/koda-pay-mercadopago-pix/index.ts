@@ -120,9 +120,32 @@ Deno.serve(async (req: Request) => {
   }
 
   const amount = centsToAmount(order.total_cents);
-  const payer = isIntegrationTest
-    ? { email: "test_user_br@testuser.com", first_name: "APRO" }
-    : { email: order.customer_email };
+  const body = isIntegrationTest
+    ? {
+        type: "online",
+        external_reference: order.id,
+        total_amount: amount,
+        payer: { email: "test_user_br@testuser.com", first_name: "APRO" },
+        transactions: {
+          payments: [{ amount, payment_method: { id: "pix", type: "bank_transfer" } }],
+        },
+      }
+    : {
+        type: "online",
+        total_amount: amount,
+        external_reference: order.id,
+        processing_mode: "automatic",
+        transactions: {
+          payments: [
+            {
+              amount,
+              payment_method: { id: "pix", type: "bank_transfer" },
+              expiration_time: "PT1H",
+            },
+          ],
+        },
+        payer: { email: order.customer_email },
+      };
 
   const providerResponse = await fetch("https://api.mercadopago.com/v1/orders", {
     method: "POST",
@@ -130,28 +153,20 @@ Deno.serve(async (req: Request) => {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
       "Content-Type": "application/json",
-      "X-Idempotency-Key": `koda-pay-pix-${order.id}`,
+      "X-Idempotency-Key": isIntegrationTest ? `koda-pay-pix-test-v2-${order.id}` : `koda-pay-pix-${order.id}`,
     },
-    body: JSON.stringify({
-      type: "online",
-      total_amount: amount,
-      external_reference: order.id,
-      processing_mode: "automatic",
-      transactions: {
-        payments: [
-          {
-            amount,
-            payment_method: { id: "pix", type: "bank_transfer" },
-            expiration_time: "PT1H",
-          },
-        ],
-      },
-      payer,
-    }),
+    body: JSON.stringify(body),
   });
 
   const providerBody = await providerResponse.json().catch(() => ({}));
-  if (!providerResponse.ok) return json({ error: "provider_error", provider_status: providerResponse.status }, 502);
+  if (!providerResponse.ok) {
+    return json({
+      error: "provider_error",
+      provider_status: providerResponse.status,
+      provider_message: typeof providerBody?.message === "string" ? providerBody.message : null,
+      provider_error: typeof providerBody?.error === "string" ? providerBody.error : null,
+    }, 502);
+  }
 
   const pix = extractPix(providerBody);
   if (!pix.provider_order_id || !pix.qr_code) return json({ error: "provider_invalid_response" }, 502);
