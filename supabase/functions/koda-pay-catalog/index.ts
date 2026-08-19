@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: product, error } = await admin
     .from("commerce_products")
-    .select("slug,name,description,active,currency,unit_amount_cents,track_stock,stock_quantity")
+    .select("slug,name,description,active,currency,unit_amount_cents,track_stock,stock_quantity,requires_shipping,weight_grams,length_mm,width_mm,height_mm")
     .eq("slug", productSlug)
     .maybeSingle();
 
@@ -52,6 +52,15 @@ Deno.serve(async (req: Request) => {
   if (mercadoPagoConfigured) readyMethods.push("pix");
   if (cardConfigured) readyMethods.push("card");
 
+  const originPostalCode = Deno.env.get("KODA_ORIGIN_POSTAL_CODE")?.replace(/\D/g, "") ?? "";
+  const dimensionsReady = Boolean(product.weight_grams && product.length_mm && product.width_mm && product.height_mm);
+  const shippingConfigured = !product.requires_shipping || Boolean(
+    Deno.env.get("MELHOR_ENVIO_TOKEN")?.trim() &&
+    originPostalCode.length === 8 &&
+    Deno.env.get("MELHOR_ENVIO_USER_AGENT")?.trim() &&
+    dimensionsReady
+  );
+
   return json({
     product: {
       slug: product.slug,
@@ -61,6 +70,7 @@ Deno.serve(async (req: Request) => {
       currency: product.currency,
       unit_amount_cents: product.unit_amount_cents,
       in_stock: inStock,
+      requires_shipping: product.requires_shipping,
     },
     koda_pay: {
       provider: "mercado_pago",
@@ -72,6 +82,16 @@ Deno.serve(async (req: Request) => {
         : cardConfigured
           ? "Pix e cartão conectados ao Koda Pay."
           : "Pix conectado ao Koda Pay. Falta a Public Key para habilitar cartão.",
+    },
+    koda_shipping: {
+      provider: product.requires_shipping ? "melhor_envio" : "none",
+      required: product.requires_shipping,
+      ready: shippingConfigured,
+      message: !product.requires_shipping
+        ? "Este produto não exige entrega física."
+        : shippingConfigured
+          ? "Cálculo de frete disponível."
+          : "O provedor de frete ainda precisa das credenciais e dados de origem no servidor.",
     },
   });
 });
