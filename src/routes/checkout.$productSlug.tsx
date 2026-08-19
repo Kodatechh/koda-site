@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, Copy, CreditCard, ExternalLink, LoaderCircle, LockKeyhole, QrCode, ShieldCheck } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
+import { CardPaymentBrick } from "@/components/koda/CardPaymentBrick";
 import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
@@ -240,13 +241,13 @@ function CheckoutPage() {
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-[#6e6e73]">QR Code e confirmação automática pelo Koda Pay.</p>
                 </div>
-                <div className="rounded-2xl border border-black/10 p-5 opacity-70">
+                <div className="rounded-2xl border border-black/10 p-5">
                   <CreditCard className="h-6 w-6 text-[#0071e3]" />
                   <div className="mt-4 flex items-center justify-between gap-3">
                     <p className="font-semibold">Cartão</p>
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#86868b]">Próxima etapa</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#0071e3]">Tokenizado</span>
                   </div>
-                  <p className="mt-1 text-xs leading-relaxed text-[#6e6e73]">Tokenização segura sem armazenar número completo nem CVV.</p>
+                  <p className="mt-1 text-xs leading-relaxed text-[#6e6e73]">MercadoPago.js + 3DS. A Koda não recebe PAN/CVV em formato bruto.</p>
                 </div>
               </div>
 
@@ -302,6 +303,13 @@ function CheckoutPage() {
                 </div>
               ) : null}
 
+              <CardPaymentBrick
+                productSlug={catalog.product.slug}
+                quantity={quantity}
+                amountCents={totalCents}
+                enabled={Boolean(user) && catalog.product.available}
+              />
+
               {!user ? (
                 <a href={`/conta/entrar?returnTo=${encodeURIComponent(`/checkout/${productSlug}`)}`} className="mt-7 flex w-full justify-center rounded-full bg-[#0071e3] px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#0077ed]">
                   Entrar para continuar
@@ -321,7 +329,8 @@ function CheckoutPage() {
 
               <div className="mt-7 space-y-3 border-t border-black/10 pt-6 text-xs leading-relaxed text-[#6e6e73]">
                 <p>• O preço do pedido é calculado no servidor da Koda, não no navegador.</p>
-                <p>• O QR Code é criado pelo processador financeiro e exibido dentro do Koda Pay.</p>
+                <p>• Pix e cartão são processados pelo Mercado Pago dentro da camada Koda Pay.</p>
+                <p>• Dados brutos de cartão e CVV não são armazenados pela Koda.</p>
                 <p>• O pagamento é confirmado por webhook assinado antes de o pedido ser marcado como pago.</p>
               </div>
             </section>
