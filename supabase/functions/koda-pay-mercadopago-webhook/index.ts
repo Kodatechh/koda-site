@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
 }
 
@@ -33,16 +33,9 @@ async function validateSignature(xSignature: string, xRequestId: string, dataId:
   const timestamp = parts.ts;
   const expected = parts.v1;
   if (!timestamp || !expected) return false;
-
   const normalizedDataId = /[A-Za-z]/.test(dataId) ? dataId.toLowerCase() : dataId;
   const manifest = `id:${normalizedDataId};request-id:${xRequestId};ts:${timestamp};`;
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(manifest));
   return safeEqual(bytesToHex(signature), expected);
 }
@@ -64,6 +57,13 @@ function mapOrderStatus(status: string) {
   return "pending_payment";
 }
 
+function customerCopy(orderStatus: string) {
+  if (orderStatus === "paid") return { title: "Pagamento confirmado", body: "Recebemos seu pagamento. Agora vamos preparar seu pedido." };
+  if (orderStatus === "cancelled") return { title: "Pagamento encerrado", body: "A cobrança deste pedido foi encerrada. Você pode conferir os detalhes na Conta Koda." };
+  if (orderStatus === "refunded") return { title: "Reembolso atualizado", body: "O reembolso do seu pedido foi atualizado." };
+  return null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
 
@@ -71,25 +71,17 @@ Deno.serve(async (req: Request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
   const webhookSecret = Deno.env.get("MERCADO_PAGO_WEBHOOK_SECRET");
-  if (!supabaseUrl || !serviceRoleKey || !accessToken || !webhookSecret) {
-    return json({ error: "connector_not_configured" }, 503);
-  }
+  if (!supabaseUrl || !serviceRoleKey || !accessToken || !webhookSecret) return json({ error: "connector_not_configured" }, 503);
 
   const url = new URL(req.url);
   const dataId = url.searchParams.get("data.id") ?? "";
   const xSignature = req.headers.get("x-signature") ?? "";
   const xRequestId = req.headers.get("x-request-id") ?? "";
   if (!dataId || !xSignature || !xRequestId) return json({ error: "invalid_webhook" }, 400);
-
-  const signatureValid = await validateSignature(xSignature, xRequestId, dataId, webhookSecret);
-  if (!signatureValid) return json({ error: "invalid_signature" }, 401);
+  if (!(await validateSignature(xSignature, xRequestId, dataId, webhookSecret))) return json({ error: "invalid_signature" }, 401);
 
   let notification: any = {};
-  try {
-    notification = await req.json();
-  } catch {
-    notification = {};
-  }
+  try { notification = await req.json(); } catch { notification = {}; }
 
   const providerResponse = await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(dataId)}`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
@@ -100,15 +92,10 @@ Deno.serve(async (req: Request) => {
   const localOrderId = typeof providerOrder?.external_reference === "string" ? providerOrder.external_reference : "";
   if (!localOrderId) return json({ ok: true, ignored: "missing_external_reference" });
 
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const { data: localOrder } = await admin
-    .from("orders")
-    .select("id,user_id,total_cents,paid_at")
-    .eq("id", localOrderId)
-    .maybeSingle();
+  const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: localOrder } = await admin.from("orders")
+    .select("id,user_id,total_cents,paid_at,status,order_number")
+    .eq("id", localOrderId).maybeSingle();
   if (!localOrder) return json({ ok: true, ignored: "unknown_order" });
 
   const providerStatus = typeof providerOrder?.status === "string" ? providerOrder.status : "created";
@@ -119,32 +106,23 @@ Deno.serve(async (req: Request) => {
   const localOrderStatus = mapOrderStatus(providerStatus);
   const now = new Date().toISOString();
 
-  let { data: payment } = await admin
-    .from("payments")
-    .select("id,paid_at")
-    .eq("order_id", localOrder.id)
-    .eq("provider_key", "mercado_pago")
-    .eq("provider_payment_id", dataId)
-    .maybeSingle();
+  let { data: payment } = await admin.from("payments").select("id,paid_at")
+    .eq("order_id", localOrder.id).eq("provider_key", "mercado_pago").eq("provider_payment_id", dataId).maybeSingle();
 
   if (!payment) {
-    const created = await admin
-      .from("payments")
-      .insert({
-        order_id: localOrder.id,
-        user_id: localOrder.user_id,
-        provider_key: "mercado_pago",
-        provider_payment_id: dataId,
-        method: paymentMethod?.id === "pix" ? "pix" : "card",
-        status: localPaymentStatus,
-        amount_cents: localOrder.total_cents,
-        pix_copy_paste: paymentMethod?.qr_code ?? null,
-        paid_at: localPaymentStatus === "paid" ? now : null,
-        failure_code: localPaymentStatus === "failed" ? providerStatusDetail : null,
-        failure_message: localPaymentStatus === "failed" ? "Pagamento não concluído pelo processador." : null,
-      })
-      .select("id,paid_at")
-      .single();
+    const created = await admin.from("payments").insert({
+      order_id: localOrder.id,
+      user_id: localOrder.user_id,
+      provider_key: "mercado_pago",
+      provider_payment_id: dataId,
+      method: paymentMethod?.id === "pix" ? "pix" : "card",
+      status: localPaymentStatus,
+      amount_cents: localOrder.total_cents,
+      pix_copy_paste: paymentMethod?.qr_code ?? null,
+      paid_at: localPaymentStatus === "paid" ? now : null,
+      failure_code: localPaymentStatus === "failed" ? providerStatusDetail : null,
+      failure_message: localPaymentStatus === "failed" ? "Pagamento não concluído pelo processador." : null,
+    }).select("id,paid_at").single();
     payment = created.data ?? null;
   } else {
     await admin.from("payments").update({
@@ -158,21 +136,16 @@ Deno.serve(async (req: Request) => {
 
   const orderUpdate: Record<string, unknown> = { status: localOrderStatus };
   if (localPaymentStatus === "paid") orderUpdate.paid_at = localOrder.paid_at ?? now;
+  if (localOrderStatus === "cancelled") orderUpdate.cancelled_at = now;
   await admin.from("orders").update(orderUpdate).eq("id", localOrder.id);
 
-  const rawProviderEventId = notification?.id != null
-    ? String(notification.id)
-    : `${dataId}:${providerStatus}:${providerStatusDetail ?? ""}`;
+  const rawProviderEventId = notification?.id != null ? String(notification.id) : `${dataId}:${providerStatus}:${providerStatusDetail ?? ""}`;
   const providerEventId = `mercadopago:webhook:${rawProviderEventId}`;
+  let newProviderEvent = false;
 
   if (payment?.id) {
-    const { data: existingEvent } = await admin
-      .from("payment_events")
-      .select("id")
-      .eq("source", "provider")
-      .eq("provider_event_id", providerEventId)
-      .maybeSingle();
-
+    const { data: existingEvent } = await admin.from("payment_events").select("id")
+      .eq("source", "provider").eq("provider_event_id", providerEventId).maybeSingle();
     if (!existingEvent) {
       await admin.from("payment_events").insert({
         payment_id: payment.id,
@@ -188,6 +161,31 @@ Deno.serve(async (req: Request) => {
           live_mode: Boolean(notification?.live_mode),
         },
       });
+      newProviderEvent = true;
+    }
+  }
+
+  if (newProviderEvent && localOrder.status !== localOrderStatus) {
+    const copy = customerCopy(localOrderStatus);
+    if (copy) {
+      await admin.from("order_events").insert({
+        order_id: localOrder.id,
+        event_type: `payment_${localPaymentStatus}`,
+        status: localOrderStatus,
+        title: copy.title,
+        body: copy.body,
+        metadata: { source: "koda_pay" },
+      });
+      if (localOrder.user_id) {
+        await admin.from("user_notifications").insert({
+          user_id: localOrder.user_id,
+          type: "order_update",
+          title: copy.title,
+          body: `Pedido KD-${String(localOrder.order_number).padStart(6, "0")}. ${copy.body}`,
+          href: `/conta/pedidos/${localOrder.id}`,
+          metadata: { order_id: localOrder.id, order_status: localOrderStatus },
+        });
+      }
     }
   }
 
