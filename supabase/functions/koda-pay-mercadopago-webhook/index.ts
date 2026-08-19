@@ -77,9 +77,11 @@ Deno.serve(async (req: Request) => {
 
   const url = new URL(req.url);
   const dataId = url.searchParams.get("data.id") ?? "";
+  const topic = url.searchParams.get("type") ?? "";
   const xSignature = req.headers.get("x-signature") ?? "";
   const xRequestId = req.headers.get("x-request-id") ?? "";
   if (!dataId || !xSignature || !xRequestId) return json({ error: "invalid_webhook" }, 400);
+  if (topic && topic !== "order") return json({ ok: true, ignored: "unsupported_topic" });
 
   const signatureValid = await validateSignature(xSignature, xRequestId, dataId, webhookSecret);
   if (!signatureValid) return json({ error: "invalid_signature" }, 401);
@@ -89,6 +91,14 @@ Deno.serve(async (req: Request) => {
     notification = await req.json();
   } catch {
     notification = {};
+  }
+
+  if (notification?.type && notification.type !== "order") {
+    return json({ ok: true, ignored: "unsupported_topic" });
+  }
+  const bodyDataId = notification?.data?.id != null ? String(notification.data.id) : "";
+  if (bodyDataId && bodyDataId !== dataId) {
+    return json({ error: "webhook_data_mismatch" }, 400);
   }
 
   const providerResponse = await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(dataId)}`, {
