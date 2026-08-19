@@ -34,8 +34,9 @@ async function validateSignature(xSignature: string, xRequestId: string, dataId:
   const expected = parts.v1;
   if (!timestamp || !expected) return false;
 
-  const normalizedDataId = /[A-Za-z]/.test(dataId) ? dataId.toLowerCase() : dataId;
-  const manifest = `id:${normalizedDataId};request-id:${xRequestId};ts:${timestamp};`;
+  // Mercado Pago signs the exact data.id value from the query string.
+  // Do not lowercase or otherwise normalize it before building the HMAC manifest.
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${timestamp};`;
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
