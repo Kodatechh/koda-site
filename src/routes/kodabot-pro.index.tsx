@@ -1,22 +1,45 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BatteryCharging, Mic2, SlidersHorizontal, Speaker, Wifi } from "lucide-react";
+import { Cable, Mic2, SlidersHorizontal, Speaker, Wifi } from "lucide-react";
 
 export const Route = createFileRoute("/kodabot-pro/")({
   head: () => ({
     meta: [
-      { title: "KodaBot I Pro — Koda" },
-      { name: "description", content: "KodaBot I Pro: o assistente de voz da Koda, em desenvolvimento." },
+      { title: "KodaBot Pro — Koda" },
+      {
+        name: "description",
+        content: "Conheça o KodaBot Pro: a experiência Koda pensada primeiro para voz.",
+      },
     ],
   }),
   component: KodaBotPro,
 });
 
 const features = [
-  { icon: Mic2, title: "Feito para ouvir", text: "Microfones integrados para uma experiência baseada em voz. A configuração final ainda está em desenvolvimento." },
-  { icon: Speaker, title: "Feito para responder", text: "Áudio integrado para respostas e feedback sem depender de uma tela." },
-  { icon: BatteryCharging, title: "Bateria integrada", text: "O Pro foi pensado para poder funcionar longe da tomada, com carregamento por USB‑C." },
-  { icon: SlidersHorizontal, title: "Controles físicos", text: "Controles essenciais continuam disponíveis mesmo quando você não quiser usar a voz." },
-  { icon: Wifi, title: "KodaCloud", text: "A ativação, a conta e os serviços do produto serão integrados ao mesmo ecossistema KodaCloud do site." },
+  {
+    icon: Mic2,
+    title: "Feito para ouvir",
+    text: "Microfones integrados dão ao KodaBot Pro uma experiência baseada em voz.",
+  },
+  {
+    icon: Speaker,
+    title: "Feito para responder",
+    text: "Áudio integrado para respostas e feedback sem depender de uma tela.",
+  },
+  {
+    icon: Cable,
+    title: "USB‑C",
+    text: "A primeira versão funciona ligada à energia por USB‑C, com uma arquitetura simples e confiável.",
+  },
+  {
+    icon: SlidersHorizontal,
+    title: "Controles físicos",
+    text: "Controles essenciais continuam disponíveis mesmo quando você não quiser usar a voz.",
+  },
+  {
+    icon: Wifi,
+    title: "KodaCloud",
+    text: "Conta, ativação e serviços conectados ao mesmo ecossistema Koda do KodaBot.",
+  },
 ];
 
 function VoiceVisual() {
@@ -32,7 +55,7 @@ function VoiceVisual() {
           />
         ))}
       </div>
-      <p className="absolute bottom-6 text-xs text-white/35">Visual abstrato de voz — não representa o design físico final.</p>
+      <p className="absolute bottom-6 text-xs text-white/35">Visual abstrato de voz.</p>
     </div>
   );
 }
@@ -40,9 +63,9 @@ function VoiceVisual() {
 function KodaBotPro() {
   return (
     <main className="bg-black text-white">
-      <div className="sticky top-11 z-40 border-b border-white/10 bg-black/88 backdrop-blur-xl">
-        <div className="mx-auto flex h-[52px] max-w-5xl items-center justify-between px-5">
-          <a href="/kodabot-pro" className="text-lg font-semibold tracking-[-0.03em]">KodaBot I Pro</a>
+      <div className="sticky top-12 z-40 border-b border-white/10 bg-black/88 backdrop-blur-2xl">
+        <div className="mx-auto flex h-[52px] max-w-[1040px] items-center justify-between px-5">
+          <a href="/kodabot-pro" className="text-lg font-semibold tracking-[-0.03em]">KodaBot Pro</a>
           <div className="flex items-center gap-5 text-xs">
             <a href="#destaques" className="hidden text-white/55 hover:text-white sm:inline">Visão geral</a>
             <a href="/kodabot-pro/tech-specs" className="text-white/55 hover:text-white">Especificações</a>
@@ -50,15 +73,15 @@ function KodaBotPro() {
         </div>
       </div>
 
-      <section className="relative min-h-[calc(100vh-96px)] overflow-hidden px-5 py-24 text-center">
+      <section className="relative min-h-[calc(100vh-100px)] overflow-hidden px-5 py-24 text-center">
         <div className="relative z-10 mx-auto max-w-4xl">
-          <p className="text-sm font-semibold text-white/50">Em desenvolvimento</p>
-          <h1 className="mt-4 text-6xl font-semibold tracking-[-0.055em] sm:text-8xl">KodaBot I Pro</h1>
+          <p className="text-sm font-semibold text-[#2997ff]">KodaBot Pro</p>
+          <h1 className="mt-4 text-6xl font-semibold tracking-[-0.06em] sm:text-8xl">Feito para conversar.</h1>
           <p className="mx-auto mt-6 max-w-2xl text-2xl font-semibold tracking-[-0.035em] text-white/62 sm:text-4xl">
-            A experiência Koda, agora feita para conversar.
+            A experiência Koda, pensada primeiro para voz.
           </p>
           <p className="mx-auto mt-8 max-w-xl text-lg leading-relaxed text-white/48">
-            Um assistente de voz compacto, sem tela, pensado para respostas rápidas, áudio integrado e uma interação mais natural com o ecossistema Koda.
+            Um assistente compacto, sem tela, com microfones, áudio integrado e controles físicos para uma interação mais natural.
           </p>
         </div>
         <VoiceVisual />
@@ -85,10 +108,10 @@ function KodaBotPro() {
 
       <section className="px-5 py-24 text-center sm:py-32">
         <div className="mx-auto max-w-3xl">
-          <p className="text-sm font-semibold text-white/40">Ainda em desenvolvimento</p>
-          <h2 className="mt-4 text-5xl font-semibold tracking-[-0.05em] sm:text-6xl">O design final vem depois.</h2>
+          <p className="text-sm font-semibold text-[#2997ff]">Primeira geração Pro</p>
+          <h2 className="mt-4 text-5xl font-semibold tracking-[-0.05em] sm:text-6xl">Voz em primeiro lugar.</h2>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/50">
-            Enquanto a engenharia do primeiro protótipo é fechada, esta página evita renders que possam ser confundidos com a aparência real do produto. As fotos oficiais entrarão aqui quando existirem.
+            A página apresenta a direção do produto e sua arquitetura prevista. As imagens oficiais do KodaBot Pro serão usadas quando o design físico estiver fechado.
           </p>
           <a href="/kodabot-pro/tech-specs" className="mt-8 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-black">Ver especificações</a>
         </div>
