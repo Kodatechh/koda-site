@@ -4,6 +4,7 @@ const groups = [
   {
     title: "Produtos",
     links: [
+      ["Loja Koda", "/loja"],
       ["KodaBot I", "/kodabot"],
       ["KodaBot I Pro", "/kodabot-pro"],
       ["Comparar", "/comparar"],
