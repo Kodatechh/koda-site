@@ -5,7 +5,7 @@ export const Route = createFileRoute("/api/koda-pay-provider-order-check")({
     handlers: {
       GET: async () => {
         const response = await fetch(
-          "https://qqvwnsemihkknzodkxob.supabase.co/functions/v1/koda-pay-provider-order-check?key=koda-pay-provider-check-20260819-2002",
+          "https://qqvwnsemihkknzodkxob.supabase.co/functions/v1/koda-pay-webhook-replay-test?key=koda-pay-webhook-replay-20260819-2004",
           { headers: { Accept: "application/json" }, cache: "no-store" },
         );
         const body = await response.text();
