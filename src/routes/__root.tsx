@@ -40,40 +40,25 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+    <div className="grid min-h-screen place-items-center bg-[#f5f5f7] px-5 text-[#1d1d1f]">
+      <div className="max-w-xl text-center">
+        <p className="text-sm font-semibold text-[#0071e3]">Koda</p>
+        <h1 className="mt-4 text-5xl font-semibold tracking-[-.055em] sm:text-6xl">Esta página não carregou.</h1>
+        <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-[#6e6e73]">
+          Tente novamente. Se o problema continuar, você pode voltar ao início sem perder os dados já salvos na sua conta.
         </p>
-        <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-left">
-          <p className="text-xs font-semibold text-red-700">DETALHES DO ERRO (debug local)</p>
-          <p className="mt-2 break-words font-mono text-xs text-red-800">
-            {error?.message || String(error)}
-          </p>
-          {error?.stack ? (
-            <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-relaxed text-red-700">
-              {error.stack}
-            </pre>
-          ) : null}
-        </div>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
           <button
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0077ed]"
           >
-            Try again
+            Tentar novamente
           </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
+          <a href="/" className="rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold">
+            Voltar ao início
           </a>
         </div>
       </div>
@@ -86,25 +71,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Koda — KodaBot I" },
+      { title: "Koda — tecnologia para o seu dia" },
       {
         name: "description",
-        content: "Koda: tecnologia simples, útil e próxima. Conheça o KodaBot I, o KodaBot I Pro e o KODA OS.",
+        content: "Koda: tecnologia simples, útil e próxima. Conheça o KodaBot, o KodaBot Pro, o KODA OS e o KodaCare.",
       },
       { name: "author", content: "Koda" },
-      { property: "og:title", content: "Koda — KodaBot I" },
+      { property: "og:title", content: "Koda — tecnologia para o seu dia" },
       {
         property: "og:description",
-        content: "Koda: tecnologia simples, útil e próxima. Conheça o KodaBot I, o KodaBot I Pro e o KODA OS.",
+        content: "Conheça o KodaBot, o KodaBot Pro, o KODA OS, o KodaCare e os serviços da Koda.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -142,7 +124,6 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ScrollAnimations />
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
       </AuthProvider>
     </QueryClientProvider>
