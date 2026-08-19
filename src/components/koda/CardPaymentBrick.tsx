@@ -102,6 +102,7 @@ export function CardPaymentBrick({ productSlug, quantity, amountCents, enabled }
               try {
                 setError(null);
                 setResult(null);
+                setChallengeComplete(false);
                 let orderId = orderIdRef.current;
                 if (!orderId) {
                   const { data: orderData, error: orderError } = await supabase.functions.invoke<{ order: { id: string } }>("koda-pay-create-order", {
@@ -117,10 +118,11 @@ export function CardPaymentBrick({ productSlug, quantity, amountCents, enabled }
                     orderId,
                     cardToken: formData.token,
                     paymentMethodId: formData.payment_method_id,
-                    paymentTypeId: additionalData?.paymentTypeId,
+                    paymentTypeId: formData.payment_type_id ?? formData.paymentTypeId,
                     installments: Number(formData.installments ?? 1),
                     payerEmail: formData.payer?.email,
                     identification: formData.payer?.identification,
+                    cardLast4: additionalData?.lastFourDigits,
                   },
                 });
                 if (cardError || !data?.payment) throw new Error("card_failed");
