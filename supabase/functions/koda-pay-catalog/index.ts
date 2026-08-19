@@ -47,6 +47,10 @@ Deno.serve(async (req: Request) => {
 
   const inStock = !product.track_stock || (product.stock_quantity ?? 0) > 0;
   const mercadoPagoConfigured = Boolean(Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN"));
+  const cardConfigured = mercadoPagoConfigured && Boolean(Deno.env.get("MERCADO_PAGO_PUBLIC_KEY")?.trim());
+  const readyMethods: Array<"pix" | "card"> = [];
+  if (mercadoPagoConfigured) readyMethods.push("pix");
+  if (cardConfigured) readyMethods.push("card");
 
   return json({
     product: {
@@ -62,10 +66,12 @@ Deno.serve(async (req: Request) => {
       provider: "mercado_pago",
       payment_ready: mercadoPagoConfigured,
       methods: ["pix", "card"],
-      ready_methods: mercadoPagoConfigured ? ["pix"] : [],
-      message: mercadoPagoConfigured
-        ? "Pix conectado ao Koda Pay. O cartão será habilitado após a etapa de tokenização segura."
-        : "A integração Mercado Pago está preparada; falta adicionar a credencial de teste no servidor.",
+      ready_methods: readyMethods,
+      message: !mercadoPagoConfigured
+        ? "A integração Mercado Pago está preparada; falta adicionar a credencial de teste no servidor."
+        : cardConfigured
+          ? "Pix e cartão conectados ao Koda Pay."
+          : "Pix conectado ao Koda Pay. Falta a Public Key para habilitar cartão.",
     },
   });
 });
