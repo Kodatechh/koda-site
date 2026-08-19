@@ -13,11 +13,34 @@ declare global {
   }
 }
 
+export type ShippingAddressInput = {
+  recipient: string;
+  postalCode: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  phone: string;
+};
+
 type Props = {
   productSlug: string;
   quantity: number;
   amountCents: number | null;
   enabled: boolean;
+  shippingAddress?: ShippingAddressInput | null;
+  shippingQuoteToken?: string | null;
+  checkoutReference?: string | null;
+  onOrderCreated?: (order: {
+    id: string;
+    order_number?: number;
+    display_number?: string;
+    status?: string;
+    currency?: string;
+    total_cents?: number;
+  }) => void;
 };
 
 type CardResult = {
@@ -53,7 +76,16 @@ function loadMercadoPagoJs() {
   });
 }
 
-export function CardPaymentBrick({ productSlug, quantity, amountCents, enabled }: Props) {
+export function CardPaymentBrick({
+  productSlug,
+  quantity,
+  amountCents,
+  enabled,
+  shippingAddress = null,
+  shippingQuoteToken = null,
+  checkoutReference = null,
+  onOrderCreated,
+}: Props) {
   const [config, setConfig] = useState<PublicConfig | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +93,11 @@ export function CardPaymentBrick({ productSlug, quantity, amountCents, enabled }
   const [challengeComplete, setChallengeComplete] = useState(false);
   const controllerRef = useRef<{ unmount: () => void } | null>(null);
   const orderIdRef = useRef<string | null>(null);
+  const onOrderCreatedRef = useRef(onOrderCreated);
+
+  useEffect(() => {
+    onOrderCreatedRef.current = onOrderCreated;
+  }, [onOrderCreated]);
 
   useEffect(() => {
     let alive = true;
@@ -77,6 +114,27 @@ export function CardPaymentBrick({ productSlug, quantity, amountCents, enabled }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, []);
+
+  useEffect(() => {
+    orderIdRef.current = null;
+    setResult(null);
+    setError(null);
+    setChallengeComplete(false);
+  }, [
+    productSlug,
+    quantity,
+    shippingQuoteToken,
+    checkoutReference,
+    shippingAddress?.recipient,
+    shippingAddress?.postalCode,
+    shippingAddress?.street,
+    shippingAddress?.number,
+    shippingAddress?.complement,
+    shippingAddress?.neighborhood,
+    shippingAddress?.city,
+    shippingAddress?.state,
+    shippingAddress?.phone,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,12 +163,28 @@ export function CardPaymentBrick({ productSlug, quantity, amountCents, enabled }
                 setChallengeComplete(false);
                 let orderId = orderIdRef.current;
                 if (!orderId) {
-                  const { data: orderData, error: orderError } = await supabase.functions.invoke<{ order: { id: string } }>("koda-pay-create-order", {
-                    body: { productSlug, quantity },
+                  const { data: orderData, error: orderError } = await supabase.functions.invoke<{
+                    order: {
+                      id: string;
+                      order_number?: number;
+                      display_number?: string;
+                      status?: string;
+                      currency?: string;
+                      total_cents?: number;
+                    };
+                  }>("koda-pay-create-order", {
+                    body: {
+                      productSlug,
+                      quantity,
+                      shippingAddress,
+                      shippingQuoteToken,
+                      checkoutReference,
+                    },
                   });
                   if (orderError || !orderData?.order?.id) throw new Error("order_failed");
                   orderId = orderData.order.id;
                   orderIdRef.current = orderId;
+                  onOrderCreatedRef.current?.(orderData.order);
                 }
 
                 const { data, error: cardError } = await supabase.functions.invoke<{ payment: CardResult }>("koda-pay-mercadopago-card", {
@@ -129,7 +203,7 @@ export function CardPaymentBrick({ productSlug, quantity, amountCents, enabled }
                 setResult(data.payment);
                 resolve();
               } catch {
-                setError("Não foi possível processar o cartão. Nenhum dado completo do cartão foi armazenado pela Koda.");
+                setError("Não foi possível processar o cartão. Confira o endereço e o frete e tente novamente. Nenhum dado completo do cartão foi armazenado pela Koda.");
                 reject();
               }
             }),
@@ -146,7 +220,17 @@ export function CardPaymentBrick({ productSlug, quantity, amountCents, enabled }
       controllerRef.current?.unmount();
       controllerRef.current = null;
     };
-  }, [amountCents, config?.card_ready, config?.public_key, enabled, productSlug, quantity]);
+  }, [
+    amountCents,
+    checkoutReference,
+    config?.card_ready,
+    config?.public_key,
+    enabled,
+    productSlug,
+    quantity,
+    shippingAddress,
+    shippingQuoteToken,
+  ]);
 
   if (!enabled) return null;
 
