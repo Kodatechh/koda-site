@@ -10,7 +10,7 @@ const corsHeaders = {
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
+    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
 }
 
@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: product, error } = await admin
     .from("commerce_products")
-    .select("slug,name,description,active,currency,unit_amount_cents,track_stock,stock_quantity,requires_shipping,weight_grams,length_mm,width_mm,height_mm")
+    .select("slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,shipping_mode,flat_shipping_cents,weight_grams,length_mm,width_mm,height_mm,published_at")
     .eq("slug", productSlug)
     .maybeSingle();
 
@@ -46,31 +46,40 @@ Deno.serve(async (req: Request) => {
   if (!product) return json({ error: "product_not_found" }, 404);
 
   const inStock = !product.track_stock || (product.stock_quantity ?? 0) > 0;
-  const mercadoPagoConfigured = Boolean(Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN"));
+  const mercadoPagoConfigured = Boolean(Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN")?.trim());
   const cardConfigured = mercadoPagoConfigured && Boolean(Deno.env.get("MERCADO_PAGO_PUBLIC_KEY")?.trim());
   const readyMethods: Array<"pix" | "card"> = [];
   if (mercadoPagoConfigured) readyMethods.push("pix");
   if (cardConfigured) readyMethods.push("card");
 
   const originPostalCode = Deno.env.get("KODA_ORIGIN_POSTAL_CODE")?.replace(/\D/g, "") ?? "";
-  const dimensionsReady = Boolean(product.weight_grams && product.length_mm && product.width_mm && product.height_mm);
-  const shippingConfigured = !product.requires_shipping || Boolean(
+  const carrierConfigured = Boolean(
     Deno.env.get("MELHOR_ENVIO_TOKEN")?.trim() &&
     originPostalCode.length === 8 &&
     Deno.env.get("MELHOR_ENVIO_USER_AGENT")?.trim() &&
-    dimensionsReady
+    product.weight_grams && product.length_mm && product.width_mm && product.height_mm
   );
+  const shippingConfigured = !product.requires_shipping ||
+    product.shipping_mode === "free" ||
+    (product.shipping_mode === "flat" && Number.isInteger(product.flat_shipping_cents) && product.flat_shipping_cents >= 0) ||
+    (product.shipping_mode === "carrier" && carrierConfigured);
 
   return json({
     product: {
       slug: product.slug,
       name: product.name,
+      short_description: product.short_description,
       description: product.description,
-      available: product.active && product.unit_amount_cents != null && inStock,
+      product_type: product.product_type,
+      image_url: product.image_url,
+      available: Boolean(product.active && product.unit_amount_cents != null && inStock),
       currency: product.currency,
       unit_amount_cents: product.unit_amount_cents,
+      compare_at_cents: product.compare_at_cents,
       in_stock: inStock,
       requires_shipping: product.requires_shipping,
+      requires_device: product.requires_device,
+      shipping_mode: product.shipping_mode,
     },
     koda_pay: {
       provider: "mercado_pago",
@@ -78,20 +87,21 @@ Deno.serve(async (req: Request) => {
       methods: ["pix", "card"],
       ready_methods: readyMethods,
       message: !mercadoPagoConfigured
-        ? "A integração Mercado Pago está preparada; falta adicionar a credencial de teste no servidor."
+        ? "A integração Mercado Pago está preparada; falta adicionar a credencial no servidor."
         : cardConfigured
           ? "Pix e cartão conectados ao Koda Pay."
           : "Pix conectado ao Koda Pay. Falta a Public Key para habilitar cartão.",
     },
     koda_shipping: {
-      provider: product.requires_shipping ? "melhor_envio" : "none",
+      provider: product.requires_shipping && product.shipping_mode === "carrier" ? "melhor_envio" : "koda",
       required: product.requires_shipping,
       ready: shippingConfigured,
+      mode: product.shipping_mode,
       message: !product.requires_shipping
         ? "Este produto não exige entrega física."
         : shippingConfigured
-          ? "Cálculo de frete disponível."
-          : "O provedor de frete ainda precisa das credenciais e dados de origem no servidor.",
+          ? "Cálculo de entrega disponível."
+          : "A configuração de entrega deste produto ainda está incompleta.",
     },
   });
 });
