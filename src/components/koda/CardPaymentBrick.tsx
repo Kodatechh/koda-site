@@ -18,6 +18,7 @@ type OrderRequest = {
   quantity: number;
   checkoutReference: string;
   deviceId?: string;
+  customerTaxId?: string;
   shippingAddress?: Record<string, string>;
   shippingQuoteToken?: string;
 };
@@ -37,6 +38,7 @@ type CardResult = {
   status: string;
   status_detail: string | null;
   local_status: string;
+  order_status?: string;
   challenge_url: string | null;
 };
 
@@ -66,6 +68,7 @@ export function CardPaymentBrick({ amountCents, enabled, orderRequest, existingO
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CardResult | null>(null);
   const [challengeComplete, setChallengeComplete] = useState(false);
+  const [syncingStatus, setSyncingStatus] = useState(false);
   const controllerRef = useRef<{ unmount: () => void } | null>(null);
   const orderIdRef = useRef<string | null>(existingOrderId ?? null);
   const requestKey = existingOrderId ?? JSON.stringify(orderRequest ?? {});
@@ -82,6 +85,7 @@ export function CardPaymentBrick({ amountCents, enabled, orderRequest, existingO
     orderIdRef.current = existingOrderId ?? null;
     setResult(null);
     setChallengeComplete(false);
+    setSyncingStatus(false);
   }, [requestKey, existingOrderId]);
 
   useEffect(() => {
@@ -91,6 +95,46 @@ export function CardPaymentBrick({ amountCents, enabled, orderRequest, existingO
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, []);
+
+  useEffect(() => {
+    if (!challengeComplete || !result?.provider_order_id || !orderIdRef.current) return;
+    if (result.status !== "action_required" && result.status_detail !== "pending_challenge") return;
+
+    let cancelled = false;
+    let attempts = 0;
+    let timer: number | null = null;
+    const orderId = orderIdRef.current;
+    const providerOrderId = result.provider_order_id;
+
+    const checkStatus = async () => {
+      if (cancelled) return;
+      attempts += 1;
+      setSyncingStatus(true);
+      const { data, error: syncError } = await supabase.functions.invoke<{ payment: CardResult }>("koda-pay-mercadopago-status", {
+        body: { orderId, providerOrderId },
+      });
+      if (cancelled) return;
+      if (!syncError && data?.payment) {
+        setResult(data.payment);
+        const finalStatus = ["processed", "failed", "canceled", "expired", "refunded"].includes(data.payment.status);
+        if (finalStatus) {
+          setSyncingStatus(false);
+          return;
+        }
+      }
+      if (attempts >= 12) {
+        setSyncingStatus(false);
+        return;
+      }
+      timer = window.setTimeout(checkStatus, 2500);
+    };
+
+    void checkStatus();
+    return () => {
+      cancelled = true;
+      if (timer != null) window.clearTimeout(timer);
+    };
+  }, [challengeComplete, result?.provider_order_id, result?.status, result?.status_detail]);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,6 +161,7 @@ export function CardPaymentBrick({ amountCents, enabled, orderRequest, existingO
                 setError(null);
                 setResult(null);
                 setChallengeComplete(false);
+                setSyncingStatus(false);
                 let orderId = existingOrderId ?? orderIdRef.current;
                 if (!orderId) {
                   if (!orderRequest) throw new Error("order_request_missing");
@@ -172,8 +217,8 @@ export function CardPaymentBrick({ amountCents, enabled, orderRequest, existingO
       <div className="mb-4 flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#0071e3]" /><div><p className="text-sm font-semibold">Pagar com cartão</p><p className="mt-1 text-xs leading-relaxed text-[#6e6e73]">Os dados são tokenizados pelo Mercado Pago no navegador e não passam em formato bruto pelos servidores da Koda.</p></div></div>
       {!ready && !error && <div className="mb-3 flex items-center gap-2 text-xs text-[#6e6e73]"><LoaderCircle className="h-4 w-4 animate-spin" />Carregando pagamento seguro…</div>}
       <div id="koda-card-payment-brick" />
-      {result?.status === "processed" && <div className="mt-4 flex gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-950"><CheckCircle2 className="h-5 w-5 shrink-0 text-green-700" />Pagamento aprovado. O pedido também será confirmado pelo webhook do Koda Pay.</div>}
-      {result?.challenge_url && <div className="mt-5 overflow-hidden rounded-2xl border border-black/10"><div className="bg-[#f5f5f7] px-4 py-3 text-xs font-semibold">Verificação de segurança 3DS</div><iframe title="Autenticação 3DS" src={result.challenge_url} className="h-[520px] w-full bg-white" />{challengeComplete && <p className="p-4 text-xs text-[#6e6e73]">Autenticação concluída. Aguardando a confirmação final do banco e do Koda Pay.</p>}</div>}
+      {result?.status === "processed" && <div className="mt-4 flex gap-3 rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-950"><CheckCircle2 className="h-5 w-5 shrink-0 text-green-700" />Pagamento aprovado. O pedido foi confirmado pelo Koda Pay.</div>}
+      {result?.challenge_url && result.status === "action_required" && <div className="mt-5 overflow-hidden rounded-2xl border border-black/10"><div className="bg-[#f5f5f7] px-4 py-3 text-xs font-semibold">Verificação de segurança 3DS</div><iframe title="Autenticação 3DS" src={result.challenge_url} className="h-[520px] w-full bg-white" />{challengeComplete && <p className="flex items-center gap-2 p-4 text-xs text-[#6e6e73]">{syncingStatus && <LoaderCircle className="h-3.5 w-3.5 animate-spin" />}Autenticação concluída. Confirmando o pagamento com o Mercado Pago…</p>}</div>}
       {result && result.status !== "processed" && !result.challenge_url && <p className="mt-4 text-xs font-medium text-[#6e6e73]">Status do pagamento: {result.status_detail ?? result.status}.</p>}
       {error && <p className="mt-4 text-xs font-medium text-red-600">{error}</p>}
     </div>
