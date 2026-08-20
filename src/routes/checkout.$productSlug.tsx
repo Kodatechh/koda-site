@@ -151,6 +151,34 @@ function displayModel(model: string) {
   return model;
 }
 
+function validCpf(value: string) {
+  if (!/^\d{11}$/.test(value) || /^(\d)\1{10}$/.test(value)) return false;
+  const calc = (length: number) => {
+    let sum = 0;
+    for (let i = 0; i < length; i += 1) sum += Number(value[i]) * (length + 1 - i);
+    const digit = 11 - (sum % 11);
+    return digit >= 10 ? 0 : digit;
+  };
+  return calc(9) === Number(value[9]) && calc(10) === Number(value[10]);
+}
+
+function validCnpj(value: string) {
+  if (!/^\d{14}$/.test(value) || /^(\d)\1{13}$/.test(value)) return false;
+  const digit = (base: string, weights: number[]) => {
+    const sum = base.split("").reduce((total, current, index) => total + Number(current) * weights[index], 0);
+    const result = 11 - (sum % 11);
+    return result >= 10 ? 0 : result;
+  };
+  const first = digit(value.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const second = digit(value.slice(0, 12) + first, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return first === Number(value[12]) && second === Number(value[13]);
+}
+
+function validTaxId(value: string) {
+  const clean = value.replace(/\D/g, "");
+  return clean.length === 11 ? validCpf(clean) : clean.length === 14 ? validCnpj(clean) : false;
+}
+
 async function functionErrorCode(error: unknown) {
   const context = (error as { context?: Response })?.context;
   if (!context) return null;
@@ -168,6 +196,7 @@ function friendlyError(code: string | null, fallback: string) {
     device_required: "Escolha o KodaBot que será vinculado a esta compra.",
     device_not_owned: "Este KodaBot não pertence à sua Conta Koda.",
     device_not_eligible_for_kodacare: "Este KodaBot não está elegível para contratar KodaCare agora.",
+    invalid_customer_tax_id: "Confira o CPF ou CNPJ informado para a nota fiscal.",
     shipping_address_required: "Preencha o endereço de entrega antes de continuar.",
     invalid_shipping_address: "Confira os dados do endereço de entrega.",
     shipping_provider_not_configured: "A entrega deste produto ainda precisa ser configurada pela Koda.",
@@ -223,6 +252,7 @@ function CheckoutPage() {
   const [pix, setPix] = useState<PixPayment | null>(null);
   const [copied, setCopied] = useState(false);
   const [checkoutReference] = useState(createCheckoutReference);
+  const [customerTaxId, setCustomerTaxId] = useState("");
 
   const [devices, setDevices] = useState<KodaDevice[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
@@ -355,17 +385,19 @@ function CheckoutPage() {
   const totalCents = subtotalCents == null ? null : subtotalCents + (selectedShipping?.price_cents ?? 0);
   const deviceReady = !deviceRequired || Boolean(selectedDeviceId);
   const shippingReady = !shippingRequired || (addressValid && Boolean(selectedShipping?.quote_token));
-  const checkoutReady = Boolean(user && catalog?.product.available && deviceReady && shippingReady);
+  const taxIdReady = validTaxId(customerTaxId);
+  const checkoutReady = Boolean(user && catalog?.product.available && deviceReady && shippingReady && taxIdReady);
   const paid = Boolean(order && ["paid", "processing", "shipped", "delivered"].includes(order.status));
 
   const orderRequest = useMemo(() => ({
     productSlug: catalog?.product.slug ?? productSlug,
     quantity,
     checkoutReference,
+    customerTaxId: customerTaxId.replace(/\D/g, ""),
     ...(deviceRequired && selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
     ...(shippingRequired ? { shippingAddress: address as unknown as Record<string, string> } : {}),
     ...(shippingRequired && selectedShipping?.quote_token ? { shippingQuoteToken: selectedShipping.quote_token } : {}),
-  }), [catalog?.product.slug, productSlug, quantity, checkoutReference, deviceRequired, selectedDeviceId, shippingRequired, address, selectedShipping?.quote_token]);
+  }), [catalog?.product.slug, productSlug, quantity, checkoutReference, customerTaxId, deviceRequired, selectedDeviceId, shippingRequired, address, selectedShipping?.quote_token]);
 
   function updateAddress(field: keyof Address, value: string) {
     setAddress((current) => ({ ...current, [field]: field === "state" ? value.toUpperCase().slice(0, 2) : value }));
@@ -440,10 +472,11 @@ function CheckoutPage() {
             </div>
 
             <section className="rounded-[38px] bg-white p-7 sm:p-9 lg:sticky lg:top-16"><div className="flex items-center justify-between gap-4"><div><p className="text-sm font-semibold text-[#0071e3]">Resumo</p><h2 className="mt-1 text-3xl font-semibold tracking-[-.045em]">Finalizar compra</h2></div><LockKeyhole className="h-6 w-6 text-[#0071e3]" /></div><div className="mt-7 space-y-3 border-y border-black/10 py-6 text-sm"><div className="flex justify-between gap-4"><span className="text-[#6e6e73]">Produtos</span><span>{formatMoney(subtotalCents, catalog.product.currency)}</span></div>{shippingRequired && <div className="flex justify-between gap-4"><span className="text-[#6e6e73]">Entrega</span><span>{selectedShipping ? (selectedShipping.price_cents === 0 ? "Grátis" : formatMoney(selectedShipping.price_cents, catalog.product.currency)) : "Calcule acima"}</span></div>}{selectedDevice && <div className="flex justify-between gap-4"><span className="text-[#6e6e73]">Vinculado a</span><span className="font-mono text-xs">{selectedDevice.serial_number}</span></div>}<div className="flex items-end justify-between gap-4 border-t border-black/10 pt-4"><div><span className="font-semibold">Total</span><p className="mt-1 text-[11px] text-[#86868b]">Calculado e validado no servidor</p></div><strong className="text-2xl tracking-[-.04em]">{formatMoney(totalCents, catalog.product.currency)}</strong></div></div>
+              <div className="mt-6 rounded-2xl bg-[#f5f5f7] p-4"><Field label="CPF ou CNPJ para nota fiscal" value={customerTaxId} onChange={(v) => setCustomerTaxId(v.replace(/\D/g, "").slice(0, 14))} disabled={paymentLocked} inputMode="numeric" maxLength={14} /><p className="mt-2 text-[10px] leading-relaxed text-[#86868b]">Usado exclusivamente na documentação fiscal desta compra.</p></div>
               <div className="mt-6 grid grid-cols-2 gap-2"><button type="button" disabled={!pixReady || paymentLocked} onClick={() => setPaymentMethod("pix")} className={`rounded-2xl border p-4 text-left ${paymentMethod === "pix" ? "border-[#0071e3] bg-[#f5f9ff]" : "border-black/10"} disabled:opacity-40`}><QrCode className="h-5 w-5 text-[#0071e3]" /><p className="mt-3 text-sm font-semibold">Pix</p></button><button type="button" disabled={!cardReady || paymentLocked} onClick={() => setPaymentMethod("card")} className={`rounded-2xl border p-4 text-left ${paymentMethod === "card" ? "border-[#0071e3] bg-[#f5f9ff]" : "border-black/10"} disabled:opacity-40`}><CreditCard className="h-5 w-5 text-[#0071e3]" /><p className="mt-3 text-sm font-semibold">Cartão</p></button></div>
               {!user ? <a href={`/conta/entrar?returnTo=${encodeURIComponent(`/checkout/${productSlug}`)}`} className="mt-6 flex w-full justify-center rounded-full bg-[#0071e3] px-6 py-3.5 text-sm font-semibold text-white">Entrar para continuar</a> : paymentMethod === "pix" ? (pix ? <div className="mt-6 rounded-[24px] border border-[#b8d9ff] bg-[#f5f9ff] p-5"><p className="text-sm font-semibold">Pague com Pix</p><p className="mt-1 text-xs text-[#6e6e73]">A confirmação é automática pelo Koda Pay.</p>{pix.qr_code_base64 && <div className="mx-auto mt-5 w-fit rounded-2xl bg-white p-3"><img src={`data:image/png;base64,${pix.qr_code_base64}`} alt="QR Code Pix" className="h-48 w-48" /></div>}<div className="mt-4 rounded-xl bg-white p-3"><p className="max-h-16 overflow-hidden break-all font-mono text-[10px] text-[#424245]">{pix.qr_code}</p><button type="button" onClick={copyPix} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-[#0066cc]"><Copy className="h-3.5 w-3.5" />{copied ? "Copiado" : "Copiar Pix"}</button>{pix.ticket_url && <a href={pix.ticket_url} target="_blank" rel="noreferrer" className="ml-4 inline-flex items-center gap-1 text-xs font-semibold text-[#0066cc]">Abrir <ExternalLink className="h-3 w-3" /></a>}</div><div className="mt-4 flex items-center gap-2 text-[11px] text-[#6e6e73]"><LoaderCircle className="h-3.5 w-3.5 animate-spin" />Aguardando confirmação…</div></div> : <button type="button" onClick={createPixOrder} disabled={!checkoutReady || !pixReady || submitting} className="mt-6 flex w-full justify-center rounded-full bg-[#0071e3] px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#0077ed] disabled:cursor-not-allowed disabled:bg-[#d2d2d7]">{submitting ? "Preparando Pix…" : "Pagar com Pix"}</button>) : <CardPaymentBrick amountCents={totalCents} enabled={checkoutReady && cardReady} orderRequest={orderRequest} onOrderCreated={(created) => setOrder({ id: created.id, display_number: created.display_number, status: created.status ?? "draft" })} />}
-              {!checkoutReady && user && catalog.product.available && <div className="mt-5 rounded-2xl bg-[#f5f5f7] p-4 text-xs leading-relaxed text-[#6e6e73]">{deviceRequired && !deviceReady ? "Escolha um KodaBot para continuar." : shippingRequired && !shippingReady ? "Preencha o endereço e escolha uma opção de entrega." : "Complete os dados acima para continuar."}</div>}{!catalog.product.available && <div className="mt-5 rounded-2xl bg-[#fff4e5] p-4 text-xs text-[#7a4a00]">Este produto está indisponível no momento.</div>}{error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-center text-xs font-medium text-red-700">{error}</p>}
-              <div className="mt-7 space-y-2 border-t border-black/10 pt-6 text-[11px] leading-relaxed text-[#86868b]"><p>O preço, estoque, dispositivo e entrega são validados no servidor da Koda antes da cobrança.</p><p>Pagamentos são processados pelo Mercado Pago por meio do Koda Pay.</p>{catalog.product.product_type === "coverage" && <p>O KodaCare só é ativado depois da confirmação do pagamento e da validação de elegibilidade do KodaBot.</p>}</div>
+              {!checkoutReady && user && catalog.product.available && <div className="mt-5 rounded-2xl bg-[#f5f5f7] p-4 text-xs leading-relaxed text-[#6e6e73]">{!taxIdReady ? "Informe um CPF ou CNPJ válido para a nota fiscal." : deviceRequired && !deviceReady ? "Escolha um KodaBot para continuar." : shippingRequired && !shippingReady ? "Preencha o endereço e escolha uma opção de entrega." : "Complete os dados acima para continuar."}</div>}{!catalog.product.available && <div className="mt-5 rounded-2xl bg-[#fff4e5] p-4 text-xs text-[#7a4a00]">Este produto está indisponível no momento.</div>}{error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-center text-xs font-medium text-red-700">{error}</p>}
+              <div className="mt-7 space-y-2 border-t border-black/10 pt-6 text-[11px] leading-relaxed text-[#86868b]"><p>O preço, estoque, dispositivo e entrega são validados no servidor da Koda antes da cobrança.</p><p>Pagamentos são processados pelo Mercado Pago por meio do Koda Pay.</p><p>O CPF/CNPJ é armazenado somente para o registro fiscal do pedido e não é enviado ao processador de cartão pela Koda.</p>{catalog.product.product_type === "coverage" && <p>O KodaCare só é ativado depois da confirmação do pagamento e da validação de elegibilidade do KodaBot.</p>}</div>
             </section>
           </div>
         ) : null}
