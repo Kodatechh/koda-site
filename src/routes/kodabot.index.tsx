@@ -34,35 +34,51 @@ export const Route = createFileRoute("/kodabot/")({
   component: KodaBot,
 });
 
+const features = [
+  {
+    title: "Tela e toque",
+    description:
+      "A tela touch de 2,8 polegadas reúne hora, alertas e controles em uma interface direta.",
+    image: "/kodabot-feature-screen-v1.png",
+    alt: "Close da tela touch do KodaBot com a interface KODA OS",
+    position: "center",
+  },
+  {
+    title: "Rotina à primeira vista",
+    description:
+      "Tarefas, lembretes, alarmes e calendário aparecem sem abrir o celular ou entrar em um feed.",
+    image: "/kodabot-feature-routine-v1.png",
+    alt: "KodaBot integrado a uma rotina de estudos em uma mesa",
+    position: "center",
+  },
+  {
+    title: "Hardware",
+    description:
+      "Uma visualização técnica reúne a tela de 2,8 polegadas, a placa principal, o sensor ambiental e a alimentação dentro do corpo compacto.",
+    image: "/kodabot-feature-hardware-v1.png",
+    alt: "Visualização técnica artificial dos principais componentes do KodaBot",
+    position: "center",
+  },
+  {
+    title: "Informações do ambiente",
+    description:
+      "O sensor BME280 permite consultar temperatura, umidade e pressão diretamente no KodaBot.",
+    image: "/kodabot-feature-environment-v1.png",
+    alt: "KodaBot em uma sala com iluminação que representa as condições do ambiente",
+    position: "center",
+  },
+  {
+    title: "KODA OS",
+    description:
+      "Uma interface criada para o KodaBot, com painel local e base preparada para atualizações OTA.",
+    image: "/kodabot-dark-explorer-v1.png",
+    alt: "KodaBot com a interface KODA OS em um estúdio escuro",
+    position: "68% center",
+  },
+] as const;
+
 function KodaBot() {
   const [activeFeature, setActiveFeature] = useState(0);
-  const features = [
-    {
-      title: "Tela e toque",
-      description:
-        "A tela touch de 2,8 polegadas reúne hora, alertas e controles em uma interface direta.",
-    },
-    {
-      title: "Rotina à primeira vista",
-      description:
-        "Tarefas, lembretes, alarmes e calendário aparecem sem abrir o celular ou entrar em um feed.",
-    },
-    {
-      title: "Informações do ambiente",
-      description:
-        "O sensor BME280 permite consultar temperatura, umidade e pressão diretamente no KodaBot.",
-    },
-    {
-      title: "Configuração por Wi‑Fi",
-      description:
-        "A rede KodaBot-Setup orienta a primeira conexão. Depois, o aparelho volta à sua rede automaticamente.",
-    },
-    {
-      title: "KODA OS",
-      description:
-        "Uma interface criada para o KodaBot, com painel local e base preparada para atualizações OTA.",
-    },
-  ];
 
   const moveFeature = (direction: number) => {
     setActiveFeature((current) => (current + direction + features.length) % features.length);
@@ -202,14 +218,23 @@ function KodaBot() {
               </div>
 
               <div className="relative order-1 h-[470px] lg:order-2 lg:h-[760px]">
-                <img
-                  src="/kodabot-dark-explorer-v1.png"
-                  alt="KodaBot em estúdio escuro"
-                  className="absolute inset-0 h-full w-full object-cover object-[68%_center] transition-transform duration-700 ease-out"
-                  style={{
-                    transform: `scale(${1 + activeFeature * 0.012}) translateX(${activeFeature * -0.35}%)`,
-                  }}
-                />
+                {features.map((feature, index) => {
+                  const active = activeFeature === index;
+                  return (
+                    <img
+                      key={feature.image}
+                      src={feature.image}
+                      alt={active ? feature.alt : ""}
+                      aria-hidden={!active}
+                      className={`absolute inset-0 h-full w-full object-cover transition-[opacity,transform,filter] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                        active
+                          ? "scale-100 opacity-100 blur-0"
+                          : "pointer-events-none scale-[1.025] opacity-0 blur-[3px]"
+                      }`}
+                      style={{ objectPosition: feature.position }}
+                    />
+                  );
+                })}
                 <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black via-black/55 to-transparent" />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black to-transparent" />
               </div>
