@@ -19,7 +19,7 @@ type OrderRequest = {
   checkoutReference: string;
   deviceId?: string;
   shippingAddress?: Record<string, string>;
-  shippingServiceId?: string;
+  shippingQuoteToken?: string;
 };
 
 type Props = {
