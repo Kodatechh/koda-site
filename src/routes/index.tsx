@@ -13,7 +13,7 @@ export const Route = createFileRoute("/")({
       { title: "Koda — tecnologia para o seu dia" },
       {
         name: "description",
-        content: "Conheça o KodaBot I, o KodaBot I Pro, o KODA OS e a KodaCloud.",
+        content: "Conheça o KodaBot, o KodaBot Pro, o KODA OS e a KodaCloud.",
       },
       { property: "og:title", content: "Koda — tecnologia para o seu dia" },
       {
@@ -39,7 +39,7 @@ function Home() {
           <div className="mx-auto max-w-6xl px-5 pb-0 pt-14 sm:pt-20">
             <p className="text-sm font-semibold text-[#0071e3]">Pré-venda por R$ 99,90</p>
             <h1 className="mt-1 text-5xl font-semibold tracking-[-0.045em] sm:text-6xl">
-              KodaBot I
+              KodaBot
             </h1>
             <p className="mx-auto mt-3 max-w-xl text-xl font-medium tracking-[-0.02em] sm:text-2xl">
               Simples, útil e bonito para o seu dia.
@@ -56,7 +56,7 @@ function Home() {
               </a>
             </div>
 
-            <a href="/kodabot" className="mt-8 block" aria-label="Conhecer o KodaBot I">
+            <a href="/kodabot" className="mt-8 block" aria-label="Conhecer o KodaBot">
               <ProductPhotoSlot
                 label="Aguardando kodabot-i-hero-light"
                 className="mx-auto h-[430px] max-w-5xl sm:h-[620px]"
@@ -103,9 +103,9 @@ function Home() {
             id="kodabot-pro"
             className="relative min-h-[610px] overflow-hidden bg-[#000] px-6 pt-14 text-center text-white sm:px-10"
           >
-            <p className="text-sm font-semibold text-white/55">KodaBot I Pro</p>
+            <p className="text-sm font-semibold text-white/55">KodaBot Pro</p>
             <h2 className="mt-1 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-              KodaBot I Pro
+              KodaBot Pro
             </h2>
             <p className="mx-auto mt-3 max-w-md text-lg font-medium text-white/78 sm:text-xl">
               A experiência Koda, agora feita para conversar.
@@ -197,13 +197,13 @@ function Home() {
             <div className="absolute inset-x-0 bottom-10 mx-auto grid h-56 max-w-md grid-cols-2 gap-4 px-8">
               <div className="grid place-items-center rounded-[32px] bg-white shadow-xl">
                 <div>
-                  <p className="text-2xl font-semibold">KodaBot I</p>
+                  <p className="text-2xl font-semibold">KodaBot</p>
                   <p className="mt-1 text-xs text-[#86868b]">Tela touch</p>
                 </div>
               </div>
               <div className="grid place-items-center rounded-[32px] bg-[#111] text-white shadow-xl">
                 <div>
-                  <p className="text-2xl font-semibold">I Pro</p>
+                  <p className="text-2xl font-semibold">Pro</p>
                   <p className="mt-1 text-xs text-white/50">Voz</p>
                 </div>
               </div>
