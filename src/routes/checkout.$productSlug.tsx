@@ -82,10 +82,13 @@ type KodaDevice = {
 
 type ShippingOption = {
   id: string;
+  service_id?: string;
   name: string;
   company?: string | null;
   price_cents: number;
   deadline_days: number | null;
+  quote_token: string;
+  expires_at?: string;
 };
 
 type ShippingResponse = {
@@ -166,12 +169,15 @@ function friendlyError(code: string | null, fallback: string) {
     device_not_owned: "Este KodaBot não pertence à sua Conta Koda.",
     device_not_eligible_for_kodacare: "Este KodaBot não está elegível para contratar KodaCare agora.",
     shipping_address_required: "Preencha o endereço de entrega antes de continuar.",
+    invalid_shipping_address: "Confira os dados do endereço de entrega.",
     shipping_provider_not_configured: "A entrega deste produto ainda precisa ser configurada pela Koda.",
     shipping_origin_not_configured: "A origem de envio ainda precisa ser configurada pela Koda.",
     shipping_dimensions_missing: "As dimensões de envio deste produto ainda não foram cadastradas.",
     flat_shipping_not_configured: "O valor de entrega deste produto ainda não foi configurado.",
     shipping_no_options: "Não encontramos uma opção de entrega para este CEP.",
-    shipping_service_invalid: "A opção de entrega mudou. Calcule o frete novamente.",
+    shipping_provider_error: "A transportadora não respondeu corretamente. Tente calcular a entrega novamente.",
+    shipping_service_invalid: "A opção de entrega expirou ou mudou. Calcule o frete novamente.",
+    shipping_quote_required: "Calcule e escolha a entrega novamente.",
     insufficient_stock: "Não há estoque suficiente para esta quantidade.",
     product_unavailable: "Este produto não está disponível para compra agora.",
   };
@@ -348,7 +354,7 @@ function CheckoutPage() {
 
   const totalCents = subtotalCents == null ? null : subtotalCents + (selectedShipping?.price_cents ?? 0);
   const deviceReady = !deviceRequired || Boolean(selectedDeviceId);
-  const shippingReady = !shippingRequired || (addressValid && Boolean(selectedShipping));
+  const shippingReady = !shippingRequired || (addressValid && Boolean(selectedShipping?.quote_token));
   const checkoutReady = Boolean(user && catalog?.product.available && deviceReady && shippingReady);
   const paid = Boolean(order && ["paid", "processing", "shipped", "delivered"].includes(order.status));
 
@@ -358,8 +364,8 @@ function CheckoutPage() {
     checkoutReference,
     ...(deviceRequired && selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
     ...(shippingRequired ? { shippingAddress: address as unknown as Record<string, string> } : {}),
-    ...(shippingRequired && selectedShippingId ? { shippingServiceId: selectedShippingId } : {}),
-  }), [catalog?.product.slug, productSlug, quantity, checkoutReference, deviceRequired, selectedDeviceId, shippingRequired, address, selectedShippingId]);
+    ...(shippingRequired && selectedShipping?.quote_token ? { shippingQuoteToken: selectedShipping.quote_token } : {}),
+  }), [catalog?.product.slug, productSlug, quantity, checkoutReference, deviceRequired, selectedDeviceId, shippingRequired, address, selectedShipping?.quote_token]);
 
   function updateAddress(field: keyof Address, value: string) {
     setAddress((current) => ({ ...current, [field]: field === "state" ? value.toUpperCase().slice(0, 2) : value }));
@@ -367,6 +373,7 @@ function CheckoutPage() {
 
   async function calculateShipping() {
     if (!catalog?.product.requires_shipping) return;
+    if (!user) { setError("Entre na Conta Koda para calcular a entrega."); return; }
     const postalCode = address.postalCode.replace(/\D/g, "");
     if (postalCode.length !== 8) { setError("Informe um CEP válido para calcular a entrega."); return; }
     setShippingLoading(true);
@@ -429,7 +436,7 @@ function CheckoutPage() {
 
               {deviceRequired && <section className="rounded-[38px] bg-white p-7 sm:p-10"><div className="flex items-center gap-3"><ShieldCheck className={`h-5 w-5 ${catalog.product.product_type === "coverage" ? "text-[#e11900]" : "text-[#0071e3]"}`} /><div><h2 className="text-xl font-semibold tracking-[-.03em]">Escolha seu KodaBot</h2><p className="mt-0.5 text-xs text-[#86868b]">Esta compra será vinculada diretamente ao dispositivo.</p></div></div>{!user ? <p className="mt-6 rounded-2xl bg-[#f5f5f7] p-5 text-sm text-[#6e6e73]">Entre na Conta Koda para selecionar um dispositivo.</p> : devicesLoading ? <p className="mt-6 flex items-center gap-2 text-sm text-[#6e6e73]"><LoaderCircle className="h-4 w-4 animate-spin" />Carregando seus KodaBots…</p> : devices.length ? <div className="mt-6 grid gap-3">{devices.map((device) => { const eligible = catalog.product.product_type !== "coverage" || device.eligible; return <button key={device.id} type="button" disabled={!eligible || paymentLocked} onClick={() => setSelectedDeviceId(device.id)} className={`flex items-center justify-between gap-4 rounded-2xl border p-4 text-left transition ${selectedDeviceId === device.id ? "border-[#0071e3] bg-[#f5f9ff]" : "border-black/10"} disabled:cursor-not-allowed disabled:opacity-45`}><div><p className="font-semibold">{displayModel(device.model)}</p><p className="mt-1 font-mono text-[11px] text-[#86868b]">{device.serial_number}</p></div><span className={`text-[11px] font-semibold ${eligible ? "text-[#248a3d]" : "text-[#bf4800]"}`}>{eligible ? "Elegível" : device.current_plan ? "Já possui cobertura" : "Não elegível"}</span></button>; })}</div> : <div className="mt-6 rounded-2xl bg-[#fff4e5] p-5 text-sm text-[#7a4a00]"><p className="font-semibold">Nenhum KodaBot disponível.</p><p className="mt-1 text-xs">Ative um KodaBot na sua Conta Koda antes de comprar este item.</p></div>}</section>}
 
-              {shippingRequired && <section className="rounded-[38px] bg-white p-7 sm:p-10"><div className="flex items-center gap-3"><Truck className="h-5 w-5 text-[#0071e3]" /><div><h2 className="text-xl font-semibold tracking-[-.03em]">Entrega</h2><p className="mt-0.5 text-xs text-[#86868b]">Seu endereço e o frete são validados antes do pedido.</p></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><Field label="Nome de quem recebe" value={address.recipient} onChange={(v) => updateAddress("recipient", v)} disabled={paymentLocked} className="sm:col-span-2" /><Field label="CEP" value={address.postalCode} onChange={(v) => updateAddress("postalCode", v.replace(/\D/g, "").slice(0, 8))} disabled={paymentLocked} inputMode="numeric" maxLength={8} /><Field label="Telefone" value={address.phone} onChange={(v) => updateAddress("phone", v)} disabled={paymentLocked} inputMode="tel" /><Field label="Rua / avenida" value={address.street} onChange={(v) => updateAddress("street", v)} disabled={paymentLocked} className="sm:col-span-2" /><Field label="Número" value={address.number} onChange={(v) => updateAddress("number", v)} disabled={paymentLocked} /><Field label="Complemento" value={address.complement} onChange={(v) => updateAddress("complement", v)} disabled={paymentLocked} /><Field label="Bairro" value={address.neighborhood} onChange={(v) => updateAddress("neighborhood", v)} disabled={paymentLocked} /><Field label="Cidade" value={address.city} onChange={(v) => updateAddress("city", v)} disabled={paymentLocked} /><Field label="UF" value={address.state} onChange={(v) => updateAddress("state", v)} disabled={paymentLocked} maxLength={2} /></div><button type="button" disabled={paymentLocked || shippingLoading || address.postalCode.replace(/\D/g, "").length !== 8} onClick={calculateShipping} className="mt-5 inline-flex rounded-full bg-[#1d1d1f] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-35">{shippingLoading ? "Calculando…" : "Calcular entrega"}</button>{shippingOptions.length > 0 && <div className="mt-5 grid gap-2">{shippingOptions.map((option) => <button key={option.id} type="button" disabled={paymentLocked} onClick={() => setSelectedShippingId(option.id)} className={`flex items-center justify-between gap-5 rounded-2xl border p-4 text-left ${selectedShippingId === option.id ? "border-[#0071e3] bg-[#f5f9ff]" : "border-black/10"}`}><div><p className="text-sm font-semibold">{option.name}</p><p className="mt-1 text-[11px] text-[#86868b]">{option.company || shippingProvider || "Koda"}{option.deadline_days != null ? ` · até ${option.deadline_days} dias úteis` : ""}</p></div><strong className="text-sm">{option.price_cents === 0 ? "Grátis" : formatMoney(option.price_cents)}</strong></button>)}</div>}</section>}
+              {shippingRequired && <section className="rounded-[38px] bg-white p-7 sm:p-10"><div className="flex items-center gap-3"><Truck className="h-5 w-5 text-[#0071e3]" /><div><h2 className="text-xl font-semibold tracking-[-.03em]">Entrega</h2><p className="mt-0.5 text-xs text-[#86868b]">Seu endereço e o frete são validados antes do pedido.</p></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><Field label="Nome de quem recebe" value={address.recipient} onChange={(v) => updateAddress("recipient", v)} disabled={paymentLocked} className="sm:col-span-2" /><Field label="CEP" value={address.postalCode} onChange={(v) => updateAddress("postalCode", v.replace(/\D/g, "").slice(0, 8))} disabled={paymentLocked} inputMode="numeric" maxLength={8} /><Field label="Telefone" value={address.phone} onChange={(v) => updateAddress("phone", v.replace(/\D/g, "").slice(0, 11))} disabled={paymentLocked} inputMode="tel" /><Field label="Rua / avenida" value={address.street} onChange={(v) => updateAddress("street", v)} disabled={paymentLocked} className="sm:col-span-2" /><Field label="Número" value={address.number} onChange={(v) => updateAddress("number", v)} disabled={paymentLocked} /><Field label="Complemento" value={address.complement} onChange={(v) => updateAddress("complement", v)} disabled={paymentLocked} /><Field label="Bairro" value={address.neighborhood} onChange={(v) => updateAddress("neighborhood", v)} disabled={paymentLocked} /><Field label="Cidade" value={address.city} onChange={(v) => updateAddress("city", v)} disabled={paymentLocked} /><Field label="UF" value={address.state} onChange={(v) => updateAddress("state", v)} disabled={paymentLocked} maxLength={2} /></div><button type="button" disabled={!user || paymentLocked || shippingLoading || address.postalCode.replace(/\D/g, "").length !== 8} onClick={calculateShipping} className="mt-5 inline-flex rounded-full bg-[#1d1d1f] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-35">{shippingLoading ? "Calculando…" : "Calcular entrega"}</button>{shippingOptions.length > 0 && <div className="mt-5 grid gap-2">{shippingOptions.map((option) => <button key={option.id} type="button" disabled={paymentLocked} onClick={() => setSelectedShippingId(option.id)} className={`flex items-center justify-between gap-5 rounded-2xl border p-4 text-left ${selectedShippingId === option.id ? "border-[#0071e3] bg-[#f5f9ff]" : "border-black/10"}`}><div><p className="text-sm font-semibold">{option.name}</p><p className="mt-1 text-[11px] text-[#86868b]">{option.company || shippingProvider || "Koda"}{option.deadline_days != null ? ` · até ${option.deadline_days} dias úteis` : ""}</p></div><strong className="text-sm">{option.price_cents === 0 ? "Grátis" : formatMoney(option.price_cents)}</strong></button>)}</div>}</section>}
             </div>
 
             <section className="rounded-[38px] bg-white p-7 sm:p-9 lg:sticky lg:top-16"><div className="flex items-center justify-between gap-4"><div><p className="text-sm font-semibold text-[#0071e3]">Resumo</p><h2 className="mt-1 text-3xl font-semibold tracking-[-.045em]">Finalizar compra</h2></div><LockKeyhole className="h-6 w-6 text-[#0071e3]" /></div><div className="mt-7 space-y-3 border-y border-black/10 py-6 text-sm"><div className="flex justify-between gap-4"><span className="text-[#6e6e73]">Produtos</span><span>{formatMoney(subtotalCents, catalog.product.currency)}</span></div>{shippingRequired && <div className="flex justify-between gap-4"><span className="text-[#6e6e73]">Entrega</span><span>{selectedShipping ? (selectedShipping.price_cents === 0 ? "Grátis" : formatMoney(selectedShipping.price_cents, catalog.product.currency)) : "Calcule acima"}</span></div>}{selectedDevice && <div className="flex justify-between gap-4"><span className="text-[#6e6e73]">Vinculado a</span><span className="font-mono text-xs">{selectedDevice.serial_number}</span></div>}<div className="flex items-end justify-between gap-4 border-t border-black/10 pt-4"><div><span className="font-semibold">Total</span><p className="mt-1 text-[11px] text-[#86868b]">Calculado e validado no servidor</p></div><strong className="text-2xl tracking-[-.04em]">{formatMoney(totalCents, catalog.product.currency)}</strong></div></div>
