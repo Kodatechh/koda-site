@@ -205,6 +205,13 @@ export function Nav() {
     };
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = mobile ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobile]);
+
   const closeNavigation = () => {
     hideMenu();
     setMobile(false);
@@ -215,7 +222,10 @@ export function Nav() {
 
   return (
     <>
-      <header ref={headerRef} className="sticky top-0 z-[60] h-11 border-b border-black/[.035] bg-white/90 text-[#1d1d1f] backdrop-blur-2xl supports-[backdrop-filter]:bg-white/82">
+      <header
+        ref={headerRef}
+        className="sticky top-0 z-[60] h-11 border-b border-black/[.035] bg-white/90 text-[#1d1d1f] backdrop-blur-2xl supports-[backdrop-filter]:bg-white/82"
+      >
         <nav className="mx-auto grid h-11 max-w-[1024px] grid-cols-[44px_1fr_auto] items-center px-3 sm:px-5">
           <a
             href="/"
@@ -228,7 +238,13 @@ export function Nav() {
 
           <ul className="hidden h-11 items-center justify-center gap-[30px] lg:flex">
             {navItems.map((item) => (
-              <li key={item.label} className="flex h-11 items-center">
+              <li
+                key={item.label}
+                className="flex h-11 items-center"
+                onMouseEnter={() => {
+                  if (!item.menu) hideMenu(true);
+                }}
+              >
                 {item.menu ? (
                   <button
                     type="button"
@@ -277,7 +293,11 @@ export function Nav() {
               onClick={() => setMobile((value) => !value)}
               className="grid h-11 w-10 place-items-center outline-none lg:hidden"
             >
-              {mobile ? <X className="h-[17px] w-[17px]" /> : <Menu className="h-[17px] w-[17px]" />}
+              {mobile ? (
+                <X className="h-[17px] w-[17px]" />
+              ) : (
+                <Menu className="h-[17px] w-[17px]" />
+              )}
             </button>
           </div>
         </nav>
@@ -288,7 +308,9 @@ export function Nav() {
             onMouseEnter={() => showMenu(activeItem.label)}
             onMouseLeave={() => hideMenu(true)}
             className={`absolute left-0 right-0 top-11 hidden border-t border-black/[.035] bg-white transition-[opacity,transform] duration-[220ms] ease-out lg:block ${
-              menuClosing ? "pointer-events-none -translate-y-2 opacity-0" : "translate-y-0 opacity-100"
+              menuClosing
+                ? "pointer-events-none -translate-y-2 opacity-0"
+                : "translate-y-0 opacity-100"
             }`}
           >
             <div className="mx-auto grid min-h-[330px] max-w-[1024px] grid-cols-[1.35fr_.8fr_.8fr] gap-16 px-5 pb-14 pt-10">
@@ -302,11 +324,17 @@ export function Nav() {
                           href={item.href}
                           onClick={closeNavigation}
                           className={`block w-fit text-[#1d1d1f] outline-none transition-opacity hover:opacity-55 focus-visible:ring-2 focus-visible:ring-[#0071e3]/35 ${
-                            group.emphasis ? "py-0.5 text-[24px] font-semibold leading-[1.18] tracking-[-.035em]" : "text-[12px] font-semibold leading-[1.35]"
+                            group.emphasis
+                              ? "py-0.5 text-[24px] font-semibold leading-[1.18] tracking-[-.035em]"
+                              : "text-[12px] font-semibold leading-[1.35]"
                           }`}
                         >
                           {item.label}
-                          {item.note && <span className="ml-2 text-[10px] font-normal text-[#86868b]">{item.note}</span>}
+                          {item.note && (
+                            <span className="ml-2 text-[10px] font-normal text-[#86868b]">
+                              {item.note}
+                            </span>
+                          )}
                         </a>
                       </li>
                     ))}
@@ -326,20 +354,31 @@ export function Nav() {
                     <button
                       type="button"
                       aria-expanded={mobileMenu === item.label}
-                      onClick={() => setMobileMenu((open) => (open === item.label ? null : item.label))}
+                      onClick={() =>
+                        setMobileMenu((open) => (open === item.label ? null : item.label))
+                      }
                       className="flex w-full items-center justify-between py-4 text-left text-[28px] font-semibold tracking-[-.045em]"
                     >
                       {item.label}
-                      <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${mobileMenu === item.label ? "rotate-180" : ""}`} />
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform duration-200 ${mobileMenu === item.label ? "rotate-180" : ""}`}
+                      />
                     </button>
-                    <div className={`grid transition-[grid-template-rows,opacity] duration-200 ${mobileMenu === item.label ? "grid-rows-[1fr] pb-5 opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                    <div
+                      className={`grid transition-[grid-template-rows,opacity] duration-200 ${mobileMenu === item.label ? "grid-rows-[1fr] pb-5 opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+                    >
                       <div className="overflow-hidden">
                         {item.menu.map((group) => (
                           <div key={group.title} className="mb-5 last:mb-0">
                             <p className="mb-2 text-[11px] text-[#86868b]">{group.title}</p>
                             <div className="space-y-2">
                               {group.items.map((sub) => (
-                                <a key={`${sub.label}-${sub.href}`} href={sub.href} onClick={closeNavigation} className="block text-[15px] font-semibold text-[#1d1d1f]">
+                                <a
+                                  key={`${sub.label}-${sub.href}`}
+                                  href={sub.href}
+                                  onClick={closeNavigation}
+                                  className="block text-[15px] font-semibold text-[#1d1d1f]"
+                                >
                                   {sub.label}
                                 </a>
                               ))}
@@ -350,7 +389,11 @@ export function Nav() {
                     </div>
                   </>
                 ) : (
-                  <a href={item.href} onClick={closeNavigation} className="block py-4 text-[28px] font-semibold tracking-[-.045em]">
+                  <a
+                    href={item.href}
+                    onClick={closeNavigation}
+                    className="block py-4 text-[28px] font-semibold tracking-[-.045em]"
+                  >
                     {item.label}
                   </a>
                 )}
