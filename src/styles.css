@@ -72,7 +72,6 @@
   --font-sans: var(--font-sans);
 }
 
-
 :root {
   --radius: 1rem;
   --font-sans: "Sora", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -116,9 +115,7 @@
   --gradient-ink: linear-gradient(180deg, oklch(0.2 0.005 260), oklch(0.1 0.004 260));
   --gradient-hero: radial-gradient(120% 90% at 50% 0%, oklch(0.28 0.06 255) 0%, oklch(0.14 0.02 260) 45%, oklch(0.09 0.004 260) 100%);
   --glow-accent: radial-gradient(closest-side, oklch(0.62 0.17 250 / 0.55), transparent 75%);
-
 }
-
 
 .dark {
   --background: oklch(0.129 0.042 264.695);
@@ -193,7 +190,6 @@
   animation: fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -204,7 +200,6 @@
     transform: none;
   }
 }
-
 
 /* Koda interaction polish */
 .factory-input,
@@ -240,11 +235,151 @@
   transform: translateY(0);
 }
 
+/* Purchase complete: subtle, premium celebration without confetti noise. */
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  animation: koda-purchase-card 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"])::before,
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"])::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 21rem;
+  height: 21rem;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0;
+  filter: blur(1px);
+  animation: koda-purchase-glow 1200ms 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"])::before {
+  top: -12rem;
+  left: -8rem;
+  background: radial-gradient(circle, rgb(0 113 227 / 0.12) 0%, rgb(0 113 227 / 0) 68%);
+}
+
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"])::after {
+  right: -8rem;
+  bottom: -13rem;
+  background: radial-gradient(circle, rgb(36 138 61 / 0.14) 0%, rgb(36 138 61 / 0) 68%);
+}
+
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > div:first-child {
+  position: relative;
+  animation: koda-purchase-check 760ms 120ms cubic-bezier(0.2, 1.55, 0.36, 1) both;
+}
+
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > div:first-child::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid rgb(36 138 61 / 0.28);
+  border-radius: 999px;
+  animation: koda-purchase-ring 900ms 320ms ease-out both;
+}
+
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > p,
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > h1,
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > div:last-child {
+  animation: koda-purchase-rise 650ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > p:first-of-type {
+  animation-delay: 240ms;
+}
+
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > h1 {
+  animation-delay: 300ms;
+}
+
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > p:last-of-type {
+  animation-delay: 370ms;
+}
+
+main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > div:last-child {
+  animation-delay: 450ms;
+}
+
+@keyframes koda-purchase-card {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    box-shadow: 0 0 0 rgb(0 0 0 / 0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow: 0 30px 80px -55px rgb(29 29 31 / 0.35);
+  }
+}
+
+@keyframes koda-purchase-check {
+  0% {
+    opacity: 0;
+    transform: scale(0.45) rotate(-8deg);
+  }
+  58% {
+    opacity: 1;
+    transform: scale(1.08) rotate(1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes koda-purchase-ring {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.82);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.85);
+  }
+}
+
+@keyframes koda-purchase-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes koda-purchase-glow {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .koda-reveal,
   .koda-reveal.koda-visible {
     opacity: 1;
     transform: none;
     transition: none;
+  }
+
+  main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]),
+  main.max-w-3xl > section:has(a[href^="/conta/pedidos/"])::before,
+  main.max-w-3xl > section:has(a[href^="/conta/pedidos/"])::after,
+  main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > div,
+  main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > p,
+  main.max-w-3xl > section:has(a[href^="/conta/pedidos/"]) > h1 {
+    animation: none !important;
   }
 }
