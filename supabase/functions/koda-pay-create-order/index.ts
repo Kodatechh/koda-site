@@ -19,6 +19,37 @@ function cleanText(value: unknown, max = 120) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function digits(value: unknown) {
+  return typeof value === "string" ? value.replace(/\D/g, "") : "";
+}
+
+function validCpf(value: string) {
+  if (!/^\d{11}$/.test(value) || /^(\d)\1{10}$/.test(value)) return false;
+  const calc = (length: number) => {
+    let sum = 0;
+    for (let i = 0; i < length; i += 1) sum += Number(value[i]) * (length + 1 - i);
+    const digit = 11 - (sum % 11);
+    return digit >= 10 ? 0 : digit;
+  };
+  return calc(9) === Number(value[9]) && calc(10) === Number(value[10]);
+}
+
+function validCnpj(value: string) {
+  if (!/^\d{14}$/.test(value) || /^(\d)\1{13}$/.test(value)) return false;
+  const digit = (base: string, weights: number[]) => {
+    const sum = base.split("").reduce((total, current, index) => total + Number(current) * weights[index], 0);
+    const result = 11 - (sum % 11);
+    return result >= 10 ? 0 : result;
+  };
+  const first = digit(value.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const second = digit(value.slice(0, 12) + first, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  return first === Number(value[12]) && second === Number(value[13]);
+}
+
+function validTaxId(value: string) {
+  return value.length === 11 ? validCpf(value) : value.length === 14 ? validCnpj(value) : false;
+}
+
 function normalizeAddress(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
@@ -86,6 +117,7 @@ Deno.serve(async (req: Request) => {
     quantity?: number;
     checkoutReference?: string;
     deviceId?: string;
+    customerTaxId?: string;
     shippingAddress?: unknown;
     shippingQuoteToken?: string;
     shippingServiceId?: string;
@@ -100,10 +132,12 @@ Deno.serve(async (req: Request) => {
   const quantity = Number.isInteger(input.quantity) ? Number(input.quantity) : 1;
   const checkoutReference = cleanText(input.checkoutReference, 100);
   const deviceId = cleanText(input.deviceId, 80);
+  const customerTaxId = digits(input.customerTaxId);
   const shippingQuoteToken = cleanText(input.shippingQuoteToken, 6000);
 
   if (!productSlug || quantity < 1 || quantity > 20) return json({ error: "invalid_order" }, 400);
   if (checkoutReference && !/^[A-Za-z0-9_-]{16,100}$/.test(checkoutReference)) return json({ error: "invalid_checkout_reference" }, 400);
+  if (!validTaxId(customerTaxId)) return json({ error: "invalid_customer_tax_id" }, 400);
 
   if (checkoutReference) {
     const { data: existing, error: existingError } = await admin
@@ -193,9 +227,7 @@ Deno.serve(async (req: Request) => {
     if (!baseValid) return json({ error: "shipping_service_invalid" }, 400);
     if (expectedMode === "carrier" && provider !== "melhor_envio") return json({ error: "shipping_service_invalid" }, 400);
     if (expectedMode === "free" && price !== 0) return json({ error: "shipping_service_invalid" }, 400);
-    if (expectedMode === "flat" && (!Number.isInteger(product.flat_shipping_cents) || price !== Number(product.flat_shipping_cents))) {
-      return json({ error: "shipping_service_invalid" }, 400);
-    }
+    if (expectedMode === "flat" && (!Number.isInteger(product.flat_shipping_cents) || price !== Number(product.flat_shipping_cents))) return json({ error: "shipping_service_invalid" }, 400);
 
     shippingCents = price;
     shippingProvider = provider;
@@ -225,6 +257,7 @@ Deno.serve(async (req: Request) => {
       total_cents: totalCents,
       customer_name: shippingAddress?.recipient ?? profile?.full_name ?? null,
       customer_email: user.email ?? null,
+      customer_tax_id: customerTaxId,
       shipping_address: shippingAddress,
       checkout_reference: checkoutReference || null,
       shipping_provider: shippingProvider,
@@ -239,12 +272,7 @@ Deno.serve(async (req: Request) => {
 
   if (orderError || !order) {
     if (checkoutReference && orderError?.code === "23505") {
-      const { data: raced } = await admin
-        .from("orders")
-        .select(orderSelect)
-        .eq("user_id", user.id)
-        .eq("checkout_reference", checkoutReference)
-        .maybeSingle();
+      const { data: raced } = await admin.from("orders").select(orderSelect).eq("user_id", user.id).eq("checkout_reference", checkoutReference).maybeSingle();
       if (raced) return json({ order: displayOrder(raced), idempotent_replay: true });
     }
     return json({ error: "order_create_failed" }, 500);
@@ -259,12 +287,7 @@ Deno.serve(async (req: Request) => {
     quantity,
     total_amount_cents: subtotalCents,
     device_id: validatedDeviceId,
-    metadata: {
-      product_type: product.product_type,
-      shipping_quote_id: shippingQuoteId,
-      shipping_provider: shippingProvider,
-      shipping_service: shippingService,
-    },
+    metadata: { product_type: product.product_type, shipping_quote_id: shippingQuoteId, shipping_provider: shippingProvider, shipping_service: shippingService },
   });
 
   if (itemError) {
@@ -277,21 +300,9 @@ Deno.serve(async (req: Request) => {
     event_type: "order_created",
     status: "draft",
     title: "Pedido recebido",
-    body: product.requires_shipping
-      ? `Pedido criado com ${shippingService ?? "entrega selecionada"}; pronto para pagamento.`
-      : product.product_type === "coverage"
-        ? "Pedido de cobertura criado e vinculado ao KodaBot selecionado."
-        : "Seu pedido foi criado e está pronto para a etapa de pagamento.",
+    body: product.requires_shipping ? `Pedido criado com ${shippingService ?? "entrega selecionada"}; pronto para pagamento.` : product.product_type === "coverage" ? "Pedido de cobertura criado e vinculado ao KodaBot selecionado." : "Seu pedido foi criado e está pronto para a etapa de pagamento.",
     actor_user_id: user.id,
-    metadata: {
-      product_type: product.product_type,
-      device_id: validatedDeviceId,
-      shipping_provider: shippingProvider,
-      shipping_service: shippingService,
-      shipping_cents: shippingCents,
-      shipping_deadline_days: shippingDeadlineDays,
-      shipping_quote_id: shippingQuoteId,
-    },
+    metadata: { product_type: product.product_type, device_id: validatedDeviceId, shipping_provider: shippingProvider, shipping_service: shippingService, shipping_cents: shippingCents, shipping_deadline_days: shippingDeadlineDays, shipping_quote_id: shippingQuoteId },
   });
 
   return json({ order: displayOrder(order) }, 201);
