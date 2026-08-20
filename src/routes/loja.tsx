@@ -141,8 +141,37 @@ type Department = {
   accent?: string;
 };
 
+function KodaBotSymbol({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 72 72"
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M25 12h22c7.2 0 13 5.8 13 13v27c0 7.2-5.8 13-13 13H25c-7.2 0-13-5.8-13-13V25c0-7.2 5.8-13 13-13Z"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+      <path
+        d="M21 12V7m30 5V7M12 31H7m5 17H7m53-17h5m-5 17h5"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <rect x="22" y="23" width="28" height="30" rx="4" stroke="currentColor" strokeWidth="2.6" />
+      <path d="M28 31h16M28 37h11" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+      <circle cx="29" cy="45" r="2" fill="currentColor" />
+      <circle cx="36" cy="45" r="2" fill="currentColor" />
+      <circle cx="43" cy="45" r="2" fill="currentColor" />
+    </svg>
+  );
+}
+
 const departments: Department[] = [
-  { label: "KodaBot", href: "/kodabot", image: "/kodabot-store-product-v1.png" },
+  { label: "KodaBot", href: "/kodabot" },
   { label: "KodaBot Pro", href: "/kodabot-pro", icon: Bot },
   { label: "Acessórios", href: "#catalogo", icon: Cable },
   { label: "Pedidos", href: "/conta/pedidos", icon: Package },
@@ -264,7 +293,9 @@ function StorePage() {
                   className="group w-[116px] shrink-0 text-center"
                 >
                   <span className="grid h-[112px] place-items-center transition-transform duration-300 group-hover:-translate-y-1.5">
-                    {department.image ? (
+                    {department.label === "KodaBot" ? (
+                      <KodaBotSymbol className="h-[72px] w-[72px] text-[#1d1d1f]" />
+                    ) : department.image ? (
                       <img
                         src={department.image}
                         alt=""
