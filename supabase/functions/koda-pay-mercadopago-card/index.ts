@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -10,7 +12,7 @@ const corsHeaders = {
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
+    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
 }
 
@@ -53,6 +55,16 @@ function extractCard(order: any) {
 async function sha256Short(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest)).slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function runCustomerPostPaymentJobs(supabaseUrl: string, serviceRoleKey: string, orderId: string) {
+  for (const functionName of ["koda-fiscal-process", "koda-order-confirmation-email"]) {
+    EdgeRuntime.waitUntil(fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId }),
+    }).catch(() => null));
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -98,7 +110,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select("id,user_id,status,currency,total_cents,customer_email")
+    .select("id,user_id,status,order_type,currency,total_cents,customer_email,paid_at")
     .eq("id", orderId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -172,6 +184,7 @@ Deno.serve(async (req: Request) => {
   const localPaymentStatus = mapPaymentStatus(card.status);
   const localOrderStatus = mapOrderStatus(card.status);
   const now = new Date().toISOString();
+  const firstPaidConfirmation = localPaymentStatus === "paid" && !order.paid_at;
 
   const { data: payment, error: paymentError } = await admin.from("payments").insert({
     order_id: order.id,
@@ -192,7 +205,7 @@ Deno.serve(async (req: Request) => {
 
   await admin.from("orders").update({
     status: localOrderStatus,
-    paid_at: localPaymentStatus === "paid" ? now : null,
+    paid_at: localPaymentStatus === "paid" ? (order.paid_at ?? now) : order.paid_at,
   }).eq("id", order.id);
 
   await admin.from("payment_events").insert({
@@ -214,5 +227,29 @@ Deno.serve(async (req: Request) => {
     },
   });
 
-  return json({ payment: { id: payment.id, ...card, local_status: payment.status } }, 201);
+  let fulfillmentResult: any = null;
+  if (localPaymentStatus === "paid") {
+    const { data: existingEvent } = await admin.from("order_events").select("id").eq("order_id", order.id).eq("event_type", "payment_confirmed").maybeSingle();
+    if (!existingEvent) {
+      await admin.from("order_events").insert({
+        order_id: order.id,
+        event_type: "payment_confirmed",
+        status: "paid",
+        title: "Pagamento confirmado",
+        body: order.order_type === "coverage"
+          ? "Pagamento confirmado. Estamos ativando a cobertura no KodaBot escolhido."
+          : "Pagamento confirmado. Seu pedido seguirá para preparação.",
+      });
+    }
+
+    const { data: fulfillment, error: fulfillmentError } = await admin.rpc("fulfill_paid_order", { _order_id: order.id });
+    fulfillmentResult = fulfillmentError ? { ok: false, error: "fulfillment_rpc_failed" } : fulfillment;
+
+    if (firstPaidConfirmation) runCustomerPostPaymentJobs(supabaseUrl, serviceRoleKey, order.id);
+  }
+
+  return json({
+    payment: { id: payment.id, ...card, local_status: payment.status },
+    fulfillment: fulfillmentResult ? { ok: Boolean(fulfillmentResult.ok), error: fulfillmentResult.error ?? null } : null,
+  }, 201);
 });
