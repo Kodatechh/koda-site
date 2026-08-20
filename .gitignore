@@ -40,3 +40,6 @@ dist-ssr
 *.koda-provision.json
 *.koda-support-restore.json
 factory_identity.json
+.vercel
+.env*
+/supabase/.temp/
