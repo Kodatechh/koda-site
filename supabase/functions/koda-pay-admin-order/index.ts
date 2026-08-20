@@ -35,17 +35,19 @@ Deno.serve(async (req: Request) => {
   const { data: role } = await admin.from("user_roles").select("id").eq("user_id", actor.id).eq("role", "admin").maybeSingle();
   if (!role) return json({ error: "forbidden" }, 403);
 
-  let input: { orderId?: string; action?: string; trackingCode?: string };
+  let input: { orderId?: string; action?: string; trackingCode?: string; trackingUrl?: string };
   try { input = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
 
   const orderId = typeof input.orderId === "string" ? input.orderId.trim() : "";
   const action = typeof input.action === "string" ? input.action.trim() : "";
   const trackingCode = typeof input.trackingCode === "string" ? input.trackingCode.trim().slice(0, 120) : "";
+  const trackingUrl = typeof input.trackingUrl === "string" ? input.trackingUrl.trim().slice(0, 1000) : "";
   if (!orderId || !["start_processing", "mark_shipped", "mark_delivered"].includes(action)) return json({ error: "invalid_action" }, 400);
+  if (trackingUrl && !/^https:\/\//i.test(trackingUrl)) return json({ error: "invalid_tracking_url" }, 400);
 
   const { data: order, error: lookupError } = await admin
     .from("orders")
-    .select("id,order_number,user_id,status,tracking_code,shipped_at,delivered_at")
+    .select("id,order_number,user_id,status,tracking_code,tracking_url,shipped_at,delivered_at")
     .eq("id", orderId)
     .maybeSingle();
   if (lookupError) return json({ error: "order_lookup_failed" }, 500);
@@ -73,6 +75,7 @@ Deno.serve(async (req: Request) => {
     body = "Seu pedido saiu da Koda e já está a caminho.";
     update.status = nextStatus;
     update.tracking_code = trackingCode;
+    update.tracking_url = trackingUrl || null;
     update.shipped_at = order.shipped_at ?? now;
   }
 
@@ -90,7 +93,7 @@ Deno.serve(async (req: Request) => {
     .update(update)
     .eq("id", order.id)
     .eq("status", order.status)
-    .select("id,order_number,status,tracking_code,shipped_at,delivered_at,updated_at")
+    .select("id,order_number,status,tracking_code,tracking_url,shipped_at,delivered_at,updated_at")
     .maybeSingle();
   if (updateError) return json({ error: "order_update_failed" }, 500);
   if (!updated) return json({ error: "order_changed_concurrently" }, 409);
@@ -102,7 +105,7 @@ Deno.serve(async (req: Request) => {
     title,
     body,
     actor_user_id: actor.id,
-    metadata: trackingCode ? { tracking_code: trackingCode } : {},
+    metadata: trackingCode ? { tracking_code: trackingCode, tracking_url: trackingUrl || null } : {},
   });
 
   if (order.user_id) {
@@ -112,7 +115,7 @@ Deno.serve(async (req: Request) => {
       title,
       body: `Pedido ${displayNumber(order.order_number)}. ${body}`,
       href: `/conta/pedidos/${order.id}`,
-      metadata: { order_id: order.id, order_status: nextStatus },
+      metadata: { order_id: order.id, order_status: nextStatus, tracking_code: trackingCode || null },
     });
   }
 
@@ -121,7 +124,7 @@ Deno.serve(async (req: Request) => {
     action: `order_${action}`,
     entity_type: "order",
     entity_id: order.id,
-    details: { from_status: order.status, to_status: nextStatus, tracking_code_set: Boolean(trackingCode) },
+    details: { from_status: order.status, to_status: nextStatus, tracking_code_set: Boolean(trackingCode), tracking_url_set: Boolean(trackingUrl) },
   });
 
   return json({ order: updated });
