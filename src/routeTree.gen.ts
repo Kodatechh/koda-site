@@ -19,6 +19,7 @@ import { Route as KodabotRouteImport } from './routes/kodabot'
 import { Route as KodabotProRouteImport } from './routes/kodabot-pro'
 import { Route as KodacareRouteImport } from './routes/kodacare'
 import { Route as KodaosRouteImport } from './routes/kodaos'
+import { Route as LojaRouteImport } from './routes/loja'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as StatusRouteImport } from './routes/status'
@@ -52,9 +53,11 @@ import { Route as SuporteGarantiaRouteImport } from './routes/suporte.garantia'
 import { Route as SuporteManuaisRouteImport } from './routes/suporte.manuais'
 import { Route as SuporteOrcamentosRouteImport } from './routes/suporte.orcamentos'
 import { Route as SuporteReparoRouteImport } from './routes/suporte.reparo'
+import { Route as CheckoutReparoRepairIdRouteImport } from './routes/checkout.reparo.$repairId'
 import { Route as ContaCoberturaDeviceIdRouteImport } from './routes/conta.cobertura.$deviceId'
 import { Route as ContaDiagnosticoDeviceIdRouteImport } from './routes/conta.diagnostico.$deviceId'
 import { Route as ContaDispositivoDeviceIdRouteImport } from './routes/conta.dispositivo.$deviceId'
+import { Route as ContaPedidosOrderIdRouteImport } from './routes/conta.pedidos.$orderId'
 import { Route as ContaReparosRepairIdRouteImport } from './routes/conta.reparos.$repairId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -105,6 +108,11 @@ const KodacareRoute = KodacareRouteImport.update({
 const KodaosRoute = KodaosRouteImport.update({
   id: '/kodaos',
   path: '/kodaos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LojaRoute = LojaRouteImport.update({
+  id: '/loja',
+  path: '/loja',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
@@ -272,6 +280,11 @@ const SuporteReparoRoute = SuporteReparoRouteImport.update({
   path: '/reparo',
   getParentRoute: () => SuporteRoute,
 } as any)
+const CheckoutReparoRepairIdRoute = CheckoutReparoRepairIdRouteImport.update({
+  id: '/checkout/reparo/$repairId',
+  path: '/checkout/reparo/$repairId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContaCoberturaDeviceIdRoute = ContaCoberturaDeviceIdRouteImport.update({
   id: '/cobertura/$deviceId',
   path: '/cobertura/$deviceId',
@@ -289,6 +302,11 @@ const ContaDispositivoDeviceIdRoute =
     path: '/dispositivo/$deviceId',
     getParentRoute: () => ContaRoute,
   } as any)
+const ContaPedidosOrderIdRoute = ContaPedidosOrderIdRouteImport.update({
+  id: '/$orderId',
+  path: '/$orderId',
+  getParentRoute: () => ContaPedidosRoute,
+} as any)
 const ContaReparosRepairIdRoute = ContaReparosRepairIdRouteImport.update({
   id: '/$repairId',
   path: '/$repairId',
@@ -306,6 +324,7 @@ export interface FileRoutesByFullPath {
   '/kodabot-pro': typeof KodabotProRouteWithChildren
   '/kodacare': typeof KodacareRoute
   '/kodaos': typeof KodaosRouteWithChildren
+  '/loja': typeof LojaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/sobre': typeof SobreRoute
   '/status': typeof StatusRoute
@@ -316,7 +335,7 @@ export interface FileRoutesByFullPath {
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/notificacoes': typeof ContaNotificacoesRoute
-  '/conta/pedidos': typeof ContaPedidosRoute
+  '/conta/pedidos': typeof ContaPedidosRouteWithChildren
   '/conta/recuperar': typeof ContaRecuperarRoute
   '/conta/redefinir': typeof ContaRedefinirRoute
   '/conta/reparos': typeof ContaReparosRouteWithChildren
@@ -339,9 +358,11 @@ export interface FileRoutesByFullPath {
   '/kodabot/': typeof KodabotIndexRoute
   '/kodaos/': typeof KodaosIndexRoute
   '/suporte/': typeof SuporteIndexRoute
+  '/checkout/reparo/$repairId': typeof CheckoutReparoRepairIdRoute
   '/conta/cobertura/$deviceId': typeof ContaCoberturaDeviceIdRoute
   '/conta/diagnostico/$deviceId': typeof ContaDiagnosticoDeviceIdRoute
   '/conta/dispositivo/$deviceId': typeof ContaDispositivoDeviceIdRoute
+  '/conta/pedidos/$orderId': typeof ContaPedidosOrderIdRoute
   '/conta/reparos/$repairId': typeof ContaReparosRepairIdRoute
 }
 export interface FileRoutesByTo {
@@ -351,6 +372,7 @@ export interface FileRoutesByTo {
   '/fabrica': typeof FabricaRoute
   '/financeiro-interno': typeof FinanceiroInternoRoute
   '/kodacare': typeof KodacareRoute
+  '/loja': typeof LojaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/sobre': typeof SobreRoute
   '/status': typeof StatusRoute
@@ -360,7 +382,7 @@ export interface FileRoutesByTo {
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/notificacoes': typeof ContaNotificacoesRoute
-  '/conta/pedidos': typeof ContaPedidosRoute
+  '/conta/pedidos': typeof ContaPedidosRouteWithChildren
   '/conta/recuperar': typeof ContaRecuperarRoute
   '/conta/redefinir': typeof ContaRedefinirRoute
   '/conta/reparos': typeof ContaReparosRouteWithChildren
@@ -383,9 +405,11 @@ export interface FileRoutesByTo {
   '/kodabot': typeof KodabotIndexRoute
   '/kodaos': typeof KodaosIndexRoute
   '/suporte': typeof SuporteIndexRoute
+  '/checkout/reparo/$repairId': typeof CheckoutReparoRepairIdRoute
   '/conta/cobertura/$deviceId': typeof ContaCoberturaDeviceIdRoute
   '/conta/diagnostico/$deviceId': typeof ContaDiagnosticoDeviceIdRoute
   '/conta/dispositivo/$deviceId': typeof ContaDispositivoDeviceIdRoute
+  '/conta/pedidos/$orderId': typeof ContaPedidosOrderIdRoute
   '/conta/reparos/$repairId': typeof ContaReparosRepairIdRoute
 }
 export interface FileRoutesById {
@@ -400,6 +424,7 @@ export interface FileRoutesById {
   '/kodabot-pro': typeof KodabotProRouteWithChildren
   '/kodacare': typeof KodacareRoute
   '/kodaos': typeof KodaosRouteWithChildren
+  '/loja': typeof LojaRoute
   '/privacidade': typeof PrivacidadeRoute
   '/sobre': typeof SobreRoute
   '/status': typeof StatusRoute
@@ -410,7 +435,7 @@ export interface FileRoutesById {
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/notificacoes': typeof ContaNotificacoesRoute
-  '/conta/pedidos': typeof ContaPedidosRoute
+  '/conta/pedidos': typeof ContaPedidosRouteWithChildren
   '/conta/recuperar': typeof ContaRecuperarRoute
   '/conta/redefinir': typeof ContaRedefinirRoute
   '/conta/reparos': typeof ContaReparosRouteWithChildren
@@ -433,9 +458,11 @@ export interface FileRoutesById {
   '/kodabot/': typeof KodabotIndexRoute
   '/kodaos/': typeof KodaosIndexRoute
   '/suporte/': typeof SuporteIndexRoute
+  '/checkout/reparo/$repairId': typeof CheckoutReparoRepairIdRoute
   '/conta/cobertura/$deviceId': typeof ContaCoberturaDeviceIdRoute
   '/conta/diagnostico/$deviceId': typeof ContaDiagnosticoDeviceIdRoute
   '/conta/dispositivo/$deviceId': typeof ContaDispositivoDeviceIdRoute
+  '/conta/pedidos/$orderId': typeof ContaPedidosOrderIdRoute
   '/conta/reparos/$repairId': typeof ContaReparosRepairIdRoute
 }
 export interface FileRouteTypes {
@@ -451,6 +478,7 @@ export interface FileRouteTypes {
     | '/kodabot-pro'
     | '/kodacare'
     | '/kodaos'
+    | '/loja'
     | '/privacidade'
     | '/sobre'
     | '/status'
@@ -484,9 +512,11 @@ export interface FileRouteTypes {
     | '/kodabot/'
     | '/kodaos/'
     | '/suporte/'
+    | '/checkout/reparo/$repairId'
     | '/conta/cobertura/$deviceId'
     | '/conta/diagnostico/$deviceId'
     | '/conta/dispositivo/$deviceId'
+    | '/conta/pedidos/$orderId'
     | '/conta/reparos/$repairId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -496,6 +526,7 @@ export interface FileRouteTypes {
     | '/fabrica'
     | '/financeiro-interno'
     | '/kodacare'
+    | '/loja'
     | '/privacidade'
     | '/sobre'
     | '/status'
@@ -528,9 +559,11 @@ export interface FileRouteTypes {
     | '/kodabot'
     | '/kodaos'
     | '/suporte'
+    | '/checkout/reparo/$repairId'
     | '/conta/cobertura/$deviceId'
     | '/conta/diagnostico/$deviceId'
     | '/conta/dispositivo/$deviceId'
+    | '/conta/pedidos/$orderId'
     | '/conta/reparos/$repairId'
   id:
     | '__root__'
@@ -544,6 +577,7 @@ export interface FileRouteTypes {
     | '/kodabot-pro'
     | '/kodacare'
     | '/kodaos'
+    | '/loja'
     | '/privacidade'
     | '/sobre'
     | '/status'
@@ -577,9 +611,11 @@ export interface FileRouteTypes {
     | '/kodabot/'
     | '/kodaos/'
     | '/suporte/'
+    | '/checkout/reparo/$repairId'
     | '/conta/cobertura/$deviceId'
     | '/conta/diagnostico/$deviceId'
     | '/conta/dispositivo/$deviceId'
+    | '/conta/pedidos/$orderId'
     | '/conta/reparos/$repairId'
   fileRoutesById: FileRoutesById
 }
@@ -594,6 +630,7 @@ export interface RootRouteChildren {
   KodabotProRoute: typeof KodabotProRouteWithChildren
   KodacareRoute: typeof KodacareRoute
   KodaosRoute: typeof KodaosRouteWithChildren
+  LojaRoute: typeof LojaRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   SobreRoute: typeof SobreRoute
   StatusRoute: typeof StatusRoute
@@ -602,6 +639,7 @@ export interface RootRouteChildren {
   CheckoutProductSlugRoute: typeof CheckoutProductSlugRoute
   KodabotIComprarRoute: typeof KodabotIComprarRoute
   ReparosSolicitarRoute: typeof ReparosSolicitarRoute
+  CheckoutReparoRepairIdRoute: typeof CheckoutReparoRepairIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -674,6 +712,13 @@ declare module '@tanstack/react-router' {
       path: '/kodaos'
       fullPath: '/kodaos'
       preLoaderRoute: typeof KodaosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/loja': {
+      id: '/loja'
+      path: '/loja'
+      fullPath: '/loja'
+      preLoaderRoute: typeof LojaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacidade': {
@@ -907,6 +952,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuporteReparoRouteImport
       parentRoute: typeof SuporteRoute
     }
+    '/checkout/reparo/$repairId': {
+      id: '/checkout/reparo/$repairId'
+      path: '/checkout/reparo/$repairId'
+      fullPath: '/checkout/reparo/$repairId'
+      preLoaderRoute: typeof CheckoutReparoRepairIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/conta/cobertura/$deviceId': {
       id: '/conta/cobertura/$deviceId'
       path: '/cobertura/$deviceId'
@@ -928,6 +980,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContaDispositivoDeviceIdRouteImport
       parentRoute: typeof ContaRoute
     }
+    '/conta/pedidos/$orderId': {
+      id: '/conta/pedidos/$orderId'
+      path: '/$orderId'
+      fullPath: '/conta/pedidos/$orderId'
+      preLoaderRoute: typeof ContaPedidosOrderIdRouteImport
+      parentRoute: typeof ContaPedidosRoute
+    }
     '/conta/reparos/$repairId': {
       id: '/conta/reparos/$repairId'
       path: '/$repairId'
@@ -937,6 +996,18 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ContaPedidosRouteChildren {
+  ContaPedidosOrderIdRoute: typeof ContaPedidosOrderIdRoute
+}
+
+const ContaPedidosRouteChildren: ContaPedidosRouteChildren = {
+  ContaPedidosOrderIdRoute: ContaPedidosOrderIdRoute,
+}
+
+const ContaPedidosRouteWithChildren = ContaPedidosRoute._addFileChildren(
+  ContaPedidosRouteChildren,
+)
 
 interface ContaReparosRouteChildren {
   ContaReparosRepairIdRoute: typeof ContaReparosRepairIdRoute
@@ -955,7 +1026,7 @@ interface ContaRouteChildren {
   ContaCriarRoute: typeof ContaCriarRoute
   ContaEntrarRoute: typeof ContaEntrarRoute
   ContaNotificacoesRoute: typeof ContaNotificacoesRoute
-  ContaPedidosRoute: typeof ContaPedidosRoute
+  ContaPedidosRoute: typeof ContaPedidosRouteWithChildren
   ContaRecuperarRoute: typeof ContaRecuperarRoute
   ContaRedefinirRoute: typeof ContaRedefinirRoute
   ContaReparosRoute: typeof ContaReparosRouteWithChildren
@@ -970,7 +1041,7 @@ const ContaRouteChildren: ContaRouteChildren = {
   ContaCriarRoute: ContaCriarRoute,
   ContaEntrarRoute: ContaEntrarRoute,
   ContaNotificacoesRoute: ContaNotificacoesRoute,
-  ContaPedidosRoute: ContaPedidosRoute,
+  ContaPedidosRoute: ContaPedidosRouteWithChildren,
   ContaRecuperarRoute: ContaRecuperarRoute,
   ContaRedefinirRoute: ContaRedefinirRoute,
   ContaReparosRoute: ContaReparosRouteWithChildren,
@@ -1062,6 +1133,7 @@ const rootRouteChildren: RootRouteChildren = {
   KodabotProRoute: KodabotProRouteWithChildren,
   KodacareRoute: KodacareRoute,
   KodaosRoute: KodaosRouteWithChildren,
+  LojaRoute: LojaRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   SobreRoute: SobreRoute,
   StatusRoute: StatusRoute,
@@ -1070,6 +1142,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutProductSlugRoute: CheckoutProductSlugRoute,
   KodabotIComprarRoute: KodabotIComprarRoute,
   ReparosSolicitarRoute: ReparosSolicitarRoute,
+  CheckoutReparoRepairIdRoute: CheckoutReparoRepairIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
