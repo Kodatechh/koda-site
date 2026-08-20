@@ -134,17 +134,11 @@ function KodaBot() {
             </p>
           </div>
 
-          <div className="mx-auto mt-8 h-[500px] max-w-[1400px] sm:h-[720px]">
+          <div className="mx-auto mt-10 h-[460px] max-w-[1200px] sm:h-[640px]">
             <img
-              src="/kodabot-home-hero-v3.png"
+              src="/kodabot-product-hero-v4.png"
               alt="KodaBot com corpo transparente em fotografia de estúdio"
-              className="h-full w-full object-cover object-[72%_center]"
-              style={{
-                maskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 7%, black 88%, transparent 100%)",
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 7%, black 88%, transparent 100%)",
-              }}
+              className="h-full w-full object-contain"
             />
           </div>
         </section>

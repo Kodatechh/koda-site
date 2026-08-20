@@ -305,6 +305,74 @@ export type Database = {
         Update: { details?: Json };
         Relationships: [];
       };
+      trade_in_requests: {
+        Row: {
+          id: string;
+          user_id: string;
+          device_id: string;
+          source_model: "kodabot-i" | "kodabot-i-pro";
+          serial_number: string;
+          credit_cents: number;
+          powers_on: boolean;
+          enclosure_intact: boolean;
+          screen_intact: boolean;
+          account_unlinked: boolean;
+          status: string;
+          purchase_order_id: string | null;
+          outbound_tracking_code: string | null;
+          posted_at: string | null;
+          received_at: string | null;
+          inspected_at: string | null;
+          inspection_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          device_id: string;
+          source_model: "kodabot-i" | "kodabot-i-pro";
+          serial_number: string;
+          credit_cents: number;
+          powers_on: boolean;
+          enclosure_intact: boolean;
+          screen_intact: boolean;
+          account_unlinked?: boolean;
+          status?: string;
+        };
+        Update: {
+          status?: string;
+          outbound_tracking_code?: string | null;
+          account_unlinked?: boolean;
+          received_at?: string | null;
+          inspected_at?: string | null;
+          inspection_notes?: string | null;
+        };
+        Relationships: [];
+      };
+      support_case_notes: {
+        Row: {
+          id: string;
+          case_id: string;
+          author_user_id: string | null;
+          body: string;
+          visibility: "internal" | "customer";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          case_id: string;
+          author_user_id?: string | null;
+          body: string;
+          visibility?: "internal" | "customer";
+          created_at?: string;
+        };
+        Update: {
+          body?: string;
+          visibility?: "internal" | "customer";
+        };
+        Relationships: [];
+      };
       support_cases: {
         Row: {
           id: string;
@@ -314,6 +382,12 @@ export type Database = {
           subject: string;
           message: string;
           status: Database["public"]["Enums"]["koda_support_status"];
+          priority: "low" | "normal" | "high" | "urgent";
+          assigned_to: string | null;
+          ai_summary: string | null;
+          ai_category: string | null;
+          ai_suggested_priority: "low" | "normal" | "high" | "urgent" | null;
+          last_message_at: string;
           created_at: string;
           updated_at: string;
         };
@@ -325,6 +399,12 @@ export type Database = {
           subject: string;
           message: string;
           status?: Database["public"]["Enums"]["koda_support_status"];
+          priority?: "low" | "normal" | "high" | "urgent";
+          assigned_to?: string | null;
+          ai_summary?: string | null;
+          ai_category?: string | null;
+          ai_suggested_priority?: "low" | "normal" | "high" | "urgent" | null;
+          last_message_at?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -336,6 +416,12 @@ export type Database = {
           subject?: string;
           message?: string;
           status?: Database["public"]["Enums"]["koda_support_status"];
+          priority?: "low" | "normal" | "high" | "urgent";
+          assigned_to?: string | null;
+          ai_summary?: string | null;
+          ai_category?: string | null;
+          ai_suggested_priority?: "low" | "normal" | "high" | "urgent" | null;
+          last_message_at?: string;
           created_at?: string;
           updated_at?: string;
         };

@@ -122,9 +122,11 @@ export function KodaOS() {
 
           <div className="fade-up relative mx-auto mt-16 max-w-4xl">
             <ProductPhotoSlot
-              label="Aguardando kodabot-i-kodaos-dark"
+              src="/kodabot-kodaos-dark-v1.png"
+              alt="KodaBot exibindo a interface KODA OS em estúdio escuro"
               className="h-[420px] rounded-[2.5rem] sm:h-[620px]"
               dark
+              objectPosition="center"
             />
           </div>
         </div>

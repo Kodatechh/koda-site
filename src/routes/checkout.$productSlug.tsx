@@ -53,6 +53,7 @@ type CreatedOrder = {
   currency?: string;
   subtotal_cents?: number;
   shipping_cents?: number;
+  discount_cents?: number;
   total_cents?: number;
   fulfillment_status?: string;
 };
@@ -111,6 +112,13 @@ type Address = {
 };
 
 type PaymentMethod = "pix" | "card";
+type TradeInRequest = {
+  id: string;
+  source_model: "kodabot-i" | "kodabot-i-pro";
+  serial_number: string;
+  credit_cents: number;
+  status: string;
+};
 
 const emptyAddress: Address = {
   recipient: "",
@@ -214,6 +222,12 @@ function friendlyError(code: string | null, fallback: string) {
     shipping_quote_required: "Calcule e escolha a entrega novamente.",
     insufficient_stock: "Não há estoque suficiente para esta quantidade.",
     product_unavailable: "Este produto não está disponível para compra agora.",
+    trade_in_not_available: "Esta avaliação de Trade In não está mais disponível.",
+    trade_in_not_available_for_product:
+      "O crédito de Trade In só pode ser usado em um novo KodaBot.",
+    trade_in_device_not_owned: "O KodaBot do Trade In não está vinculado à sua conta.",
+    trade_in_reservation_failed:
+      "Não foi possível reservar o crédito de Trade In. Tente novamente.",
   };
   return code ? (messages[code] ?? fallback) : fallback;
 }
@@ -268,6 +282,12 @@ function CheckoutPage() {
   const [copied, setCopied] = useState(false);
   const [checkoutReference] = useState(createCheckoutReference);
   const [customerTaxId, setCustomerTaxId] = useState("");
+  const [tradeInRequestId] = useState(() =>
+    typeof window === "undefined"
+      ? ""
+      : (new URLSearchParams(window.location.search).get("tradeIn") ?? ""),
+  );
+  const [tradeIn, setTradeIn] = useState<TradeInRequest | null>(null);
 
   const [devices, setDevices] = useState<KodaDevice[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
@@ -340,6 +360,20 @@ function CheckoutPage() {
       alive = false;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!user || !tradeInRequestId) {
+      setTradeIn(null);
+      return;
+    }
+    db.from("trade_in_requests")
+      .select("id,source_model,serial_number,credit_cents,status")
+      .eq("id", tradeInRequestId)
+      .eq("user_id", user.id)
+      .eq("status", "estimated")
+      .maybeSingle()
+      .then(({ data }: { data: TradeInRequest | null }) => setTradeIn(data));
+  }, [db, tradeInRequestId, user?.id]);
 
   useEffect(() => {
     const requiresOwnedDevice = Boolean(
@@ -449,8 +483,11 @@ function CheckoutPage() {
     return unit == null ? null : unit * quantity;
   }, [catalog?.product.unit_amount_cents, quantity]);
 
+  const tradeInCreditCents = tradeIn?.credit_cents ?? 0;
   const totalCents =
-    subtotalCents == null ? null : subtotalCents + (selectedShipping?.price_cents ?? 0);
+    subtotalCents == null
+      ? null
+      : Math.max(0, subtotalCents + (selectedShipping?.price_cents ?? 0) - tradeInCreditCents);
   const deviceReady = !deviceRequired || Boolean(selectedDeviceId);
   const shippingReady =
     !shippingRequired || (addressValid && Boolean(selectedShipping?.quote_token));
@@ -468,6 +505,7 @@ function CheckoutPage() {
       quantity,
       checkoutReference,
       customerTaxId: customerTaxId.replace(/\D/g, ""),
+      ...(tradeIn?.id ? { tradeInRequestId: tradeIn.id } : {}),
       ...(deviceRequired && selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
       ...(shippingRequired
         ? { shippingAddress: address as unknown as Record<string, string> }
@@ -482,6 +520,7 @@ function CheckoutPage() {
       quantity,
       checkoutReference,
       customerTaxId,
+      tradeIn?.id,
       deviceRequired,
       selectedDeviceId,
       shippingRequired,
@@ -934,6 +973,12 @@ function CheckoutPage() {
                           : formatMoney(selectedShipping.price_cents, catalog.product.currency)
                         : "Calcule acima"}
                     </span>
+                  </div>
+                )}
+                {tradeIn && (
+                  <div className="flex justify-between gap-4 text-[#1f7a3f]">
+                    <span>Koda Trade In</span>
+                    <span>− {formatMoney(tradeIn.credit_cents, catalog.product.currency)}</span>
                   </div>
                 )}
                 {selectedDevice && (

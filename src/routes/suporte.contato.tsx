@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, MessageCircle } from "lucide-react";
+import { CheckCircle2, MessageCircle, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,7 @@ function Contact() {
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -46,9 +47,13 @@ function Contact() {
     if (!user) return;
     setSending(true);
     setError(null);
-    const { error: insertError } = await supabase
-      .from("support_cases")
-      .insert({ owner_user_id: user.id, device_id: deviceId || null, category, subject, message });
+    const { error: insertError } = await supabase.from("support_cases").insert({
+      owner_user_id: user.id,
+      device_id: deviceId || null,
+      category,
+      subject: subject.trim() || categoryLabel(category),
+      message,
+    });
     setSending(false);
     if (insertError) {
       setError(insertError.message);
@@ -57,6 +62,24 @@ function Contact() {
     setSuccess(true);
     setSubject("");
     setMessage("");
+  }
+
+  async function improveWithAi() {
+    if (!message.trim() || aiLoading) return;
+    setAiLoading(true);
+    setError(null);
+    const { data, error: aiError } = await supabase.functions.invoke("koda-support-ai", {
+      body: { mode: "customer_assist", category, subject, message },
+    });
+    setAiLoading(false);
+    if (aiError || !data?.result) {
+      setError(
+        "A ajuda da IA está indisponível agora. Você ainda pode enviar sua mensagem normalmente.",
+      );
+      return;
+    }
+    setSubject(data.result.suggested_subject || subject);
+    setMessage(data.result.improved_message || message);
   }
 
   return (
@@ -119,12 +142,10 @@ function Contact() {
                   onChange={(e) => setCategory(e.target.value)}
                   className="contact-input"
                 >
-                  <option value="produto">Dúvida sobre produto</option>
+                  <option value="produto">Produto</option>
                   <option value="reparo">Reparo e assistência</option>
-                  <option value="garantia">Garantia</option>
-                  <option value="conta">Conta KodaCloud</option>
-                  <option value="kodaos">KODA OS</option>
-                  <option value="parcerias">Parcerias / imprensa</option>
+                  <option value="pedido">Pedido ou entrega</option>
+                  <option value="conta">Conta ou KODA OS</option>
                   <option value="outro">Outro</option>
                 </select>
               </Field>
@@ -143,15 +164,6 @@ function Contact() {
                 </select>
               </Field>
             </div>
-            <Field label="Título">
-              <input
-                required
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="contact-input"
-                placeholder="Como podemos ajudar?"
-              />
-            </Field>
             <Field label="Mensagem">
               <textarea
                 required
@@ -162,6 +174,15 @@ function Contact() {
                 placeholder="Conte o que aconteceu ou o que você precisa."
               />
             </Field>
+            <button
+              type="button"
+              onClick={improveWithAi}
+              disabled={!message.trim() || aiLoading}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[#0066cc] disabled:opacity-45"
+            >
+              <Sparkles className="h-4 w-4" />
+              {aiLoading ? "Organizando…" : "Organizar texto com IA"}
+            </button>
             {error && <p className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
             <button
               disabled={sending}
@@ -183,4 +204,16 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       <div className="mt-1.5">{children}</div>
     </label>
   );
+}
+
+function categoryLabel(category: string) {
+  return category === "produto"
+    ? "Ajuda com produto"
+    : category === "reparo"
+      ? "Reparo e assistência"
+      : category === "pedido"
+        ? "Pedido ou entrega"
+        : category === "conta"
+          ? "Conta ou KODA OS"
+          : "Solicitação de suporte";
 }

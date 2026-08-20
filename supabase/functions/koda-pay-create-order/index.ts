@@ -118,7 +118,7 @@ async function verifyQuote(token: string, secret: string) {
   }
 }
 
-function displayOrder(order: any) {
+function displayOrder(order: Record<string, unknown>) {
   return { ...order, display_number: `KD-${String(order.order_number).padStart(6, "0")}` };
 }
 
@@ -153,6 +153,7 @@ Deno.serve(async (req: Request) => {
     shippingAddress?: unknown;
     shippingQuoteToken?: string;
     shippingServiceId?: string;
+    tradeInRequestId?: string;
   };
 
   try {
@@ -167,6 +168,7 @@ Deno.serve(async (req: Request) => {
   const deviceId = cleanText(input.deviceId, 80);
   const customerTaxId = digits(input.customerTaxId);
   const shippingQuoteToken = cleanText(input.shippingQuoteToken, 6000);
+  const tradeInRequestId = cleanText(input.tradeInRequestId, 80);
 
   if (!productSlug || quantity < 1 || quantity > 20) return json({ error: "invalid_order" }, 400);
   if (checkoutReference && !/^[A-Za-z0-9_-]{16,100}$/.test(checkoutReference)) {
@@ -199,6 +201,51 @@ Deno.serve(async (req: Request) => {
     return json({ error: "product_unavailable" }, 409);
   if (product.track_stock && (product.stock_quantity ?? 0) < quantity)
     return json({ error: "insufficient_stock" }, 409);
+
+  let tradeIn: {
+    id: string;
+    credit_cents: number;
+    source_model: string;
+    serial_number: string;
+  } | null = null;
+  if (tradeInRequestId) {
+    if (quantity !== 1 || !["kodabot-i", "kodabot-i-pro"].includes(product.slug))
+      return json({ error: "trade_in_not_available_for_product" }, 409);
+    const { data: request, error: requestError } = await admin
+      .from("trade_in_requests")
+      .select("id,user_id,credit_cents,source_model,serial_number,status,device_id")
+      .eq("id", tradeInRequestId)
+      .maybeSingle();
+    if (requestError) return json({ error: "trade_in_lookup_failed" }, 500);
+    if (!request || request.user_id !== user.id || request.status !== "estimated")
+      return json({ error: "trade_in_not_available" }, 409);
+    const expectedCredit =
+      request.source_model === "kodabot-i"
+        ? 5990
+        : request.source_model === "kodabot-i-pro"
+          ? 7990
+          : 0;
+    if (!expectedCredit || request.credit_cents !== expectedCredit)
+      return json({ error: "trade_in_invalid_credit" }, 409);
+    const { data: ownedDevice } = await admin
+      .from("devices")
+      .select("id,owner_user_id,model,serial_number")
+      .eq("id", request.device_id)
+      .maybeSingle();
+    if (
+      !ownedDevice ||
+      ownedDevice.owner_user_id !== user.id ||
+      ownedDevice.model !== request.source_model ||
+      ownedDevice.serial_number !== request.serial_number
+    )
+      return json({ error: "trade_in_device_not_owned" }, 403);
+    tradeIn = {
+      id: request.id,
+      credit_cents: expectedCredit,
+      source_model: request.source_model,
+      serial_number: request.serial_number,
+    };
+  }
   const requiresOwnedDevice = product.requires_device || product.product_type === "coverage";
   if (requiresOwnedDevice && quantity !== 1) return json({ error: "invalid_order" }, 400);
 
@@ -302,7 +349,8 @@ Deno.serve(async (req: Request) => {
   }
 
   const subtotalCents = Number(product.unit_amount_cents) * quantity;
-  const totalCents = subtotalCents + shippingCents;
+  const discountCents = tradeIn?.credit_cents ?? 0;
+  const totalCents = Math.max(0, subtotalCents + shippingCents - discountCents);
   const orderType = product.product_type === "coverage" ? "coverage" : "commerce";
 
   const { data: profile } = await admin
@@ -322,8 +370,9 @@ Deno.serve(async (req: Request) => {
       currency: product.currency,
       subtotal_cents: subtotalCents,
       shipping_cents: shippingCents,
-      discount_cents: 0,
+      discount_cents: discountCents,
       total_cents: totalCents,
+      trade_in_request_id: tradeIn?.id ?? null,
       customer_name: shippingAddress?.recipient ?? profile?.full_name ?? null,
       customer_email: user.email ?? null,
       customer_tax_id: customerTaxId,
@@ -331,6 +380,8 @@ Deno.serve(async (req: Request) => {
       checkout_reference: checkoutReference || null,
       shipping_provider: shippingProvider,
       shipping_service: shippingService,
+      trade_in_request_id: tradeIn?.id ?? null,
+      trade_in_source_model: tradeIn?.source_model ?? null,
       shipping_deadline_days: shippingDeadlineDays,
       shipping_quote_id: shippingQuoteId,
       shipping_quoted_at: shippingQuotedAt,
@@ -374,6 +425,21 @@ Deno.serve(async (req: Request) => {
     return json({ error: "order_item_create_failed" }, 500);
   }
 
+  if (tradeIn) {
+    const { error: reserveError } = await admin
+      .from("trade_in_requests")
+      .update({
+        status: "reserved",
+        purchase_order_id: order.id,
+      })
+      .eq("id", tradeIn.id)
+      .eq("status", "estimated");
+    if (reserveError) {
+      await admin.from("orders").delete().eq("id", order.id);
+      return json({ error: "trade_in_reservation_failed" }, 409);
+    }
+  }
+
   await admin.from("order_events").insert({
     order_id: order.id,
     event_type: "order_created",
@@ -393,6 +459,8 @@ Deno.serve(async (req: Request) => {
       shipping_cents: shippingCents,
       shipping_deadline_days: shippingDeadlineDays,
       shipping_quote_id: shippingQuoteId,
+      trade_in_request_id: tradeIn?.id ?? null,
+      trade_in_credit_cents: discountCents,
     },
   });
 

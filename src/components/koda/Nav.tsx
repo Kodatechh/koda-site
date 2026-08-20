@@ -22,6 +22,7 @@ const navItems: NavItem[] = [
           { label: "KodaBot", href: "/kodabot" },
           { label: "KodaBot Pro", href: "/kodabot-pro" },
           { label: "Comparar modelos", href: "/comparar" },
+          { label: "Koda Trade In", href: "/trade-in" },
         ],
       },
       {
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
         items: [
           { label: "Seus pedidos", href: "/conta/pedidos" },
           { label: "Meus KodaBots", href: "/conta" },
+          { label: "Koda Trade In", href: "/trade-in" },
           { label: "Suporte", href: "/suporte" },
           { label: "Reparos", href: "/suporte/reparo" },
         ],

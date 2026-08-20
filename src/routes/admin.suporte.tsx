@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  Activity,
   Headphones,
   RefreshCw,
   RotateCcw,
-  Search,
+  Send,
   ShieldCheck,
+  Sparkles,
   Wrench,
 } from "lucide-react";
 
@@ -52,7 +52,20 @@ type CaseItem = {
   device_id: string | null;
   category: string;
   subject: string;
-  status: string;
+  message: string;
+  status: "open" | "in_progress" | "waiting_customer" | "resolved" | "closed";
+  priority: "low" | "normal" | "high" | "urgent";
+  ai_summary: string | null;
+  ai_category: string | null;
+  ai_suggested_priority: "low" | "normal" | "high" | "urgent" | null;
+  last_message_at: string;
+  created_at: string;
+};
+type CaseNote = {
+  id: string;
+  body: string;
+  visibility: "internal" | "customer";
+  author_user_id: string | null;
   created_at: string;
 };
 type Health = {
@@ -90,8 +103,15 @@ function SupportConsole() {
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetComplete, setResetComplete] = useState(false);
+  const [selectedCase, setSelectedCase] = useState<CaseItem | null>(null);
+  const [caseNotes, setCaseNotes] = useState<CaseNote[]>([]);
+  const [caseReply, setCaseReply] = useState("");
+  const [replyInternal, setReplyInternal] = useState(false);
+  const [caseBusy, setCaseBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState<"triage" | "draft" | null>(null);
+  const [aiChecks, setAiChecks] = useState<string[]>([]);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!isSupportAgent) return;
     setRefreshing(true);
     const [devicesResult, casesResult, healthResult, commandsResult] = await Promise.all([
@@ -104,8 +124,10 @@ function SupportConsole() {
         .limit(100),
       supabase
         .from("support_cases")
-        .select("id,owner_user_id,device_id,category,subject,status,created_at")
-        .order("created_at", { ascending: false })
+        .select(
+          "id,owner_user_id,device_id,category,subject,message,status,priority,ai_summary,ai_category,ai_suggested_priority,last_message_at,created_at",
+        )
+        .order("last_message_at", { ascending: false })
         .limit(100),
       supabase
         .from("device_health")
@@ -123,11 +145,11 @@ function SupportConsole() {
     if (!healthResult.error) setHealth((healthResult.data ?? []) as Health[]);
     if (!commandsResult.error) setCommands((commandsResult.data ?? []) as DeviceCommand[]);
     setRefreshing(false);
-  }
+  }, [isSupportAgent]);
 
   useEffect(() => {
     load();
-  }, [isSupportAgent]);
+  }, [load]);
   useEffect(() => {
     const timer = window.setInterval(() => setPresenceNow(Date.now()), 15_000);
     return () => window.clearInterval(timer);
@@ -174,6 +196,70 @@ function SupportConsole() {
     setResetReason("");
     setResetError(null);
     setResetComplete(false);
+  }
+
+  async function openCase(item: CaseItem) {
+    setSelectedCase(item);
+    setCaseReply("");
+    setAiChecks([]);
+    const { data } = await supabase
+      .from("support_case_notes")
+      .select("id,body,visibility,author_user_id,created_at")
+      .eq("case_id", item.id)
+      .order("created_at");
+    setCaseNotes((data ?? []) as CaseNote[]);
+  }
+
+  async function updateCase(values: Partial<Pick<CaseItem, "status" | "priority">>) {
+    if (!selectedCase) return;
+    const { error } = await supabase.from("support_cases").update(values).eq("id", selectedCase.id);
+    if (!error) {
+      const next = { ...selectedCase, ...values };
+      setSelectedCase(next);
+      setCases((items) => items.map((item) => (item.id === next.id ? next : item)));
+    }
+  }
+
+  async function sendCaseReply() {
+    if (!user || !selectedCase || !caseReply.trim() || caseBusy) return;
+    setCaseBusy(true);
+    const { error } = await supabase.from("support_case_notes").insert({
+      case_id: selectedCase.id,
+      author_user_id: user.id,
+      body: caseReply.trim(),
+      visibility: replyInternal ? "internal" : "customer",
+    });
+    if (!error) {
+      setCaseReply("");
+      await openCase(selectedCase);
+      if (!replyInternal) await updateCase({ status: "waiting_customer" });
+    }
+    setCaseBusy(false);
+  }
+
+  async function handleCaseAi(mode: "triage" | "draft") {
+    if (!selectedCase || aiBusy) return;
+    setAiBusy(mode);
+    const { data, error } = await supabase.functions.invoke("koda-support-ai", {
+      body: { mode: mode === "triage" ? "triage" : "draft_reply", case_id: selectedCase.id },
+    });
+    setAiBusy(null);
+    if (error || !data?.result) return;
+    if (mode === "draft") {
+      setCaseReply(data.result.reply ?? "");
+      setReplyInternal(false);
+      setAiChecks(data.result.internal_checks ?? []);
+    } else {
+      const next = {
+        ...selectedCase,
+        ai_summary: data.result.summary,
+        ai_category: data.result.category,
+        ai_suggested_priority: data.result.priority,
+      };
+      setSelectedCase(next);
+      setCases((items) => items.map((item) => (item.id === next.id ? next : item)));
+      setAiChecks(data.result.next_actions ?? []);
+    }
   }
 
   async function restoreDevice() {
@@ -285,21 +371,13 @@ function SupportConsole() {
                 Koda Support
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[#6e6e73]">
-                Dispositivos, cobertura, saúde, diagnósticos e atendimentos em um só lugar.
+                Atenda clientes, acompanhe conversas e resolva solicitações.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <label className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#86868b]" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Serial ou modelo"
-                  className="h-10 rounded-full border border-black/10 bg-[#f5f5f7] pl-9 pr-4 text-sm outline-none focus:border-[#0071e3]"
-                />
-              </label>
               <button
                 onClick={load}
+                aria-label="Atualizar atendimentos"
                 className="grid h-10 w-10 place-items-center rounded-full border border-black/10"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -329,15 +407,29 @@ function SupportConsole() {
           />
         </section>
 
-        <section className="mt-4 rounded-[32px] bg-white p-6 sm:p-8">
-          <div className="flex items-end justify-between">
+        <details className="group mt-4 rounded-[32px] bg-white p-6 sm:p-8">
+          <summary className="flex cursor-pointer list-none items-end justify-between">
             <div>
-              <p className="text-sm font-semibold text-[#6e6e73]">Dispositivos</p>
-              <h2 className="mt-1 text-3xl font-semibold tracking-[-0.04em]">Visão técnica.</h2>
+              <p className="text-sm font-semibold text-[#6e6e73]">Opcional</p>
+              <h2 className="mt-1 text-2xl font-semibold tracking-[-0.04em]">
+                Ferramentas técnicas
+              </h2>
             </div>
-            <Activity className="h-8 w-8 text-[#0071e3]" />
-          </div>
+            <span className="text-sm font-semibold text-[#0066cc] group-open:hidden">Mostrar</span>
+            <span className="hidden text-sm font-semibold text-[#0066cc] group-open:inline">
+              Ocultar
+            </span>
+          </summary>
           <div className="mt-6 overflow-x-auto">
+            <label className="mb-4 block max-w-sm text-xs font-medium text-[#6e6e73]">
+              Buscar dispositivo
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Serial ou modelo"
+                className="mt-1.5 h-10 w-full rounded-full border border-black/10 bg-[#f5f5f7] px-4 text-sm outline-none focus:border-[#0071e3]"
+              />
+            </label>
             {diagnosticError && (
               <p
                 role="alert"
@@ -437,7 +529,7 @@ function SupportConsole() {
               </p>
             )}
           </div>
-        </section>
+        </details>
 
         <section className="mt-4 rounded-[32px] bg-white p-6 sm:p-8">
           <div>
@@ -447,10 +539,25 @@ function SupportConsole() {
           <div className="mt-6 divide-y divide-black/10">
             {cases.length ? (
               cases.slice(0, 20).map((item) => (
-                <div key={item.id} className="grid gap-2 py-4 sm:grid-cols-[1fr_auto]">
+                <button
+                  key={item.id}
+                  onClick={() => openCase(item)}
+                  className="grid w-full gap-2 py-4 text-left sm:grid-cols-[1fr_auto]"
+                >
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.12em] text-[#86868b]">
-                      {item.category}
+                    <p className="flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-[#86868b]">
+                      <span>{item.category}</span>
+                      <span
+                        className={
+                          item.priority === "urgent"
+                            ? "text-red-600"
+                            : item.priority === "high"
+                              ? "text-amber-600"
+                              : ""
+                        }
+                      >
+                        · {priorityLabel(item.priority)}
+                      </span>
                     </p>
                     <p className="mt-1 text-sm font-semibold">{item.subject}</p>
                     <p className="mt-1 text-xs text-[#86868b]">
@@ -460,16 +567,159 @@ function SupportConsole() {
                       }).format(new Date(item.created_at))}
                     </p>
                   </div>
-                  <span className="text-xs font-semibold text-[#6e6e73]">
-                    {caseLabel(item.status)}
+                  <span className="text-xs font-semibold text-[#0066cc]">
+                    {caseLabel(item.status)} ›
                   </span>
-                </div>
+                </button>
               ))
             ) : (
               <p className="py-6 text-sm text-[#6e6e73]">Nenhum atendimento registrado.</p>
             )}
           </div>
         </section>
+        <Dialog
+          open={selectedCase !== null}
+          onOpenChange={(open) => {
+            if (!open && !caseBusy) setSelectedCase(null);
+          }}
+        >
+          <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto rounded-[28px]">
+            <DialogHeader>
+              <DialogTitle>{selectedCase?.subject}</DialogTitle>
+              <DialogDescription>
+                {selectedCase ? `${selectedCase.category} · ${caseLabel(selectedCase.status)}` : ""}
+              </DialogDescription>
+            </DialogHeader>
+            {selectedCase && (
+              <div className="space-y-5">
+                <div className="grid gap-3 rounded-2xl bg-[#f5f5f7] p-4 sm:grid-cols-2">
+                  <label className="text-xs font-medium text-[#6e6e73]">
+                    Estado
+                    <select
+                      value={selectedCase.status}
+                      onChange={(e) => updateCase({ status: e.target.value as CaseItem["status"] })}
+                      className="mt-1 block h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-[#1d1d1f]"
+                    >
+                      <option value="open">Aberto</option>
+                      <option value="in_progress">Em atendimento</option>
+                      <option value="waiting_customer">Aguardando cliente</option>
+                      <option value="resolved">Resolvido</option>
+                      <option value="closed">Fechado</option>
+                    </select>
+                  </label>
+                  <label className="text-xs font-medium text-[#6e6e73]">
+                    Prioridade
+                    <select
+                      value={selectedCase.priority}
+                      onChange={(e) =>
+                        updateCase({ priority: e.target.value as CaseItem["priority"] })
+                      }
+                      className="mt-1 block h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm text-[#1d1d1f]"
+                    >
+                      <option value="low">Baixa</option>
+                      <option value="normal">Normal</option>
+                      <option value="high">Alta</option>
+                      <option value="urgent">Urgente</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="rounded-2xl border border-[#0071e3]/20 bg-[#f5f9ff] p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="inline-flex items-center gap-2 text-sm font-semibold">
+                      <Sparkles className="h-4 w-4 text-[#0071e3]" /> Assistente Koda
+                    </p>
+                    <button
+                      onClick={async () => {
+                        await handleCaseAi("triage");
+                        await handleCaseAi("draft");
+                      }}
+                      disabled={aiBusy !== null}
+                      className="text-xs font-semibold text-[#0066cc] disabled:opacity-50"
+                    >
+                      {aiBusy ? "Preparando ajuda…" : "Gerar resumo e resposta"}
+                    </button>
+                  </div>
+                  {selectedCase.ai_summary ? (
+                    <p className="mt-3 text-sm leading-relaxed text-[#424245]">
+                      {selectedCase.ai_summary}
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-xs text-[#6e6e73]">
+                      Use a IA para organizar o contexto. Nenhuma resposta é enviada
+                      automaticamente.
+                    </p>
+                  )}
+                  {selectedCase.ai_suggested_priority && (
+                    <p className="mt-2 text-xs font-semibold text-[#6e6e73]">
+                      Sugestão: {selectedCase.ai_category} · prioridade{" "}
+                      {priorityLabel(selectedCase.ai_suggested_priority).toLowerCase()}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  <Message
+                    author="Cliente"
+                    body={selectedCase.message}
+                    createdAt={selectedCase.created_at}
+                  />
+                  {caseNotes.map((note) => (
+                    <Message
+                      key={note.id}
+                      author={
+                        note.author_user_id === selectedCase.owner_user_id
+                          ? "Cliente"
+                          : note.visibility === "internal"
+                            ? "Nota interna"
+                            : "Equipe Koda"
+                      }
+                      body={note.body}
+                      createdAt={note.created_at}
+                      internal={note.visibility === "internal"}
+                    />
+                  ))}
+                </div>
+                <div className="rounded-2xl bg-[#f5f5f7] p-4">
+                  <textarea
+                    value={caseReply}
+                    onChange={(e) => setCaseReply(e.target.value)}
+                    rows={5}
+                    placeholder="Escreva uma resposta…"
+                    className="w-full resize-none rounded-xl border border-black/10 bg-white p-3 text-sm outline-none focus:border-[#0071e3]"
+                  />
+                  {aiChecks.length > 0 && (
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-[#6e6e73]">
+                      {aiChecks.map((check) => (
+                        <li key={check}>{check}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <label className="flex items-center gap-2 text-xs text-[#6e6e73]">
+                      <input
+                        type="checkbox"
+                        checked={replyInternal}
+                        onChange={(e) => setReplyInternal(e.target.checked)}
+                      />{" "}
+                      Nota interna
+                    </label>
+                    <button
+                      onClick={sendCaseReply}
+                      disabled={!caseReply.trim() || caseBusy}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#0071e3] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      <Send className="h-3.5 w-3.5" />{" "}
+                      {caseBusy
+                        ? "Salvando…"
+                        : replyInternal
+                          ? "Salvar nota"
+                          : "Responder ao cliente"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
         <Dialog
           open={selectedDevice !== null}
           onOpenChange={(open) => {
@@ -612,4 +862,36 @@ function caseLabel(status: string) {
         : status === "resolved"
           ? "Resolvido"
           : "Fechado";
+}
+
+function priorityLabel(priority: CaseItem["priority"]) {
+  return ({ low: "Baixa", normal: "Normal", high: "Alta", urgent: "Urgente" } as const)[priority];
+}
+
+function Message({
+  author,
+  body,
+  createdAt,
+  internal = false,
+}: {
+  author: string;
+  body: string;
+  createdAt: string;
+  internal?: boolean;
+}) {
+  return (
+    <article
+      className={`rounded-2xl p-4 ${internal ? "border border-amber-200 bg-amber-50" : "bg-[#f5f5f7]"}`}
+    >
+      <div className="flex items-center justify-between gap-3 text-xs">
+        <strong>{author}</strong>
+        <time className="text-[#86868b]">
+          {new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(
+            new Date(createdAt),
+          )}
+        </time>
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[#424245]">{body}</p>
+    </article>
+  );
 }

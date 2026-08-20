@@ -39,6 +39,14 @@ type DeviceSummary = {
   kodaos_version: string | null;
   activated_at: string | null;
 };
+type TradeInSummary = {
+  id: string;
+  serial_number: string;
+  source_model: string;
+  credit_cents: number;
+  status: string;
+  created_at: string;
+};
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -51,6 +59,7 @@ function Account() {
   const { user, loading, signOut } = useAuth();
   const [devices, setDevices] = useState<DeviceSummary[]>([]);
   const [cases, setCases] = useState<SupportCaseSummary[]>([]);
+  const [tradeIns, setTradeIns] = useState<TradeInSummary[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [editingName, setEditingName] = useState(false);
@@ -78,11 +87,18 @@ function Account() {
         .eq("owner_user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(6),
-    ]).then(([devicesResult, profileResult, casesResult]) => {
+      supabase
+        .from("trade_in_requests")
+        .select("id,serial_number,source_model,credit_cents,status,created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(4),
+    ]).then(([devicesResult, profileResult, casesResult, tradeInResult]) => {
       if (!devicesResult.error) setDevices((devicesResult.data ?? []) as DeviceSummary[]);
       if (!profileResult.error)
         setProfileName(profileResult.data?.full_name ?? user.user_metadata?.["full_name"] ?? "");
       if (!casesResult.error) setCases((casesResult.data ?? []) as SupportCaseSummary[]);
+      if (!tradeInResult.error) setTradeIns((tradeInResult.data ?? []) as TradeInSummary[]);
       setLoadingDevices(false);
     });
   }, [user]);
@@ -183,6 +199,47 @@ function Account() {
             </div>
           )}
         </div>
+      </section>
+
+      <section className="mt-4 rounded-[32px] bg-white p-7 sm:p-10">
+        <div className="flex items-end justify-between gap-5">
+          <div>
+            <p className="text-sm font-semibold text-[#6e6e73]">Koda Trade In</p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+              Troque e economize.
+            </h2>
+          </div>
+          <a href="/trade-in" className="text-xs font-semibold text-[#0066cc]">
+            Nova avaliação
+          </a>
+        </div>
+        {tradeIns.length ? (
+          <div className="mt-7 divide-y divide-black/10 border-y border-black/10">
+            {tradeIns.map((item) => (
+              <div
+                key={item.id}
+                className="grid gap-2 py-4 sm:grid-cols-[1fr_auto] sm:items-center"
+              >
+                <div>
+                  <p className="text-sm font-semibold">
+                    {productNames[item.source_model as ProductId] ?? item.source_model} ·{" "}
+                    {item.serial_number}
+                  </p>
+                  <p className="mt-1 text-xs text-[#86868b]">
+                    Crédito de R$ {(item.credit_cents / 100).toFixed(2).replace(".", ",")}
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-[#6e6e73]">
+                  {tradeInStatus(item.status)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-7 rounded-2xl bg-[#f5f5f7] p-6 text-sm text-[#6e6e73]">
+            Você ainda não iniciou um Trade In.
+          </div>
+        )}
       </section>
 
       <section className="mt-4 rounded-[32px] bg-white p-7 sm:p-10">
@@ -308,8 +365,9 @@ function Account() {
         {cases.length ? (
           <div className="mt-7 divide-y divide-black/10 border-y border-black/10">
             {cases.map((item) => (
-              <div
+              <a
                 key={item.id}
+                href={`/conta/atendimentos/${item.id}`}
                 className="grid gap-2 py-4 sm:grid-cols-[1fr_auto] sm:items-center"
               >
                 <div>
@@ -323,7 +381,7 @@ function Account() {
                     )}
                   </p>
                 </div>
-                <span className="text-xs font-semibold text-[#6e6e73]">
+                <span className="text-xs font-semibold text-[#0066cc]">
                   {item.status === "open"
                     ? "Aberto"
                     : item.status === "in_progress"
@@ -332,9 +390,10 @@ function Account() {
                         ? "Aguardando você"
                         : item.status === "resolved"
                           ? "Resolvido"
-                          : "Fechado"}
+                          : "Fechado"}{" "}
+                  ›
                 </span>
-              </div>
+              </a>
             ))}
           </div>
         ) : (
@@ -392,4 +451,22 @@ function Account() {
       </section>
     </main>
   );
+}
+
+function tradeInStatus(status: string) {
+  return status === "estimated"
+    ? "Avaliação criada"
+    : status === "reserved"
+      ? "Crédito reservado"
+      : status === "awaiting_shipment"
+        ? "Aguardando postagem"
+        : status === "in_transit"
+          ? "Em trânsito"
+          : status === "received" || status === "inspecting"
+            ? "Em inspeção"
+            : status === "approved" || status === "completed"
+              ? "Aprovado"
+              : status === "rejected"
+                ? "Não aprovado"
+                : "Cancelado";
 }

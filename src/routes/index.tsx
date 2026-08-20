@@ -97,9 +97,11 @@ function Home() {
             </div>
             <div className="mx-auto mt-16 max-w-5xl">
               <ProductPhotoSlot
-                label="Aguardando kodabot-i-kodaos-dark"
+                src="/kodabot-kodaos-dark-v1.png"
+                alt="KodaBot exibindo a interface KODA OS em estúdio escuro"
                 className="h-[420px] sm:h-[620px]"
                 dark
+                objectPosition="center"
               />
             </div>
           </div>

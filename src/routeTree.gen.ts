@@ -27,10 +27,12 @@ import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as SuporteRouteImport } from './routes/suporte'
 import { Route as SuporteInternoRouteImport } from './routes/suporte-interno'
+import { Route as TradeInRouteImport } from './routes/trade-in'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminFabricaRouteImport } from './routes/admin.fabrica'
 import { Route as AdminFinanceiroRouteImport } from './routes/admin.financeiro'
 import { Route as AdminSuporteRouteImport } from './routes/admin.suporte'
+import { Route as AdminTradeInRouteImport } from './routes/admin.trade-in'
 import { Route as CheckoutProductSlugRouteImport } from './routes/checkout.$productSlug'
 import { Route as ContaIndexRouteImport } from './routes/conta.index'
 import { Route as ContaConfiguracoesRouteImport } from './routes/conta.configuracoes'
@@ -60,6 +62,7 @@ import { Route as SuporteManuaisRouteImport } from './routes/suporte.manuais'
 import { Route as SuporteOrcamentosRouteImport } from './routes/suporte.orcamentos'
 import { Route as SuporteReparoRouteImport } from './routes/suporte.reparo'
 import { Route as CheckoutReparoRepairIdRouteImport } from './routes/checkout.reparo.$repairId'
+import { Route as ContaAtendimentosCaseIdRouteImport } from './routes/conta.atendimentos.$caseId'
 import { Route as ContaCoberturaDeviceIdRouteImport } from './routes/conta.cobertura.$deviceId'
 import { Route as ContaDiagnosticoDeviceIdRouteImport } from './routes/conta.diagnostico.$deviceId'
 import { Route as ContaDispositivoDeviceIdRouteImport } from './routes/conta.dispositivo.$deviceId'
@@ -156,6 +159,11 @@ const SuporteInternoRoute = SuporteInternoRouteImport.update({
   path: '/suporte-interno',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TradeInRoute = TradeInRouteImport.update({
+  id: '/trade-in',
+  path: '/trade-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -174,6 +182,11 @@ const AdminFinanceiroRoute = AdminFinanceiroRouteImport.update({
 const AdminSuporteRoute = AdminSuporteRouteImport.update({
   id: '/suporte',
   path: '/suporte',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminTradeInRoute = AdminTradeInRouteImport.update({
+  id: '/trade-in',
+  path: '/trade-in',
   getParentRoute: () => AdminRoute,
 } as any)
 const CheckoutProductSlugRoute = CheckoutProductSlugRouteImport.update({
@@ -321,6 +334,11 @@ const CheckoutReparoRepairIdRoute = CheckoutReparoRepairIdRouteImport.update({
   path: '/checkout/reparo/$repairId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ContaAtendimentosCaseIdRoute = ContaAtendimentosCaseIdRouteImport.update({
+  id: '/atendimentos/$caseId',
+  path: '/atendimentos/$caseId',
+  getParentRoute: () => ContaRoute,
+} as any)
 const ContaCoberturaDeviceIdRoute = ContaCoberturaDeviceIdRouteImport.update({
   id: '/cobertura/$deviceId',
   path: '/cobertura/$deviceId',
@@ -368,9 +386,11 @@ export interface FileRoutesByFullPath {
   '/status': typeof StatusRoute
   '/suporte': typeof SuporteRouteWithChildren
   '/suporte-interno': typeof SuporteInternoRoute
+  '/trade-in': typeof TradeInRoute
   '/admin/fabrica': typeof AdminFabricaRoute
   '/admin/financeiro': typeof AdminFinanceiroRoute
   '/admin/suporte': typeof AdminSuporteRoute
+  '/admin/trade-in': typeof AdminTradeInRoute
   '/checkout/$productSlug': typeof CheckoutProductSlugRoute
   '/conta/configuracoes': typeof ContaConfiguracoesRoute
   '/conta/criar': typeof ContaCriarRoute
@@ -401,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/kodaos/': typeof KodaosIndexRoute
   '/suporte/': typeof SuporteIndexRoute
   '/checkout/reparo/$repairId': typeof CheckoutReparoRepairIdRoute
+  '/conta/atendimentos/$caseId': typeof ContaAtendimentosCaseIdRoute
   '/conta/cobertura/$deviceId': typeof ContaCoberturaDeviceIdRoute
   '/conta/diagnostico/$deviceId': typeof ContaDiagnosticoDeviceIdRoute
   '/conta/dispositivo/$deviceId': typeof ContaDispositivoDeviceIdRoute
@@ -420,9 +441,11 @@ export interface FileRoutesByTo {
   '/sobre': typeof SobreRoute
   '/status': typeof StatusRoute
   '/suporte-interno': typeof SuporteInternoRoute
+  '/trade-in': typeof TradeInRoute
   '/admin/fabrica': typeof AdminFabricaRoute
   '/admin/financeiro': typeof AdminFinanceiroRoute
   '/admin/suporte': typeof AdminSuporteRoute
+  '/admin/trade-in': typeof AdminTradeInRoute
   '/checkout/$productSlug': typeof CheckoutProductSlugRoute
   '/conta/configuracoes': typeof ContaConfiguracoesRoute
   '/conta/criar': typeof ContaCriarRoute
@@ -453,6 +476,7 @@ export interface FileRoutesByTo {
   '/kodaos': typeof KodaosIndexRoute
   '/suporte': typeof SuporteIndexRoute
   '/checkout/reparo/$repairId': typeof CheckoutReparoRepairIdRoute
+  '/conta/atendimentos/$caseId': typeof ContaAtendimentosCaseIdRoute
   '/conta/cobertura/$deviceId': typeof ContaCoberturaDeviceIdRoute
   '/conta/diagnostico/$deviceId': typeof ContaDiagnosticoDeviceIdRoute
   '/conta/dispositivo/$deviceId': typeof ContaDispositivoDeviceIdRoute
@@ -479,9 +503,11 @@ export interface FileRoutesById {
   '/status': typeof StatusRoute
   '/suporte': typeof SuporteRouteWithChildren
   '/suporte-interno': typeof SuporteInternoRoute
+  '/trade-in': typeof TradeInRoute
   '/admin/fabrica': typeof AdminFabricaRoute
   '/admin/financeiro': typeof AdminFinanceiroRoute
   '/admin/suporte': typeof AdminSuporteRoute
+  '/admin/trade-in': typeof AdminTradeInRoute
   '/checkout/$productSlug': typeof CheckoutProductSlugRoute
   '/conta/configuracoes': typeof ContaConfiguracoesRoute
   '/conta/criar': typeof ContaCriarRoute
@@ -512,6 +538,7 @@ export interface FileRoutesById {
   '/kodaos/': typeof KodaosIndexRoute
   '/suporte/': typeof SuporteIndexRoute
   '/checkout/reparo/$repairId': typeof CheckoutReparoRepairIdRoute
+  '/conta/atendimentos/$caseId': typeof ContaAtendimentosCaseIdRoute
   '/conta/cobertura/$deviceId': typeof ContaCoberturaDeviceIdRoute
   '/conta/diagnostico/$deviceId': typeof ContaDiagnosticoDeviceIdRoute
   '/conta/dispositivo/$deviceId': typeof ContaDispositivoDeviceIdRoute
@@ -539,9 +566,11 @@ export interface FileRouteTypes {
     | '/status'
     | '/suporte'
     | '/suporte-interno'
+    | '/trade-in'
     | '/admin/fabrica'
     | '/admin/financeiro'
     | '/admin/suporte'
+    | '/admin/trade-in'
     | '/checkout/$productSlug'
     | '/conta/configuracoes'
     | '/conta/criar'
@@ -572,6 +601,7 @@ export interface FileRouteTypes {
     | '/kodaos/'
     | '/suporte/'
     | '/checkout/reparo/$repairId'
+    | '/conta/atendimentos/$caseId'
     | '/conta/cobertura/$deviceId'
     | '/conta/diagnostico/$deviceId'
     | '/conta/dispositivo/$deviceId'
@@ -591,9 +621,11 @@ export interface FileRouteTypes {
     | '/sobre'
     | '/status'
     | '/suporte-interno'
+    | '/trade-in'
     | '/admin/fabrica'
     | '/admin/financeiro'
     | '/admin/suporte'
+    | '/admin/trade-in'
     | '/checkout/$productSlug'
     | '/conta/configuracoes'
     | '/conta/criar'
@@ -624,6 +656,7 @@ export interface FileRouteTypes {
     | '/kodaos'
     | '/suporte'
     | '/checkout/reparo/$repairId'
+    | '/conta/atendimentos/$caseId'
     | '/conta/cobertura/$deviceId'
     | '/conta/diagnostico/$deviceId'
     | '/conta/dispositivo/$deviceId'
@@ -649,9 +682,11 @@ export interface FileRouteTypes {
     | '/status'
     | '/suporte'
     | '/suporte-interno'
+    | '/trade-in'
     | '/admin/fabrica'
     | '/admin/financeiro'
     | '/admin/suporte'
+    | '/admin/trade-in'
     | '/checkout/$productSlug'
     | '/conta/configuracoes'
     | '/conta/criar'
@@ -682,6 +717,7 @@ export interface FileRouteTypes {
     | '/kodaos/'
     | '/suporte/'
     | '/checkout/reparo/$repairId'
+    | '/conta/atendimentos/$caseId'
     | '/conta/cobertura/$deviceId'
     | '/conta/diagnostico/$deviceId'
     | '/conta/dispositivo/$deviceId'
@@ -708,6 +744,7 @@ export interface RootRouteChildren {
   StatusRoute: typeof StatusRoute
   SuporteRoute: typeof SuporteRouteWithChildren
   SuporteInternoRoute: typeof SuporteInternoRoute
+  TradeInRoute: typeof TradeInRoute
   CheckoutProductSlugRoute: typeof CheckoutProductSlugRoute
   KodabotIComprarRoute: typeof KodabotIComprarRoute
   ReparosSolicitarRoute: typeof ReparosSolicitarRoute
@@ -842,6 +879,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SuporteInternoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/trade-in': {
+      id: '/trade-in'
+      path: '/trade-in'
+      fullPath: '/trade-in'
+      preLoaderRoute: typeof TradeInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -868,6 +912,13 @@ declare module '@tanstack/react-router' {
       path: '/suporte'
       fullPath: '/admin/suporte'
       preLoaderRoute: typeof AdminSuporteRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/trade-in': {
+      id: '/admin/trade-in'
+      path: '/trade-in'
+      fullPath: '/admin/trade-in'
+      preLoaderRoute: typeof AdminTradeInRouteImport
       parentRoute: typeof AdminRoute
     }
     '/checkout/$productSlug': {
@@ -1073,6 +1124,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutReparoRepairIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/conta/atendimentos/$caseId': {
+      id: '/conta/atendimentos/$caseId'
+      path: '/atendimentos/$caseId'
+      fullPath: '/conta/atendimentos/$caseId'
+      preLoaderRoute: typeof ContaAtendimentosCaseIdRouteImport
+      parentRoute: typeof ContaRoute
+    }
     '/conta/cobertura/$deviceId': {
       id: '/conta/cobertura/$deviceId'
       path: '/cobertura/$deviceId'
@@ -1115,6 +1173,7 @@ interface AdminRouteChildren {
   AdminFabricaRoute: typeof AdminFabricaRoute
   AdminFinanceiroRoute: typeof AdminFinanceiroRoute
   AdminSuporteRoute: typeof AdminSuporteRoute
+  AdminTradeInRoute: typeof AdminTradeInRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -1122,6 +1181,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminFabricaRoute: AdminFabricaRoute,
   AdminFinanceiroRoute: AdminFinanceiroRoute,
   AdminSuporteRoute: AdminSuporteRoute,
+  AdminTradeInRoute: AdminTradeInRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
@@ -1161,6 +1221,7 @@ interface ContaRouteChildren {
   ContaRedefinirRoute: typeof ContaRedefinirRoute
   ContaReparosRoute: typeof ContaReparosRouteWithChildren
   ContaIndexRoute: typeof ContaIndexRoute
+  ContaAtendimentosCaseIdRoute: typeof ContaAtendimentosCaseIdRoute
   ContaCoberturaDeviceIdRoute: typeof ContaCoberturaDeviceIdRoute
   ContaDiagnosticoDeviceIdRoute: typeof ContaDiagnosticoDeviceIdRoute
   ContaDispositivoDeviceIdRoute: typeof ContaDispositivoDeviceIdRoute
@@ -1176,6 +1237,7 @@ const ContaRouteChildren: ContaRouteChildren = {
   ContaRedefinirRoute: ContaRedefinirRoute,
   ContaReparosRoute: ContaReparosRouteWithChildren,
   ContaIndexRoute: ContaIndexRoute,
+  ContaAtendimentosCaseIdRoute: ContaAtendimentosCaseIdRoute,
   ContaCoberturaDeviceIdRoute: ContaCoberturaDeviceIdRoute,
   ContaDiagnosticoDeviceIdRoute: ContaDiagnosticoDeviceIdRoute,
   ContaDispositivoDeviceIdRoute: ContaDispositivoDeviceIdRoute,
@@ -1271,6 +1333,7 @@ const rootRouteChildren: RootRouteChildren = {
   StatusRoute: StatusRoute,
   SuporteRoute: SuporteRouteWithChildren,
   SuporteInternoRoute: SuporteInternoRoute,
+  TradeInRoute: TradeInRoute,
   CheckoutProductSlugRoute: CheckoutProductSlugRoute,
   KodabotIComprarRoute: KodabotIComprarRoute,
   ReparosSolicitarRoute: ReparosSolicitarRoute,

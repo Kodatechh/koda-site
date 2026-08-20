@@ -228,7 +228,7 @@ function Compare() {
                       ? money(product.unit_amount_cents, product.currency)
                       : id === "kodabot-i"
                         ? "R$ 99,90"
-                        : "Preço em breve"}
+                        : "R$ 129,90"}
                   </p>
                   <div className="mt-5 flex flex-col items-center gap-3">
                     <a
@@ -249,22 +249,6 @@ function Compare() {
             })}
           </div>
         </section>
-
-        <div className="sticky top-11 z-30 border-y border-black/[.12] bg-white/95 backdrop-blur-xl">
-          <div className="mx-auto grid h-[62px] max-w-[980px] grid-cols-2 items-center gap-5 px-5 sm:gap-10">
-            {compared.map((id) => (
-              <div key={id} className="flex min-w-0 items-center justify-between gap-3">
-                <span className="truncate text-[12px] font-semibold">{names[id]}</span>
-                <a
-                  href={checkoutHrefs[id]}
-                  className="hidden rounded-full bg-[#0071e3] px-3 py-1.5 text-[10px] font-semibold text-white sm:inline-flex"
-                >
-                  Comprar
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
 
         <section className="mx-auto max-w-[980px] px-5 pb-24">
           {compareSections.map((section) => (
