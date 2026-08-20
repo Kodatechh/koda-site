@@ -149,6 +149,13 @@ export function Nav() {
     };
   }, []);
 
+  useEffect(() => {
+    document.body.style.overflow = mobile ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobile]);
+
   const closeNavigation = () => {
     hideMenu();
     setMobileMenu(null);
@@ -159,16 +166,23 @@ export function Nav() {
     <>
       <header
         ref={headerRef}
-        className="sticky top-0 z-50 border-b border-black/5 bg-white/92 text-foreground backdrop-blur-xl"
+        className="sticky top-0 z-50 h-12 border-b border-black/[.06] bg-white/90 text-[#1d1d1f] backdrop-blur-2xl"
       >
-        <nav className="mx-auto flex h-11 max-w-5xl items-center justify-between px-5">
-          <a href="/" className="text-sm font-semibold tracking-tight" aria-label="Koda — início">
+        <nav className="mx-auto flex h-12 max-w-[1024px] items-center justify-between px-5 lg:px-3">
+          <a
+            href="/"
+            className="flex h-12 items-center text-[14px] font-semibold tracking-[-.03em]"
+            aria-label="Koda — início"
+          >
             Koda
           </a>
 
-          <ul className="hidden items-center gap-8 md:flex">
+          <ul className="hidden h-full items-center gap-0 md:flex">
             {navItems.map((item) => (
-              <li key={item.label} onMouseEnter={() => item.menu && showMenu(item.label)}>
+              <li
+                key={item.label}
+                onMouseEnter={() => (item.menu ? showMenu(item.label) : hideMenu(true))}
+              >
                 {item.menu ? (
                   <button
                     type="button"
@@ -176,7 +190,7 @@ export function Nav() {
                     aria-controls={`nav-${item.label.toLowerCase().replaceAll(" ", "-")}`}
                     onClick={() => (openMenu === item.label ? hideMenu() : showMenu(item.label))}
                     onMouseEnter={() => showMenu(item.label)}
-                    className="flex items-center gap-1 rounded-md text-xs text-foreground/72 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/50"
+                    className="flex h-12 items-center gap-1 px-[18px] text-[11px] font-medium leading-none text-[#1d1d1f]/75 transition-colors hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0071e3]/50"
                   >
                     {item.label}
                     <ChevronDown
@@ -187,7 +201,7 @@ export function Nav() {
                   <a
                     href={item.href}
                     onClick={closeNavigation}
-                    className="rounded-md text-xs text-foreground/72 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/50"
+                    className="flex h-12 items-center px-[18px] text-[11px] font-medium leading-none text-[#1d1d1f]/75 transition-colors hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0071e3]/50"
                   >
                     {item.label}
                   </a>
@@ -196,12 +210,12 @@ export function Nav() {
             ))}
           </ul>
 
-          <div className="flex items-center gap-4">
+          <div className="flex h-12 items-center gap-1 sm:gap-2">
             {user && (
               <a
                 href="/conta/notificacoes"
                 aria-label={`${unread} notificações não lidas`}
-                className="relative rounded-full p-1 transition-opacity hover:opacity-60"
+                className="relative grid h-9 w-9 place-items-center rounded-full transition-opacity hover:opacity-60"
               >
                 <Bell className="h-3.5 w-3.5 text-foreground/72" />
                 {unread > 0 && (
@@ -214,14 +228,14 @@ export function Nav() {
             <button
               onClick={() => setSearchOpen(true)}
               aria-label="Buscar"
-              className="rounded-full p-1 transition-opacity hover:opacity-60"
+              className="grid h-9 w-9 place-items-center rounded-full transition-opacity hover:opacity-60"
             >
               <Search className="h-3.5 w-3.5 text-foreground/72" />
             </button>
             <a
               href={user ? "/conta" : "/conta/entrar"}
               aria-label={user ? "Minha Conta KodaCloud" : "Entrar na KodaCloud"}
-              className="relative rounded-full p-1 transition-opacity hover:opacity-60"
+              className="relative grid h-9 w-9 place-items-center rounded-full transition-opacity hover:opacity-60"
             >
               <UserRound className="h-3.5 w-3.5 text-foreground/72" />
               {!loading && user && (
@@ -229,9 +243,9 @@ export function Nav() {
               )}
             </a>
             <button
-              className="md:hidden"
+              className="grid h-9 w-9 place-items-center rounded-full md:hidden"
               onClick={() => setMobile((v) => !v)}
-              aria-label="Abrir menu"
+              aria-label={mobile ? "Fechar menu" : "Abrir menu"}
             >
               {mobile ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
@@ -247,23 +261,23 @@ export function Nav() {
                 key={item.label}
                 onMouseEnter={() => showMenu(item.label)}
                 onMouseLeave={() => hideMenu(true)}
-                className={`hidden origin-top border-t border-black/5 bg-background/95 shadow-[0_18px_45px_rgba(0,0,0,.07)] backdrop-blur-xl transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none md:block ${
+                className={`fixed inset-x-0 top-12 hidden origin-top border-t border-black/[.04] bg-white/95 shadow-[0_28px_55px_rgba(0,0,0,.10)] backdrop-blur-2xl transition-[opacity,transform] duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none md:block ${
                   menuClosing
-                    ? "pointer-events-none -translate-y-1 scale-[.985] opacity-0"
+                    ? "pointer-events-none -translate-y-3 opacity-0"
                     : "translate-y-0 scale-100 opacity-100"
                 }`}
               >
-                <div className="mx-auto grid max-w-5xl gap-12 px-5 pb-12 pt-8 sm:grid-cols-3">
+                <div className="mx-auto grid min-h-[260px] max-w-[1024px] grid-cols-3 gap-16 px-5 pb-14 pt-10 lg:px-3">
                   {item.menu.map((group) => (
                     <div key={group.title}>
-                      <p className="text-[11px] text-foreground/40">{group.title}</p>
-                      <ul className="mt-3 space-y-2">
+                      <p className="text-[11px] font-medium text-[#6e6e73]">{group.title}</p>
+                      <ul className="mt-4 space-y-1">
                         {group.items.map((sub) => (
                           <li key={sub.label}>
                             <a
                               href={sub.href}
                               onClick={closeNavigation}
-                              className="block rounded-xl px-2 py-1 text-xl font-semibold tracking-tight text-foreground/90 transition-[color,background-color,transform] duration-150 hover:translate-x-0.5 hover:bg-foreground/[.035] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/50 motion-reduce:transform-none motion-reduce:transition-none"
+                              className="block py-1 text-[22px] font-semibold leading-[1.15] tracking-[-.04em] text-[#1d1d1f] transition-[color,transform] duration-200 hover:translate-x-1 hover:text-[#0066cc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/50 motion-reduce:transform-none motion-reduce:transition-none"
                             >
                               {sub.label}
                               {sub.note && (
@@ -283,9 +297,9 @@ export function Nav() {
         )}
 
         {mobile && (
-          <div className="max-h-[82vh] overflow-y-auto border-t border-black/5 bg-background px-5 py-6 md:hidden">
+          <div className="fixed inset-x-0 top-12 h-[calc(100dvh-3rem)] overflow-y-auto bg-white px-7 pb-12 pt-7 md:hidden">
             {navItems.map((item) => (
-              <div key={item.label} className="border-b border-black/5 py-4 last:border-0">
+              <div key={item.label} className="py-2.5">
                 {item.menu ? (
                   <button
                     type="button"
@@ -294,7 +308,7 @@ export function Nav() {
                     onClick={() =>
                       setMobileMenu((open) => (open === item.label ? null : item.label))
                     }
-                    className="flex w-full items-center justify-between text-left text-2xl font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/50"
+                    className="flex w-full items-center justify-between text-left text-[28px] font-semibold leading-tight tracking-[-.045em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/50"
                   >
                     {item.label}
                     <ChevronDown
@@ -305,7 +319,7 @@ export function Nav() {
                   <a
                     href={item.href}
                     onClick={closeNavigation}
-                    className="block text-2xl font-semibold tracking-tight"
+                    className="block text-[28px] font-semibold leading-tight tracking-[-.045em]"
                   >
                     {item.label}
                   </a>
@@ -313,9 +327,9 @@ export function Nav() {
                 {item.menu && (
                   <div
                     id={`mobile-${item.label.toLowerCase().replaceAll(" ", "-")}`}
-                    className={`grid transition-[grid-template-rows,opacity] duration-200 motion-reduce:transition-none ${mobileMenu === item.label ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(.22,1,.36,1)] motion-reduce:transition-none ${mobileMenu === item.label ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
                   >
-                    <ul className="mt-2 space-y-1 overflow-hidden pl-1">
+                    <ul className="mt-2 space-y-1 overflow-hidden border-l border-black/10 pl-4">
                       {item.menu
                         .flatMap((g) => g.items)
                         .map((sub) => (
