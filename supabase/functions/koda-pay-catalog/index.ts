@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
 function json(body: unknown, status = 200) {
@@ -20,20 +20,26 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (req.method !== "POST" && req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) return json({ error: "server_configuration_error" }, 500);
 
-  let input: { productSlug?: string };
-  try {
-    input = await req.json();
-  } catch {
-    return json({ error: "invalid_json" }, 400);
+  let productSlug = "";
+  if (req.method === "GET") {
+    const url = new URL(req.url);
+    productSlug = (url.searchParams.get("productSlug") ?? url.searchParams.get("slug") ?? "").trim();
+  } else {
+    let input: { productSlug?: string };
+    try {
+      input = await req.json();
+    } catch {
+      return json({ error: "invalid_json" }, 400);
+    }
+    productSlug = typeof input.productSlug === "string" ? input.productSlug.trim() : "";
   }
 
-  const productSlug = typeof input.productSlug === "string" ? input.productSlug.trim() : "";
   if (!productSlug) return json({ error: "invalid_product" }, 400);
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
