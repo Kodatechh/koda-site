@@ -37,11 +37,21 @@ function toCentimeters(mm: number) {
   return Math.max(1, Math.ceil(mm / 10));
 }
 
-function providerMessage(value: unknown) {
-  if (!value || typeof value !== "object") return null;
+function providerMessage(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const message = providerMessage(item);
+      if (message) return message;
+    }
+    return null;
+  }
+  if (!value || typeof value !== "object") return typeof value === "string" ? value.slice(0, 240) : null;
   const row = value as Record<string, unknown>;
-  const message = typeof row.error === "string" ? row.error : typeof row.message === "string" ? row.message : null;
-  return message?.slice(0, 240) ?? null;
+  const candidates = [row.error, row.message, row.detail, row.description];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate.trim().slice(0, 240);
+  }
+  return null;
 }
 
 async function makeOption(input: {
@@ -176,19 +186,24 @@ Deno.serve(async (req: Request) => {
     return json({ error: "shipping_dimensions_missing", configured: false, options: [] }, 503);
   }
 
-  const melhorEnvioToken = Deno.env.get("MELHOR_ENVIO_TOKEN")?.trim();
+  const superFreteToken = Deno.env.get("SUPERFRETE_TOKEN")?.trim();
   const originPostalCode = Deno.env.get("KODA_ORIGIN_POSTAL_CODE")?.replace(/\D/g, "") ?? "";
-  const userAgent = Deno.env.get("MELHOR_ENVIO_USER_AGENT")?.trim();
+  const userAgent = Deno.env.get("SUPERFRETE_USER_AGENT")?.trim();
   if (originPostalCode.length !== 8) return json({ error: "shipping_origin_not_configured", configured: false, options: [] }, 503);
-  if (!melhorEnvioToken || !userAgent) return json({ error: "shipping_provider_not_configured", configured: false, options: [] }, 503);
+  if (!superFreteToken || !userAgent) return json({ error: "shipping_provider_not_configured", configured: false, options: [] }, 503);
 
-  const environment = Deno.env.get("MELHOR_ENVIO_ENV")?.trim().toLowerCase() === "production" ? "production" : "sandbox";
-  const baseUrl = environment === "production" ? "https://melhorenvio.com.br" : "https://sandbox.melhorenvio.com.br";
+  const environment = Deno.env.get("SUPERFRETE_ENV")?.trim().toLowerCase() === "sandbox" ? "sandbox" : "production";
+  const baseUrl = environment === "sandbox" ? "https://sandbox.superfrete.com" : "https://api.superfrete.com";
+  const services = (Deno.env.get("SUPERFRETE_SERVICES")?.trim() || "1,2,17,3,33")
+    .split(",")
+    .map((value) => value.replace(/\D/g, ""))
+    .filter(Boolean)
+    .join(",");
 
-  const providerResponse = await fetch(`${baseUrl}/api/v2/me/shipment/calculate`, {
+  const providerResponse = await fetch(`${baseUrl}/api/v0/calculator`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${melhorEnvioToken}`,
+      Authorization: `Bearer ${superFreteToken}`,
       Accept: "application/json",
       "Content-Type": "application/json",
       "User-Agent": userAgent,
@@ -196,16 +211,20 @@ Deno.serve(async (req: Request) => {
     body: JSON.stringify({
       from: { postal_code: originPostalCode },
       to: { postal_code: postalCode },
+      services,
+      options: {
+        own_hand: false,
+        receipt: false,
+        insurance_value: 0,
+        use_insurance_value: false,
+      },
       products: [{
-        id: product.slug,
+        quantity,
         width: toCentimeters(widthMm),
         height: toCentimeters(heightMm),
         length: toCentimeters(lengthMm),
         weight: Number((weightGrams / 1000).toFixed(3)),
-        insurance_value: Number((Number(product.unit_amount_cents) / 100).toFixed(2)),
-        quantity,
       }],
-      options: { receipt: false, own_hand: false, collect: false },
     }),
   });
 
@@ -220,14 +239,26 @@ Deno.serve(async (req: Request) => {
     }, 502);
   }
 
-  const rows = Array.isArray(providerBody) ? providerBody : [];
+  const rows = Array.isArray(providerBody)
+    ? providerBody
+    : Array.isArray((providerBody as any)?.data)
+      ? (providerBody as any).data
+      : [];
+
   const options = (await Promise.all(rows.map(async (raw: any) => {
     if (!raw || raw.error) return null;
-    const serviceId = String(raw.id ?? "").trim();
-    const name = String(raw.name ?? "").trim();
-    const company = String(raw.company?.name ?? "").trim() || "Transportadora";
-    const price = Number(raw.custom_price ?? raw.price);
-    const deadlineValue = Number(raw.custom_delivery_time ?? raw.delivery_time);
+    const serviceId = String(raw.id ?? raw.service_id ?? raw.code ?? "").trim();
+    const name = String(raw.name ?? raw.service_name ?? raw.service ?? "").trim();
+    const companyValue = raw.company?.name ?? raw.carrier?.name ?? raw.carrier ?? raw.company;
+    const company = typeof companyValue === "string" && companyValue.trim() ? companyValue.trim() : "Transportadora";
+    const price = Number(raw.custom_price ?? raw.price ?? raw.cost ?? raw.value);
+    const deadlineValue = Number(
+      raw.custom_delivery_time ??
+      raw.delivery_time ??
+      raw.custom_delivery_range?.max ??
+      raw.delivery_range?.max ??
+      raw.deadline
+    );
     if (!serviceId || !name || !Number.isFinite(price) || price < 0 || !Number.isFinite(deadlineValue) || deadlineValue < 0) return null;
     return await makeOption({
       secret: signingSecret,
@@ -235,7 +266,7 @@ Deno.serve(async (req: Request) => {
       quantity,
       postalCode,
       shippingMode: "carrier",
-      provider: "melhor_envio",
+      provider: "superfrete",
       serviceId,
       name,
       company,
@@ -249,7 +280,7 @@ Deno.serve(async (req: Request) => {
   if (!options.length) return json({ error: "shipping_no_options", configured: true, options: [] }, 502);
 
   return json({
-    provider: "melhor_envio",
+    provider: "superfrete",
     environment,
     configured: true,
     requires_shipping: true,
