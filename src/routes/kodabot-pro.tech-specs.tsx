@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Check, Minus } from "lucide-react";
 
 export const Route = createFileRoute("/kodabot-pro/tech-specs")({
-  head: () => ({ meta: [{ title: "KodaBot I Pro — Especificações técnicas — Koda" }] }),
+  head: () => ({ meta: [{ title: "KodaBot Pro — Especificações técnicas — Koda" }] }),
   component: ProSpecs,
 });
 
@@ -26,13 +26,13 @@ function ProSpecs() {
     <main className="min-h-screen bg-black text-white">
       <div className="sticky top-11 z-40 border-b border-white/10 bg-black/90 backdrop-blur-xl">
         <div className="mx-auto flex h-[52px] max-w-5xl items-center justify-between px-5">
-          <a href="/kodabot-pro" className="text-lg font-semibold tracking-[-0.03em]">KodaBot I Pro</a>
+          <a href="/kodabot-pro" className="text-lg font-semibold tracking-[-0.03em]">KodaBot Pro</a>
           <div className="flex items-center gap-5 text-xs"><a href="/kodabot-pro" className="text-white/60 hover:text-white">Visão geral</a><span className="font-semibold">Especificações</span></div>
         </div>
       </div>
 
       <section className="mx-auto max-w-5xl px-5 pb-20 pt-20 sm:pt-28">
-        <p className="text-sm font-semibold text-white/45">KodaBot I Pro</p>
+        <p className="text-sm font-semibold text-white/45">KodaBot Pro</p>
         <h1 className="mt-3 text-5xl font-semibold tracking-[-0.05em] sm:text-7xl">Especificações técnicas.</h1>
         <p className="mt-5 max-w-2xl text-lg leading-relaxed text-white/50">O primeiro protótipo Pro ainda está em definição. Esta página separa o que já foi decidido do que ainda será fechado durante o desenvolvimento.</p>
       </section>
