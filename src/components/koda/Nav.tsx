@@ -1,50 +1,119 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
-import { Bell, ChevronDown, Menu, Search, UserRound, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { ChevronDown, Menu, Search, ShoppingBag, X } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
 import { SearchOverlay } from "@/components/koda/SearchOverlay";
 
-type MenuGroup = { title: string; items: { label: string; note?: string; href: string }[] };
+type MenuLink = { label: string; href: string; note?: string };
+type MenuGroup = { title: string; emphasis?: boolean; items: MenuLink[] };
 type NavItem = { label: string; href: string; menu?: MenuGroup[] };
 
 const navItems: NavItem[] = [
-  { label: "Loja", href: "/loja" },
   {
-    label: "Produtos",
-    href: "/kodabot",
+    label: "Loja",
+    href: "/loja",
     menu: [
       {
-        title: "KodaBot",
+        title: "Comprar",
+        emphasis: true,
         items: [
-          { label: "KodaBot", note: "Com tela", href: "/kodabot" },
-          { label: "KodaBot Pro", note: "Voz e áudio", href: "/kodabot-pro" },
+          { label: "Loja Koda", href: "/loja" },
+          { label: "KodaBot", href: "/kodabot" },
+          { label: "KodaBot Pro", href: "/kodabot-pro" },
+          { label: "KodaCare", href: "/kodacare" },
           { label: "Comparar modelos", href: "/comparar" },
-          { label: "Comprar KodaBot", href: "/checkout/kodabot-i" },
         ],
       },
       {
-        title: "Conheça mais",
+        title: "Links rápidos",
         items: [
-          { label: "Por dentro do KodaBot", href: "/kodabot/por-dentro" },
-          { label: "Especificações do KodaBot", href: "/kodabot/tech-specs" },
-          { label: "Especificações do Pro", href: "/kodabot-pro/tech-specs" },
+          { label: "Seus pedidos", href: "/conta/pedidos" },
+          { label: "Meus KodaBots", href: "/conta" },
+          { label: "Suporte", href: "/suporte" },
+          { label: "Reparos", href: "/suporte/reparo" },
+        ],
+      },
+      {
+        title: "Serviços Koda",
+        items: [
+          { label: "KodaCare", href: "/kodacare" },
+          { label: "KODA OS", href: "/kodaos" },
+          { label: "Garantia", href: "/suporte/garantia" },
+          { label: "Conta Koda", href: "/conta" },
         ],
       },
     ],
   },
-  { label: "KodaCare", href: "/kodacare" },
+  {
+    label: "KodaBot",
+    href: "/kodabot",
+    menu: [
+      {
+        title: "Conheça o KodaBot",
+        emphasis: true,
+        items: [
+          { label: "KodaBot", href: "/kodabot" },
+          { label: "KodaBot Pro", href: "/kodabot-pro" },
+          { label: "Comparar", href: "/comparar" },
+        ],
+      },
+      {
+        title: "Explorar",
+        items: [
+          { label: "Por dentro do KodaBot", href: "/kodabot/por-dentro" },
+          { label: "Especificações", href: "/kodabot/tech-specs" },
+          { label: "Especificações do Pro", href: "/kodabot-pro/tech-specs" },
+        ],
+      },
+      {
+        title: "Comprar",
+        items: [
+          { label: "Comprar KodaBot", href: "/checkout/kodabot-i" },
+          { label: "Ver na Loja Koda", href: "/loja" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "KodaCare",
+    href: "/kodacare",
+    menu: [
+      {
+        title: "KodaCare",
+        emphasis: true,
+        items: [
+          { label: "Conheça o KodaCare", href: "/kodacare" },
+          { label: "Comprar KodaCare", href: "/checkout/kodacare" },
+        ],
+      },
+      {
+        title: "Cobertura",
+        items: [
+          { label: "Garantia e cobertura", href: "/suporte/garantia" },
+          { label: "Solicitar reparo", href: "/suporte/reparo" },
+        ],
+      },
+    ],
+  },
   {
     label: "KODA OS",
     href: "/kodaos",
     menu: [
       {
-        title: "Software",
+        title: "KODA OS",
+        emphasis: true,
         items: [
-          { label: "KODA OS", note: "Visão geral", href: "/kodaos" },
+          { label: "Visão geral", href: "/kodaos" },
           { label: "Atualizações", href: "/kodaos/updates" },
           { label: "Changelog", href: "/kodaos/changelog" },
+        ],
+      },
+      {
+        title: "Recursos",
+        items: [
+          { label: "Configurar KodaBot", href: "/suporte/configurar" },
+          { label: "Manuais", href: "/suporte/manuais" },
         ],
       },
     ],
@@ -54,18 +123,18 @@ const navItems: NavItem[] = [
     href: "/suporte",
     menu: [
       {
-        title: "Ajuda",
+        title: "Suporte",
+        emphasis: true,
         items: [
           { label: "Central de suporte", href: "/suporte" },
-          { label: "Configurar um KodaBot", href: "/suporte/configurar" },
           { label: "Reparo e assistência", href: "/suporte/reparo" },
-          { label: "Orçamentos", href: "/suporte/orcamentos" },
-          { label: "Garantia e cobertura", href: "/suporte/garantia" },
+          { label: "Garantia", href: "/suporte/garantia" },
         ],
       },
       {
         title: "Recursos",
         items: [
+          { label: "Configurar um KodaBot", href: "/suporte/configurar" },
           { label: "Manuais e downloads", href: "/suporte/manuais" },
           { label: "Perguntas frequentes", href: "/suporte/faq" },
           { label: "Fale com a Koda", href: "/suporte/contato" },
@@ -83,52 +152,38 @@ export function Nav() {
   const [mobile, setMobile] = useState(false);
   const [mobileMenu, setMobileMenu] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
   const headerRef = useRef<HTMLElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
-  const clearMenuTimers = () => {
+  const clearTimers = () => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
     if (unmountTimerRef.current) clearTimeout(unmountTimerRef.current);
     closeTimerRef.current = null;
     unmountTimerRef.current = null;
   };
 
-  const showMenu = (menu: string) => {
-    clearMenuTimers();
-    setRenderedMenu(menu);
-    setOpenMenu(menu);
+  const showMenu = (label: string) => {
+    clearTimers();
+    setRenderedMenu(label);
+    setOpenMenu(label);
     setMenuClosing(false);
   };
 
   const hideMenu = (withGrace = false) => {
-    clearMenuTimers();
+    clearTimers();
     const close = () => {
       setOpenMenu(null);
       setMenuClosing(true);
       unmountTimerRef.current = setTimeout(() => {
         setRenderedMenu(null);
         setMenuClosing(false);
-      }, 260);
+      }, 220);
     };
-    if (withGrace) closeTimerRef.current = setTimeout(close, 140);
+    if (withGrace) closeTimerRef.current = setTimeout(close, 90);
     else close();
   };
-
-  useEffect(() => {
-    if (!user) {
-      setUnread(0);
-      return;
-    }
-    (supabase as any)
-      .from("user_notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .is("read_at", null)
-      .then(({ count }: { count: number | null }) => setUnread(count ?? 0));
-  }, [user]);
 
   useEffect(() => {
     const outside = (event: MouseEvent) => {
@@ -137,14 +192,14 @@ export function Nav() {
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         hideMenu();
-        setMobileMenu(null);
         setMobile(false);
+        setMobileMenu(null);
       }
     };
     document.addEventListener("mousedown", outside);
     document.addEventListener("keydown", escape);
     return () => {
-      clearMenuTimers();
+      clearTimers();
       document.removeEventListener("mousedown", outside);
       document.removeEventListener("keydown", escape);
     };
@@ -152,43 +207,45 @@ export function Nav() {
 
   const closeNavigation = () => {
     hideMenu();
-    setMobileMenu(null);
     setMobile(false);
+    setMobileMenu(null);
   };
+
+  const activeItem = navItems.find((item) => item.label === renderedMenu);
 
   return (
     <>
-      <header
-        ref={headerRef}
-        className="sticky top-0 z-50 border-b border-black/[.055] bg-white/90 text-[#1d1d1f] backdrop-blur-2xl supports-[backdrop-filter]:bg-white/80"
-      >
-        <nav className="mx-auto flex h-12 max-w-[1040px] items-center justify-between px-5">
-          <a href="/" className="rounded-md text-[15px] font-semibold tracking-[-.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/40" aria-label="Koda — início">
+      <header ref={headerRef} className="sticky top-0 z-[60] h-11 border-b border-black/[.035] bg-white/90 text-[#1d1d1f] backdrop-blur-2xl supports-[backdrop-filter]:bg-white/82">
+        <nav className="mx-auto grid h-11 max-w-[1024px] grid-cols-[44px_1fr_auto] items-center px-3 sm:px-5">
+          <a
+            href="/"
+            onClick={closeNavigation}
+            aria-label="Koda — início"
+            className="flex h-11 w-11 items-center justify-start text-[15px] font-semibold tracking-[-.035em] outline-none transition-opacity hover:opacity-60 focus-visible:ring-2 focus-visible:ring-[#0071e3]/35"
+          >
             Koda
           </a>
 
-          <ul className="hidden items-center gap-8 md:flex">
+          <ul className="hidden h-11 items-center justify-center gap-[30px] lg:flex">
             {navItems.map((item) => (
-              <li key={item.label} onMouseEnter={() => item.menu && showMenu(item.label)}>
+              <li key={item.label} className="flex h-11 items-center">
                 {item.menu ? (
                   <button
                     type="button"
                     aria-expanded={openMenu === item.label}
-                    aria-controls={`nav-${item.label.toLowerCase().replaceAll(" ", "-")}`}
-                    onClick={() => (openMenu === item.label ? hideMenu() : showMenu(item.label))}
+                    aria-controls={`globalnav-${item.label.toLowerCase().replaceAll(" ", "-")}`}
                     onMouseEnter={() => showMenu(item.label)}
-                    className="flex items-center gap-1 rounded-md py-2 text-[12px] font-medium text-[#1d1d1f]/70 transition-colors duration-200 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/40"
+                    onFocus={() => showMenu(item.label)}
+                    onClick={() => (openMenu === item.label ? hideMenu() : showMenu(item.label))}
+                    className="flex h-11 items-center whitespace-nowrap px-0 text-[12px] font-normal leading-none text-[#1d1d1f]/80 outline-none transition-opacity hover:opacity-55 focus-visible:ring-2 focus-visible:ring-[#0071e3]/35"
                   >
                     {item.label}
-                    <ChevronDown
-                      className={`h-3 w-3 opacity-40 transition-transform duration-[240ms] motion-reduce:transition-none ${openMenu === item.label ? "rotate-180" : ""}`}
-                    />
                   </button>
                 ) : (
                   <a
                     href={item.href}
                     onClick={closeNavigation}
-                    className="rounded-md py-2 text-[12px] font-medium text-[#1d1d1f]/70 transition-colors duration-200 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/40"
+                    className="flex h-11 items-center whitespace-nowrap text-[12px] font-normal leading-none text-[#1d1d1f]/80 outline-none transition-opacity hover:opacity-55 focus-visible:ring-2 focus-visible:ring-[#0071e3]/35"
                   >
                     {item.label}
                   </a>
@@ -197,94 +254,121 @@ export function Nav() {
             ))}
           </ul>
 
-          <div className="flex items-center gap-4">
-            {user && (
-              <a href="/conta/notificacoes" aria-label={`${unread} notificações não lidas`} className="relative rounded-full p-1 transition-opacity duration-200 hover:opacity-55">
-                <Bell className="h-3.5 w-3.5 text-[#1d1d1f]/70" />
-                {unread > 0 && <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--kodacare-red)] px-1 text-[9px] font-bold text-white">{unread > 9 ? "9+" : unread}</span>}
-              </a>
-            )}
-            <button onClick={() => setSearchOpen(true)} aria-label="Buscar" className="rounded-full p-1 transition-opacity duration-200 hover:opacity-55">
-              <Search className="h-3.5 w-3.5 text-[#1d1d1f]/70" />
+          <div className="flex h-11 items-center justify-end gap-0">
+            <button
+              type="button"
+              aria-label="Buscar"
+              onClick={() => setSearchOpen(true)}
+              className="grid h-11 w-10 place-items-center outline-none transition-opacity hover:opacity-55 focus-visible:ring-2 focus-visible:ring-[#0071e3]/35"
+            >
+              <Search className="h-[15px] w-[15px]" strokeWidth={1.8} />
             </button>
-            <a href={user ? "/conta" : "/conta/entrar"} aria-label={user ? "Minha Conta Koda" : "Entrar na Conta Koda"} className="relative rounded-full p-1 transition-opacity duration-200 hover:opacity-55">
-              <UserRound className="h-3.5 w-3.5 text-[#1d1d1f]/70" />
-              {!loading && user && <span className="absolute right-0 top-0 h-1.5 w-1.5 rounded-full bg-[#34c759] ring-2 ring-white" />}
+            <a
+              href={user ? "/conta" : "/conta/entrar"}
+              aria-label={user ? "Conta Koda e pedidos" : "Entrar na Conta Koda"}
+              onClick={closeNavigation}
+              className="grid h-11 w-10 place-items-center outline-none transition-opacity hover:opacity-55 focus-visible:ring-2 focus-visible:ring-[#0071e3]/35"
+            >
+              <ShoppingBag className="h-[15px] w-[15px]" strokeWidth={1.8} />
             </a>
-            <button className="md:hidden" onClick={() => setMobile((v) => !v)} aria-label="Abrir menu">
-              {mobile ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            <button
+              type="button"
+              aria-label="Abrir menu"
+              onClick={() => setMobile((value) => !value)}
+              className="grid h-11 w-10 place-items-center outline-none lg:hidden"
+            >
+              {mobile ? <X className="h-[17px] w-[17px]" /> : <Menu className="h-[17px] w-[17px]" />}
             </button>
           </div>
         </nav>
 
-        {navItems.map(
-          (item) =>
-            item.menu && renderedMenu === item.label && (
-              <div
-                id={`nav-${item.label.toLowerCase().replaceAll(" ", "-")}`}
-                key={item.label}
-                onMouseEnter={() => showMenu(item.label)}
-                onMouseLeave={() => hideMenu(true)}
-                className={`hidden origin-top border-t border-black/[.055] bg-white/95 shadow-[0_18px_45px_rgba(0,0,0,.07)] backdrop-blur-2xl transition-[opacity,transform] duration-[250ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none md:block ${
-                  menuClosing
-                    ? "pointer-events-none -translate-y-[6px] scale-[.99] opacity-0"
-                    : "translate-y-0 scale-100 opacity-100"
-                }`}
-              >
-                <div className="mx-auto grid max-w-[1040px] gap-12 px-5 pb-12 pt-8 sm:grid-cols-3">
-                  {item.menu.map((group) => (
-                    <div key={group.title}>
-                      <p className="text-[11px] text-[#86868b]">{group.title}</p>
-                      <ul className="mt-3 space-y-2">
-                        {group.items.map((sub) => (
-                          <li key={sub.label}>
-                            <a href={sub.href} onClick={closeNavigation} className="block rounded-xl px-2 py-1 text-xl font-semibold tracking-[-.025em] text-[#1d1d1f]/90 transition-[color,background-color,transform] duration-150 hover:translate-x-0.5 hover:bg-black/[.035] hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/40 motion-reduce:transform-none motion-reduce:transition-none">
-                              {sub.label}
-                              {sub.note && <span className="ml-2 align-middle text-[11px] font-normal text-[#86868b]">{sub.note}</span>}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+        {activeItem?.menu && (
+          <div
+            id={`globalnav-${activeItem.label.toLowerCase().replaceAll(" ", "-")}`}
+            onMouseEnter={() => showMenu(activeItem.label)}
+            onMouseLeave={() => hideMenu(true)}
+            className={`absolute left-0 right-0 top-11 hidden border-t border-black/[.035] bg-white transition-[opacity,transform] duration-[220ms] ease-out lg:block ${
+              menuClosing ? "pointer-events-none -translate-y-2 opacity-0" : "translate-y-0 opacity-100"
+            }`}
+          >
+            <div className="mx-auto grid min-h-[330px] max-w-[1024px] grid-cols-[1.35fr_.8fr_.8fr] gap-16 px-5 pb-14 pt-10">
+              {activeItem.menu.map((group) => (
+                <div key={group.title}>
+                  <p className="mb-4 text-[11px] font-normal text-[#86868b]">{group.title}</p>
+                  <ul className={group.emphasis ? "space-y-1" : "space-y-2.5"}>
+                    {group.items.map((item) => (
+                      <li key={`${item.label}-${item.href}`}>
+                        <a
+                          href={item.href}
+                          onClick={closeNavigation}
+                          className={`block w-fit text-[#1d1d1f] outline-none transition-opacity hover:opacity-55 focus-visible:ring-2 focus-visible:ring-[#0071e3]/35 ${
+                            group.emphasis ? "py-0.5 text-[24px] font-semibold leading-[1.18] tracking-[-.035em]" : "text-[12px] font-semibold leading-[1.35]"
+                          }`}
+                        >
+                          {item.label}
+                          {item.note && <span className="ml-2 text-[10px] font-normal text-[#86868b]">{item.note}</span>}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
-            ),
-        )}
-
-        {mobile && (
-          <div className="max-h-[82vh] overflow-y-auto border-t border-black/[.055] bg-white px-5 py-6 md:hidden">
-            {navItems.map((item) => (
-              <div key={item.label} className="border-b border-black/[.055] py-4 last:border-0">
-                {item.menu ? (
-                  <button type="button" aria-expanded={mobileMenu === item.label} aria-controls={`mobile-${item.label.toLowerCase().replaceAll(" ", "-")}`} onClick={() => setMobileMenu((open) => (open === item.label ? null : item.label))} className="flex w-full items-center justify-between text-left text-2xl font-semibold tracking-[-.03em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/40">
-                    {item.label}
-                    <ChevronDown className={`h-4 w-4 opacity-45 transition-transform duration-200 motion-reduce:transition-none ${mobileMenu === item.label ? "rotate-180" : ""}`} />
-                  </button>
-                ) : (
-                  <a href={item.href} onClick={closeNavigation} className="block text-2xl font-semibold tracking-[-.03em]">{item.label}</a>
-                )}
-                {item.menu && (
-                  <div id={`mobile-${item.label.toLowerCase().replaceAll(" ", "-")}`} className={`grid transition-[grid-template-rows,opacity] duration-200 motion-reduce:transition-none ${mobileMenu === item.label ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
-                    <ul className="mt-2 space-y-1 overflow-hidden pl-1">
-                      {item.menu.flatMap((g) => g.items).map((sub) => (
-                        <li key={sub.label + sub.href}>
-                          <a href={sub.href} onClick={closeNavigation} className="block rounded-lg px-2 py-1.5 text-sm text-[#6e6e73] transition-colors hover:bg-black/[.035] hover:text-[#1d1d1f] motion-reduce:transition-none">
-                            {sub.label}{sub.note && <span className="ml-2 text-[11px]">{sub.note}</span>}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))}
-            <div className="pt-4">
-              <a href={user ? "/conta" : "/conta/entrar"} className="block py-2 text-sm font-semibold">{user ? "Minha Conta Koda" : "Entrar na Conta Koda"}</a>
+              ))}
             </div>
           </div>
         )}
+
+        {mobile && (
+          <div className="fixed inset-x-0 top-11 z-[70] max-h-[calc(100vh-44px)] overflow-y-auto bg-white px-6 pb-12 pt-4 lg:hidden">
+            {navItems.map((item) => (
+              <div key={item.label} className="border-b border-black/[.06] last:border-0">
+                {item.menu ? (
+                  <>
+                    <button
+                      type="button"
+                      aria-expanded={mobileMenu === item.label}
+                      onClick={() => setMobileMenu((open) => (open === item.label ? null : item.label))}
+                      className="flex w-full items-center justify-between py-4 text-left text-[28px] font-semibold tracking-[-.045em]"
+                    >
+                      {item.label}
+                      <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${mobileMenu === item.label ? "rotate-180" : ""}`} />
+                    </button>
+                    <div className={`grid transition-[grid-template-rows,opacity] duration-200 ${mobileMenu === item.label ? "grid-rows-[1fr] pb-5 opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                      <div className="overflow-hidden">
+                        {item.menu.map((group) => (
+                          <div key={group.title} className="mb-5 last:mb-0">
+                            <p className="mb-2 text-[11px] text-[#86868b]">{group.title}</p>
+                            <div className="space-y-2">
+                              {group.items.map((sub) => (
+                                <a key={`${sub.label}-${sub.href}`} href={sub.href} onClick={closeNavigation} className="block text-[15px] font-semibold text-[#1d1d1f]">
+                                  {sub.label}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <a href={item.href} onClick={closeNavigation} className="block py-4 text-[28px] font-semibold tracking-[-.045em]">
+                    {item.label}
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </header>
+
+      {renderedMenu && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={() => hideMenu()}
+          className={`fixed inset-x-0 bottom-0 top-11 z-50 hidden bg-black/20 backdrop-blur-[1px] transition-opacity duration-[220ms] lg:block ${menuClosing ? "opacity-0" : "opacity-100"}`}
+        />
+      )}
+
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
