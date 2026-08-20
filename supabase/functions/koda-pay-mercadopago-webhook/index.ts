@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -33,9 +35,6 @@ async function validateSignature(xSignature: string, xRequestId: string, dataId:
   const timestamp = parts.ts;
   const expected = parts.v1;
   if (!timestamp || !expected) return false;
-
-  // Mercado Pago signs the exact data.id value from the query string.
-  // Do not lowercase or otherwise normalize it before building the HMAC manifest.
   const manifest = `id:${dataId};request-id:${xRequestId};ts:${timestamp};`;
   const key = await crypto.subtle.importKey(
     "raw",
@@ -88,19 +87,10 @@ Deno.serve(async (req: Request) => {
   if (!signatureValid) return json({ error: "invalid_signature" }, 401);
 
   let notification: any = {};
-  try {
-    notification = await req.json();
-  } catch {
-    notification = {};
-  }
-
-  if (notification?.type && notification.type !== "order") {
-    return json({ ok: true, ignored: "unsupported_topic" });
-  }
+  try { notification = await req.json(); } catch { notification = {}; }
+  if (notification?.type && notification.type !== "order") return json({ ok: true, ignored: "unsupported_topic" });
   const bodyDataId = notification?.data?.id != null ? String(notification.data.id) : "";
-  if (bodyDataId && bodyDataId !== dataId) {
-    return json({ error: "webhook_data_mismatch" }, 400);
-  }
+  if (bodyDataId && bodyDataId !== dataId) return json({ error: "webhook_data_mismatch" }, 400);
 
   const providerResponse = await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(dataId)}`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
@@ -111,13 +101,10 @@ Deno.serve(async (req: Request) => {
   const localOrderId = typeof providerOrder?.external_reference === "string" ? providerOrder.external_reference : "";
   if (!localOrderId) return json({ ok: true, ignored: "missing_external_reference" });
 
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
+  const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: localOrder } = await admin
     .from("orders")
-    .select("id,user_id,total_cents,paid_at")
+    .select("id,user_id,total_cents,status,order_type,paid_at,fulfillment_status")
     .eq("id", localOrderId)
     .maybeSingle();
   if (!localOrder) return json({ ok: true, ignored: "unknown_order" });
@@ -129,6 +116,7 @@ Deno.serve(async (req: Request) => {
   const localPaymentStatus = mapPaymentStatus(providerStatus);
   const localOrderStatus = mapOrderStatus(providerStatus);
   const now = new Date().toISOString();
+  const firstPaidConfirmation = localPaymentStatus === "paid" && !localOrder.paid_at;
 
   let { data: payment } = await admin
     .from("payments")
@@ -171,9 +159,79 @@ Deno.serve(async (req: Request) => {
   if (localPaymentStatus === "paid") orderUpdate.paid_at = localOrder.paid_at ?? now;
   await admin.from("orders").update(orderUpdate).eq("id", localOrder.id);
 
-  const rawProviderEventId = notification?.id != null
-    ? String(notification.id)
-    : `${dataId}:${providerStatus}:${providerStatusDetail ?? ""}`;
+  if (firstPaidConfirmation) {
+    EdgeRuntime.waitUntil(fetch(`${supabaseUrl}/functions/v1/koda-fiscal-process`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ orderId: localOrder.id }),
+    }).catch(() => null));
+
+    await admin.from("order_events").insert({
+      order_id: localOrder.id,
+      event_type: "payment_confirmed",
+      status: "paid",
+      title: "Pagamento confirmado",
+      body: localOrder.order_type === "coverage"
+        ? "Pagamento confirmado. Estamos ativando a cobertura no KodaBot escolhido."
+        : "Pagamento confirmado. Seu pedido seguirá para preparação.",
+    });
+  }
+
+  let fulfillmentResult: any = null;
+  if (localPaymentStatus === "paid") {
+    const { data: fulfillment, error: fulfillmentError } = await admin.rpc("fulfill_paid_order", { _order_id: localOrder.id });
+    fulfillmentResult = fulfillmentError ? { ok: false, error: "fulfillment_rpc_failed" } : fulfillment;
+
+    if (fulfillmentResult?.ok) {
+      const { data: existingFulfillmentEvent } = await admin
+        .from("order_events")
+        .select("id")
+        .eq("order_id", localOrder.id)
+        .eq("event_type", "fulfillment_completed")
+        .maybeSingle();
+      if (!existingFulfillmentEvent) {
+        await admin.from("order_events").insert({
+          order_id: localOrder.id,
+          event_type: "fulfillment_completed",
+          status: "paid",
+          title: localOrder.order_type === "coverage" ? "KodaCare ativado" : "Pedido confirmado",
+          body: localOrder.order_type === "coverage"
+            ? "A cobertura foi vinculada ao KodaBot selecionado."
+            : "Estoque confirmado. O pedido está pronto para a preparação.",
+        });
+      }
+    } else if (fulfillmentResult) {
+      const { data: existingAttentionEvent } = await admin
+        .from("order_events")
+        .select("id")
+        .eq("order_id", localOrder.id)
+        .eq("event_type", "fulfillment_attention")
+        .maybeSingle();
+      if (!existingAttentionEvent) {
+        await admin.from("order_events").insert({
+          order_id: localOrder.id,
+          event_type: "fulfillment_attention",
+          status: "paid",
+          title: "Pedido em revisão",
+          body: "O pagamento foi confirmado e a equipe Koda precisa concluir uma verificação interna antes da próxima etapa.",
+          metadata: { error: fulfillmentResult.error ?? "unknown" },
+        });
+        await admin.from("user_notifications").insert({
+          user_id: localOrder.user_id,
+          type: "order_attention",
+          title: "Seu pagamento foi confirmado",
+          body: "Seu pedido está confirmado e passando por uma verificação interna da Koda.",
+          href: `/conta/pedidos/${localOrder.id}`,
+          metadata: { order_id: localOrder.id },
+        });
+      }
+    }
+  }
+
+  const rawProviderEventId = notification?.id != null ? String(notification.id) : `${dataId}:${providerStatus}:${providerStatusDetail ?? ""}`;
   const providerEventId = `mercadopago:webhook:${rawProviderEventId}`;
 
   if (payment?.id) {
@@ -183,7 +241,6 @@ Deno.serve(async (req: Request) => {
       .eq("source", "provider")
       .eq("provider_event_id", providerEventId)
       .maybeSingle();
-
     if (!existingEvent) {
       await admin.from("payment_events").insert({
         payment_id: payment.id,
@@ -197,10 +254,11 @@ Deno.serve(async (req: Request) => {
           status: providerStatus,
           status_detail: providerStatusDetail,
           live_mode: Boolean(notification?.live_mode),
+          fulfillment: fulfillmentResult ? { ok: Boolean(fulfillmentResult.ok), error: fulfillmentResult.error ?? null } : null,
         },
       });
     }
   }
 
-  return json({ ok: true });
+  return json({ ok: true, fulfillment_ok: fulfillmentResult?.ok ?? null });
 });
