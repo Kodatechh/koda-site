@@ -42,7 +42,7 @@ function RepairDetails() {
     const { data, error: queryError } = await db
       .from("repair_requests")
       .select(
-        "id,protocol,model,category,description,status,estimated_price_cents,final_price_cents,shipping_method,tracking_code,created_at,repair_quote_items(id,description,amount_cents,covered_by_kodacare),repair_events(id,title,details,created_at)",
+        "id,protocol,model,category,description,status,estimated_price_cents,final_price_cents,payment_order_id,shipping_method,tracking_code,created_at,repair_quote_items(id,description,amount_cents,covered_by_kodacare),repair_events(id,title,details,created_at)",
       )
       .eq("id", repairId)
       .eq("user_id", user.id)
@@ -70,13 +70,20 @@ function RepairDetails() {
     if (acting) return;
     setActing(true);
     setError(null);
-    const { error: rpcError } = await db.rpc("approve_repair_quote", {
+    const { data: updated, error: rpcError } = await db.rpc("approve_repair_quote", {
       _repair_id: repairId,
       _approved: approved,
     });
-    if (rpcError)
+    if (rpcError) {
       setError("Não foi possível registrar sua decisão. Atualize a página e tente novamente.");
-    else await load();
+      setActing(false);
+      return;
+    }
+    if (approved && updated?.payment_order_id) {
+      window.location.assign(`/checkout/reparo/${repairId}`);
+      return;
+    }
+    await load();
     setActing(false);
   }
 
@@ -159,7 +166,7 @@ function RepairDetails() {
                 disabled={acting}
                 className="rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
               >
-                {acting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : "Aprovar orçamento"}
+                {acting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : "Aprovar e finalizar pagamento"}
               </button>
               <button
                 onClick={() => decide(false)}
@@ -169,6 +176,14 @@ function RepairDetails() {
                 Recusar
               </button>
             </div>
+          )}
+          {repair.status === "approved" && repair.payment_order_id && (
+            <a
+              href={`/checkout/reparo/${repairId}`}
+              className="mt-7 inline-flex rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white"
+            >
+              Finalizar pagamento
+            </a>
           )}
         </section>
       )}
