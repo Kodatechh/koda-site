@@ -1,195 +1,447 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { CheckCircle2, Copy, CreditCard, ExternalLink, LoaderCircle, LockKeyhole, MapPin, PackageCheck, QrCode, ShieldCheck, Truck } from "lucide-react";
+import {
+  CheckCircle2,
+  Copy,
+  CreditCard,
+  ExternalLink,
+  LoaderCircle,
+  LockKeyhole,
+  QrCode,
+  ShieldCheck,
+  Truck,
+} from "lucide-react";
+
 import { useAuth } from "@/components/koda/AuthProvider";
-import { CardPaymentBrick, type ShippingAddressInput } from "@/components/koda/CardPaymentBrick";
+import { CardPaymentBrick } from "@/components/koda/CardPaymentBrick";
 import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
 
-type CatalogResponse = {
-  product: { slug:string; name:string; description:string|null; available:boolean; currency:string; unit_amount_cents:number|null; in_stock:boolean; requires_shipping:boolean };
-  koda_pay: { provider:"mercado_pago"; payment_ready:boolean; methods:Array<"pix"|"card">; ready_methods:Array<"pix"|"card">; message:string };
-  koda_shipping?: { provider:"melhor_envio"|"none"; required:boolean; ready:boolean; message:string };
+type CatalogProduct = {
+  slug: string;
+  name: string;
+  short_description: string | null;
+  description: string | null;
+  product_type: "physical" | "digital" | "service" | "coverage" | "subscription";
+  image_url: string | null;
+  available: boolean;
+  currency: string;
+  unit_amount_cents: number | null;
+  compare_at_cents: number | null;
+  in_stock: boolean;
+  requires_shipping: boolean;
+  requires_device: boolean;
 };
-type CreatedOrder = { id:string; order_number?:number; display_number?:string; status?:string; currency?:string; subtotal_cents?:number; shipping_cents?:number; total_cents?:number };
-type PixPayment = { id:string; provider_order_id:string; provider_payment_id:string|null; status:string; status_detail:string|null; local_status:string; qr_code:string; qr_code_base64:string|null; ticket_url:string|null };
-type ShippingOption = { id:string; provider:"melhor_envio"; service_id:string; service_name:string; carrier:string; price_cents:number; deadline_days:number; quote_token:string; expires_at:string };
-type ShippingResponse = { provider:"melhor_envio"; environment:"sandbox"|"production"; requires_shipping:true; postal_code:string; options:ShippingOption[] };
+
+type KodaPayStatus = {
+  provider: "mercado_pago";
+  payment_ready: boolean;
+  methods: Array<"pix" | "card">;
+  ready_methods: Array<"pix" | "card">;
+  message: string;
+};
+
+type CatalogResponse = { product: CatalogProduct; koda_pay: KodaPayStatus };
+
+type CreatedOrder = {
+  id: string;
+  order_number?: number;
+  display_number?: string;
+  status: string;
+  order_type?: string;
+  currency?: string;
+  subtotal_cents?: number;
+  shipping_cents?: number;
+  total_cents?: number;
+  fulfillment_status?: string;
+};
+
+type PixPayment = {
+  id: string;
+  provider_order_id: string;
+  provider_payment_id: string | null;
+  status: string;
+  status_detail: string | null;
+  local_status: string;
+  qr_code: string;
+  qr_code_base64: string | null;
+  ticket_url: string | null;
+};
+
+type KodaDevice = {
+  id: string;
+  serial_number: string;
+  model: string;
+  purchase_date: string | null;
+  kodaos_version?: string | null;
+  eligible?: boolean;
+  eligibility_deadline?: string | null;
+  current_plan?: string | null;
+};
+
+type ShippingOption = {
+  id: string;
+  name: string;
+  company?: string | null;
+  price_cents: number;
+  deadline_days: number | null;
+};
+
+type ShippingResponse = {
+  provider: string;
+  configured: boolean;
+  options: ShippingOption[];
+  error?: string;
+};
+
+type Address = {
+  recipient: string;
+  postalCode: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  phone: string;
+};
+
 type PaymentMethod = "pix" | "card";
 
-const emptyAddress: ShippingAddressInput = { recipient:"", postalCode:"", street:"", number:"", complement:"", neighborhood:"", city:"", state:"", phone:"" };
+const emptyAddress: Address = {
+  recipient: "",
+  postalCode: "",
+  street: "",
+  number: "",
+  complement: "",
+  neighborhood: "",
+  city: "",
+  state: "",
+  phone: "",
+};
 
 export const Route = createFileRoute("/checkout/$productSlug")({
-  head: () => ({ meta: [
-    { title: "Finalizar compra — Koda Pay" },
-    { name: "description", content: "Checkout seguro da Koda, com pagamento e frete calculados no servidor." },
-    { name: "robots", content: "noindex,nofollow" },
-  ] }),
+  head: () => ({
+    meta: [
+      { title: "Finalizar compra — Koda" },
+      { name: "description", content: "Finalize sua compra com o checkout seguro da Koda." },
+      { name: "robots", content: "noindex,nofollow" },
+    ],
+  }),
   component: CheckoutPage,
 });
 
-function money(cents:number|null, currency="BRL") { return cents == null ? "—" : new Intl.NumberFormat("pt-BR", { style:"currency", currency }).format(cents/100); }
-function cleanCep(value:string) { return value.replace(/\D/g, "").slice(0,8); }
-function showCep(value:string) { const v=cleanCep(value); return v.length>5 ? `${v.slice(0,5)}-${v.slice(5)}` : v; }
-function makeRef() { return typeof globalThis.crypto?.randomUUID === "function" ? globalThis.crypto.randomUUID() : `koda_${Date.now()}_${Math.random().toString(36).slice(2,14)}`; }
-function addressComplete(a:ShippingAddressInput) {
-  const phone=a.phone.replace(/\D/g,"");
-  return Boolean(a.recipient.trim() && cleanCep(a.postalCode).length===8 && a.street.trim() && a.number.trim() && a.neighborhood.trim() && a.city.trim() && /^[A-Za-z]{2}$/.test(a.state.trim()) && (!phone || (phone.length>=10 && phone.length<=11)));
+function formatMoney(cents: number | null | undefined, currency = "BRL") {
+  if (cents == null) return "—";
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(cents / 100);
+}
+
+function createCheckoutReference() {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  return uuid ?? `checkout_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function displayModel(model: string) {
+  if (model === "kodabot-i") return "KodaBot";
+  if (model === "kodabot-i-pro") return "KodaBot Pro";
+  return model;
+}
+
+async function functionErrorCode(error: unknown) {
+  const context = (error as { context?: Response })?.context;
+  if (!context) return null;
+  try {
+    const clone = context.clone();
+    const body = await clone.json();
+    return typeof body?.error === "string" ? body.error : null;
+  } catch {
+    return null;
+  }
+}
+
+function friendlyError(code: string | null, fallback: string) {
+  const messages: Record<string, string> = {
+    device_required: "Escolha o KodaBot que será vinculado a esta compra.",
+    device_not_owned: "Este KodaBot não pertence à sua Conta Koda.",
+    device_not_eligible_for_kodacare: "Este KodaBot não está elegível para contratar KodaCare agora.",
+    shipping_address_required: "Preencha o endereço de entrega antes de continuar.",
+    shipping_provider_not_configured: "A entrega deste produto ainda precisa ser configurada pela Koda.",
+    shipping_origin_not_configured: "A origem de envio ainda precisa ser configurada pela Koda.",
+    shipping_dimensions_missing: "As dimensões de envio deste produto ainda não foram cadastradas.",
+    flat_shipping_not_configured: "O valor de entrega deste produto ainda não foi configurado.",
+    shipping_no_options: "Não encontramos uma opção de entrega para este CEP.",
+    shipping_service_invalid: "A opção de entrega mudou. Calcule o frete novamente.",
+    insufficient_stock: "Não há estoque suficiente para esta quantidade.",
+    product_unavailable: "Este produto não está disponível para compra agora.",
+  };
+  return code ? messages[code] ?? fallback : fallback;
+}
+
+function Field({ label, value, onChange, disabled, className = "", maxLength, inputMode }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  className?: string;
+  maxLength?: number;
+  inputMode?: "text" | "numeric" | "tel";
+}) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-1.5 block text-[11px] font-semibold text-[#6e6e73]">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+        maxLength={maxLength}
+        inputMode={inputMode}
+        className="h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none transition focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/10 disabled:bg-[#f5f5f7] disabled:text-[#86868b]"
+      />
+    </label>
+  );
 }
 
 function CheckoutPage() {
   const { productSlug } = Route.useParams();
-  const { user, loading:authLoading } = useAuth();
-  const [catalog,setCatalog] = useState<CatalogResponse|null>(null);
-  const [loading,setLoading] = useState(true);
-  const [error,setError] = useState<string|null>(null);
-  const [quantity,setQuantity] = useState(1);
-  const [paymentMethod,setPaymentMethod] = useState<PaymentMethod>("pix");
-  const [submitting,setSubmitting] = useState(false);
-  const [order,setOrder] = useState<CreatedOrder|null>(null);
-  const [pix,setPix] = useState<PixPayment|null>(null);
-  const [copied,setCopied] = useState(false);
-  const [address,setAddress] = useState<ShippingAddressInput>(emptyAddress);
-  const [shippingOptions,setShippingOptions] = useState<ShippingOption[]>([]);
-  const [selectedShippingId,setSelectedShippingId] = useState<string|null>(null);
-  const [shippingLoading,setShippingLoading] = useState(false);
-  const [shippingError,setShippingError] = useState<string|null>(null);
-  const [checkoutReference,setCheckoutReference] = useState(makeRef);
+  const { user, loading: authLoading } = useAuth();
+  const db = supabase as any;
+
+  const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
+  const [submitting, setSubmitting] = useState(false);
+  const [order, setOrder] = useState<CreatedOrder | null>(null);
+  const [pix, setPix] = useState<PixPayment | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [checkoutReference] = useState(createCheckoutReference);
+
+  const [devices, setDevices] = useState<KodaDevice[]>([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [selectedDeviceId, setSelectedDeviceId] = useState("");
+
+  const [address, setAddress] = useState<Address>(emptyAddress);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [shippingProvider, setShippingProvider] = useState<string | null>(null);
+  const [selectedShippingId, setSelectedShippingId] = useState("");
 
   useEffect(() => {
-    let alive=true;
-    setLoading(true); setError(null);
-    supabase.functions.invoke<CatalogResponse>("koda-pay-catalog", { body:{ productSlug } }).then(({data,error:invokeError}) => {
+    let alive = true;
+    async function loadCatalog() {
+      setLoading(true);
+      setError(null);
+      const { data, error: invokeError } = await supabase.functions.invoke<CatalogResponse>("koda-pay-catalog", { body: { productSlug } });
       if (!alive) return;
-      if (invokeError || !data?.product) { setError("Não foi possível carregar este produto agora."); setCatalog(null); }
-      else {
+      if (invokeError || !data?.product) {
+        setError("Não foi possível carregar este produto agora.");
+        setCatalog(null);
+      } else {
         setCatalog(data);
+        if (data.product.requires_device) setQuantity(1);
         if (!data.koda_pay.ready_methods.includes("pix") && data.koda_pay.ready_methods.includes("card")) setPaymentMethod("card");
       }
       setLoading(false);
-    });
-    return () => { alive=false; };
-  },[productSlug]);
+    }
+    void loadCatalog();
+    return () => { alive = false; };
+  }, [productSlug]);
 
-  const requiresShipping=Boolean(catalog?.product.requires_shipping);
-  const selectedShipping=useMemo(() => shippingOptions.find(o=>o.id===selectedShippingId) ?? null,[shippingOptions,selectedShippingId]);
-  const subtotalCents=useMemo(() => catalog?.product.unit_amount_cents == null ? null : catalog.product.unit_amount_cents*quantity,[catalog,quantity]);
-  const totalCents=useMemo(() => subtotalCents == null ? null : requiresShipping ? (selectedShipping ? subtotalCents+selectedShipping.price_cents : null) : subtotalCents,[subtotalCents,requiresShipping,selectedShipping]);
-  const normalizedAddress=useMemo(() => requiresShipping ? { ...address, postalCode:cleanCep(address.postalCode), state:address.state.toUpperCase() } : null,[address,requiresShipping]);
-  const checkoutReady=Boolean(catalog?.product.available && (!requiresShipping || (selectedShipping && addressComplete(address))));
-  const pixReady=Boolean(catalog?.koda_pay.ready_methods.includes("pix"));
-  const cardReady=Boolean(catalog?.koda_pay.ready_methods.includes("card"));
-  const locked=Boolean(order || pix || submitting);
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    async function loadAddress() {
+      const { data } = await db
+        .from("user_addresses")
+        .select("recipient_name,postal_code,street,number,complement,neighborhood,city,state")
+        .eq("user_id", user!.id)
+        .order("is_default", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!alive || !data) return;
+      setAddress((current) => ({
+        ...current,
+        recipient: data.recipient_name ?? current.recipient,
+        postalCode: data.postal_code ?? current.postalCode,
+        street: data.street ?? current.street,
+        number: data.number ?? current.number,
+        complement: data.complement ?? current.complement,
+        neighborhood: data.neighborhood ?? current.neighborhood,
+        city: data.city ?? current.city,
+        state: data.state ?? current.state,
+      }));
+    }
+    void loadAddress();
+    return () => { alive = false; };
+  }, [user?.id]);
 
-  function resetOrder() { setOrder(null); setPix(null); setError(null); setCheckoutReference(makeRef()); }
-  function changeQuantity(delta:number) {
-    if (locked) return;
-    setQuantity(v=>Math.min(20,Math.max(1,v+delta)));
-    setShippingOptions([]); setSelectedShippingId(null); setShippingError(null); resetOrder();
-  }
-  function updateAddress(field:keyof ShippingAddressInput,value:string) {
-    if (locked) return;
-    let next=value;
-    if (field==="postalCode") next=cleanCep(value);
-    if (field==="state") next=value.replace(/[^A-Za-z]/g,"").slice(0,2).toUpperCase();
-    if (field==="phone") next=value.replace(/\D/g,"").slice(0,11);
-    setAddress(current=>({ ...current,[field]:next })); setCheckoutReference(makeRef()); setError(null);
-    if (field==="postalCode") { setShippingOptions([]); setSelectedShippingId(null); setShippingError(null); }
+  useEffect(() => {
+    if (!user || !catalog?.product.requires_device) {
+      setDevices([]);
+      setSelectedDeviceId("");
+      return;
+    }
+    let alive = true;
+    async function loadDevices() {
+      setDevicesLoading(true);
+      const { data } = await db
+        .from("devices")
+        .select("id,serial_number,model,purchase_date,kodaos_version")
+        .eq("owner_user_id", user!.id)
+        .order("activated_at", { ascending: false });
+      let result: KodaDevice[] = data ?? [];
+      if (catalog!.product.product_type === "coverage") {
+        result = await Promise.all(result.map(async (device) => {
+          const { data: raw } = await db.rpc("get_device_kodacare_status", { _device_id: device.id });
+          const status = Array.isArray(raw) ? raw[0] : raw;
+          return { ...device, eligible: Boolean(status?.eligible), eligibility_deadline: status?.eligibility_deadline ?? null, current_plan: status?.plan ?? null };
+        }));
+      }
+      if (!alive) return;
+      setDevices(result);
+      const firstEligible = result.find((device) => catalog!.product.product_type !== "coverage" || device.eligible);
+      setSelectedDeviceId((current) => current || firstEligible?.id || "");
+      setDevicesLoading(false);
+    }
+    void loadDevices();
+    return () => { alive = false; };
+  }, [user?.id, catalog?.product.slug, catalog?.product.requires_device]);
+
+  useEffect(() => {
+    setShippingOptions([]);
+    setSelectedShippingId("");
+    setShippingProvider(null);
+  }, [quantity, address.postalCode, catalog?.product.slug]);
+
+  useEffect(() => {
+    if (!order?.id || !user) return;
+    let alive = true;
+    const check = async () => {
+      const { data } = await db.from("orders").select("id,status,fulfillment_status,total_cents,shipping_cents").eq("id", order.id).eq("user_id", user.id).maybeSingle();
+      if (alive && data) setOrder((current) => current ? { ...current, ...data } : current);
+    };
+    void check();
+    const timer = window.setInterval(check, 3000);
+    return () => { alive = false; window.clearInterval(timer); };
+  }, [order?.id, user?.id]);
+
+  const shippingRequired = Boolean(catalog?.product.requires_shipping);
+  const deviceRequired = Boolean(catalog?.product.requires_device);
+  const paymentLocked = Boolean(order || pix || submitting);
+  const pixReady = Boolean(catalog?.koda_pay.ready_methods.includes("pix"));
+  const cardReady = Boolean(catalog?.koda_pay.ready_methods.includes("card"));
+  const selectedShipping = shippingOptions.find((option) => option.id === selectedShippingId) ?? null;
+  const selectedDevice = devices.find((device) => device.id === selectedDeviceId) ?? null;
+
+  const addressValid = useMemo(() => {
+    if (!shippingRequired) return true;
+    return Boolean(address.recipient.trim() && address.postalCode.replace(/\D/g, "").length === 8 && address.street.trim() && address.number.trim() && address.neighborhood.trim() && address.city.trim() && /^[A-Za-z]{2}$/.test(address.state.trim()));
+  }, [address, shippingRequired]);
+
+  const subtotalCents = useMemo(() => {
+    const unit = catalog?.product.unit_amount_cents;
+    return unit == null ? null : unit * quantity;
+  }, [catalog?.product.unit_amount_cents, quantity]);
+
+  const totalCents = subtotalCents == null ? null : subtotalCents + (selectedShipping?.price_cents ?? 0);
+  const deviceReady = !deviceRequired || Boolean(selectedDeviceId);
+  const shippingReady = !shippingRequired || (addressValid && Boolean(selectedShipping));
+  const checkoutReady = Boolean(user && catalog?.product.available && deviceReady && shippingReady);
+  const paid = Boolean(order && ["paid", "processing", "shipped", "delivered"].includes(order.status));
+
+  const orderRequest = useMemo(() => ({
+    productSlug: catalog?.product.slug ?? productSlug,
+    quantity,
+    checkoutReference,
+    ...(deviceRequired && selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
+    ...(shippingRequired ? { shippingAddress: address as unknown as Record<string, string> } : {}),
+    ...(shippingRequired && selectedShippingId ? { shippingServiceId: selectedShippingId } : {}),
+  }), [catalog?.product.slug, productSlug, quantity, checkoutReference, deviceRequired, selectedDeviceId, shippingRequired, address, selectedShippingId]);
+
+  function updateAddress(field: keyof Address, value: string) {
+    setAddress((current) => ({ ...current, [field]: field === "state" ? value.toUpperCase().slice(0, 2) : value }));
   }
 
   async function calculateShipping() {
-    if (!catalog?.product.requires_shipping || shippingLoading || locked) return;
-    if (!user) { setShippingError("Entre na sua conta para calcular o frete."); return; }
-    const postalCode=cleanCep(address.postalCode);
-    if (postalCode.length!==8) { setShippingError("Digite um CEP válido com 8 números."); return; }
-    setShippingLoading(true); setShippingError(null); setShippingOptions([]); setSelectedShippingId(null); resetOrder();
-    const {data, error:invokeError}=await supabase.functions.invoke<ShippingResponse>("koda-shipping", { body:{ productSlug:catalog.product.slug, quantity, postalCode } });
-    if (invokeError || !data?.options?.length) {
-      setShippingError(catalog.koda_shipping?.ready===false ? "O cálculo de frete ainda precisa ser configurado pela Koda." : "Não foi possível calcular o frete para este CEP agora.");
-      setShippingLoading(false); return;
+    if (!catalog?.product.requires_shipping) return;
+    const postalCode = address.postalCode.replace(/\D/g, "");
+    if (postalCode.length !== 8) { setError("Informe um CEP válido para calcular a entrega."); return; }
+    setShippingLoading(true);
+    setError(null);
+    const { data, error: invokeError } = await supabase.functions.invoke<ShippingResponse>("koda-shipping", { body: { postalCode, productSlug: catalog.product.slug, quantity } });
+    if (invokeError || !data?.configured || !data.options?.length) {
+      const code = data?.error ?? await functionErrorCode(invokeError);
+      setError(friendlyError(code, "Não foi possível calcular a entrega para este CEP."));
+      setShippingOptions([]); setSelectedShippingId(""); setShippingProvider(null); setShippingLoading(false); return;
     }
-    setShippingOptions(data.options); setSelectedShippingId(data.options[0].id); setCheckoutReference(makeRef()); setShippingLoading(false);
+    setShippingOptions(data.options); setShippingProvider(data.provider); setSelectedShippingId(data.options[0].id); setShippingLoading(false);
   }
 
-  async function generatePix(orderId:string) {
-    const {data,error:invokeError}=await supabase.functions.invoke<{payment:PixPayment}>("koda-pay-mercadopago-pix", { body:{orderId} });
-    if (invokeError || !data?.payment?.qr_code) { setError("O pedido foi criado, mas não foi possível gerar o Pix. Nenhuma cobrança foi concluída."); return false; }
+  async function createOrder() {
+    const { data, error: invokeError } = await supabase.functions.invoke<{ order: CreatedOrder }>("koda-pay-create-order", { body: orderRequest });
+    if (invokeError || !data?.order) {
+      const code = await functionErrorCode(invokeError);
+      throw new Error(friendlyError(code, "Não foi possível criar o pedido. Nenhuma cobrança foi feita."));
+    }
+    setOrder(data.order);
+    return data.order;
+  }
+
+  async function generatePix(orderId: string) {
+    const { data, error: invokeError } = await supabase.functions.invoke<{ payment: PixPayment }>("koda-pay-mercadopago-pix", { body: { orderId } });
+    if (invokeError || !data?.payment?.qr_code) { setError("Seu pedido foi criado, mas não conseguimos gerar o Pix agora. Você pode tentar novamente sem criar outro pedido."); return false; }
     setPix(data.payment); return true;
   }
+
   async function createPixOrder() {
-    if (!user || !catalog?.product.available || paymentMethod!=="pix" || !pixReady || !checkoutReady || submitting || order) return;
+    if (!checkoutReady || paymentMethod !== "pix" || !pixReady || submitting) return;
     setSubmitting(true); setError(null);
-    const {data,error:invokeError}=await supabase.functions.invoke<{order:CreatedOrder}>("koda-pay-create-order", { body:{ productSlug:catalog.product.slug, quantity, shippingAddress:normalizedAddress, shippingQuoteToken:selectedShipping?.quote_token ?? null, checkoutReference } });
-    if (invokeError || !data?.order) { setError(requiresShipping ? "Não foi possível iniciar o pedido. Confira o endereço e recalcule o frete." : "Não foi possível iniciar o pedido. Nenhuma cobrança foi feita."); setSubmitting(false); return; }
-    setOrder(data.order); await generatePix(data.order.id); setSubmitting(false);
+    try { const created = order ?? await createOrder(); await generatePix(created.id); }
+    catch (err) { setError(err instanceof Error ? err.message : "Não foi possível iniciar o pagamento."); }
+    finally { setSubmitting(false); }
   }
+
   async function copyPix() {
     if (!pix?.qr_code) return;
-    try { await navigator.clipboard.writeText(pix.qr_code); setCopied(true); window.setTimeout(()=>setCopied(false),1800); }
+    try { await navigator.clipboard.writeText(pix.qr_code); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
     catch { setError("Não foi possível copiar automaticamente. Selecione o código Pix manualmente."); }
   }
 
-  const inputClass="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none focus:border-[#0071e3] disabled:bg-[#f5f5f7]";
+  if (paid && order) {
+    return <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]"><Nav /><main className="mx-auto max-w-3xl px-5 py-16 sm:py-24"><section className="rounded-[40px] bg-white px-7 py-16 text-center sm:px-14 sm:py-20"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eaf8ee] text-[#248a3d]"><CheckCircle2 className="h-9 w-9" /></div><p className="mt-7 text-sm font-semibold text-[#248a3d]">Pagamento confirmado</p><h1 className="mx-auto mt-2 max-w-xl text-5xl font-semibold tracking-[-.06em] sm:text-6xl">Tudo certo com seu pedido.</h1><p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-[#6e6e73]">{catalog?.product.product_type === "coverage" ? "O KodaCare será vinculado ao KodaBot escolhido automaticamente. Acompanhe a cobertura pela Conta Koda." : "A Koda recebeu a confirmação do pagamento. Preparação, envio e entrega aparecem na sua Conta Koda."}</p><div className="mt-9 flex flex-wrap justify-center gap-3"><a href={`/conta/pedidos/${order.id}`} className="rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0077ed]">Acompanhar pedido</a><a href="/conta" className="rounded-full bg-[#f5f5f7] px-6 py-3 text-sm font-semibold">Minha Conta Koda</a></div></section></main><SiteFooter /></div>;
+  }
 
-  return <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
-    <Nav />
-    <main className="mx-auto max-w-6xl px-5 py-10 sm:py-16">
-      <div className="mb-8 flex items-center gap-2 text-sm font-semibold text-[#6e6e73]"><ShieldCheck className="h-4 w-4 text-[#0071e3]"/>Koda Pay · checkout seguro</div>
-      {loading || authLoading ? <div className="grid min-h-[520px] place-items-center rounded-[36px] bg-white"><div className="text-center"><LoaderCircle className="mx-auto h-7 w-7 animate-spin text-[#0071e3]"/><p className="mt-3 text-sm text-[#6e6e73]">Preparando o checkout…</p></div></div>
-      : error && !catalog ? <div className="rounded-[36px] bg-white p-8 text-center sm:p-14"><h1 className="text-4xl font-semibold tracking-[-0.04em]">Checkout indisponível.</h1><p className="mx-auto mt-4 max-w-xl text-sm text-[#6e6e73]">{error}</p></div>
-      : catalog ? <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="space-y-5">
-          <div className="rounded-[36px] bg-white p-7 sm:p-10">
-            <p className="text-sm font-semibold text-[#0071e3]">Seu pedido</p><h1 className="mt-2 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">{catalog.product.name}</h1><p className="mt-4 text-sm leading-relaxed text-[#6e6e73]">{catalog.product.description ?? "Produto Koda."}</p>
-            <div className="mt-9 rounded-[28px] bg-[#f5f5f7] p-6">
-              <div className="flex items-start justify-between gap-6"><div><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#86868b]">Valor unitário</p><p className="mt-2 text-2xl font-semibold">{money(catalog.product.unit_amount_cents,catalog.product.currency)}</p></div><div className="text-right"><p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#86868b]">Quantidade</p><div className="mt-2 inline-flex items-center rounded-full border border-black/10 bg-white p-1"><button disabled={locked} onClick={()=>changeQuantity(-1)} className="grid h-8 w-8 place-items-center rounded-full disabled:opacity-40">−</button><span className="min-w-9 text-center text-sm font-semibold">{quantity}</span><button disabled={locked} onClick={()=>changeQuantity(1)} className="grid h-8 w-8 place-items-center rounded-full disabled:opacity-40">+</button></div></div></div>
-              <div className="mt-6 space-y-3 border-t border-black/10 pt-5 text-sm"><div className="flex justify-between text-[#6e6e73]"><span>Produtos</span><span>{money(subtotalCents,catalog.product.currency)}</span></div><div className="flex justify-between text-[#6e6e73]"><span>Frete</span><span>{requiresShipping ? selectedShipping ? money(selectedShipping.price_cents,catalog.product.currency) : "Calcule abaixo" : "Sem frete"}</span></div><div className="flex justify-between border-t border-black/10 pt-3"><span className="font-semibold">Total</span><strong className="text-2xl">{money(totalCents,catalog.product.currency)}</strong></div></div>
+  return (
+    <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
+      <Nav />
+      <main className="mx-auto max-w-[1180px] px-5 py-10 sm:py-16">
+        <div className="mb-8 flex items-center gap-2 text-xs font-semibold text-[#6e6e73]"><ShieldCheck className="h-4 w-4 text-[#0071e3]" />Koda Pay · checkout seguro</div>
+        {loading || authLoading ? <div className="grid min-h-[560px] place-items-center rounded-[38px] bg-white"><div className="text-center"><LoaderCircle className="mx-auto h-7 w-7 animate-spin text-[#0071e3]" /><p className="mt-3 text-sm text-[#6e6e73]">Preparando sua compra…</p></div></div> : error && !catalog ? <div className="rounded-[38px] bg-white p-12 text-center"><h1 className="text-4xl font-semibold tracking-[-.05em]">Checkout indisponível.</h1><p className="mt-4 text-sm text-[#6e6e73]">{error}</p><a href="/loja" className="mt-7 inline-flex text-sm font-semibold text-[#0066cc]">Voltar à Loja Koda ›</a></div> : catalog ? (
+          <div className="grid gap-5 lg:grid-cols-[1.08fr_.92fr] lg:items-start">
+            <div className="space-y-5">
+              <section className="overflow-hidden rounded-[38px] bg-white">
+                {catalog.product.image_url && <div className="grid h-64 place-items-center bg-[#f5f5f7] p-6"><img src={catalog.product.image_url} alt={catalog.product.name} className="h-full w-full object-contain" /></div>}
+                <div className="p-7 sm:p-10"><p className={`text-sm font-semibold ${catalog.product.product_type === "coverage" ? "text-[#e11900]" : "text-[#0071e3]"}`}>Sua compra</p><h1 className="mt-2 text-4xl font-semibold tracking-[-.055em] sm:text-5xl">{catalog.product.name}</h1><p className="mt-4 max-w-xl text-sm leading-relaxed text-[#6e6e73]">{catalog.product.short_description ?? catalog.product.description ?? "Produto Koda."}</p><div className="mt-9 border-t border-black/10 pt-7"><div className="flex items-start justify-between gap-6"><div><p className="text-xs text-[#86868b]">Valor unitário</p><p className="mt-1 text-2xl font-semibold tracking-[-.03em]">{formatMoney(catalog.product.unit_amount_cents, catalog.product.currency)}</p></div>{!deviceRequired && <div className="text-right"><p className="text-xs text-[#86868b]">Quantidade</p><div className="mt-2 inline-flex items-center rounded-full border border-black/10 bg-[#f5f5f7] p-1"><button type="button" disabled={paymentLocked} onClick={() => setQuantity((v) => Math.max(1, v - 1))} className="grid h-8 w-8 place-items-center rounded-full text-lg hover:bg-white disabled:opacity-40">−</button><span className="min-w-9 text-center text-sm font-semibold">{quantity}</span><button type="button" disabled={paymentLocked} onClick={() => setQuantity((v) => Math.min(20, v + 1))} className="grid h-8 w-8 place-items-center rounded-full text-lg hover:bg-white disabled:opacity-40">+</button></div></div>}</div></div></div>
+              </section>
+
+              {deviceRequired && <section className="rounded-[38px] bg-white p-7 sm:p-10"><div className="flex items-center gap-3"><ShieldCheck className={`h-5 w-5 ${catalog.product.product_type === "coverage" ? "text-[#e11900]" : "text-[#0071e3]"}`} /><div><h2 className="text-xl font-semibold tracking-[-.03em]">Escolha seu KodaBot</h2><p className="mt-0.5 text-xs text-[#86868b]">Esta compra será vinculada diretamente ao dispositivo.</p></div></div>{!user ? <p className="mt-6 rounded-2xl bg-[#f5f5f7] p-5 text-sm text-[#6e6e73]">Entre na Conta Koda para selecionar um dispositivo.</p> : devicesLoading ? <p className="mt-6 flex items-center gap-2 text-sm text-[#6e6e73]"><LoaderCircle className="h-4 w-4 animate-spin" />Carregando seus KodaBots…</p> : devices.length ? <div className="mt-6 grid gap-3">{devices.map((device) => { const eligible = catalog.product.product_type !== "coverage" || device.eligible; return <button key={device.id} type="button" disabled={!eligible || paymentLocked} onClick={() => setSelectedDeviceId(device.id)} className={`flex items-center justify-between gap-4 rounded-2xl border p-4 text-left transition ${selectedDeviceId === device.id ? "border-[#0071e3] bg-[#f5f9ff]" : "border-black/10"} disabled:cursor-not-allowed disabled:opacity-45`}><div><p className="font-semibold">{displayModel(device.model)}</p><p className="mt-1 font-mono text-[11px] text-[#86868b]">{device.serial_number}</p></div><span className={`text-[11px] font-semibold ${eligible ? "text-[#248a3d]" : "text-[#bf4800]"}`}>{eligible ? "Elegível" : device.current_plan ? "Já possui cobertura" : "Não elegível"}</span></button>; })}</div> : <div className="mt-6 rounded-2xl bg-[#fff4e5] p-5 text-sm text-[#7a4a00]"><p className="font-semibold">Nenhum KodaBot disponível.</p><p className="mt-1 text-xs">Ative um KodaBot na sua Conta Koda antes de comprar este item.</p></div>}</section>}
+
+              {shippingRequired && <section className="rounded-[38px] bg-white p-7 sm:p-10"><div className="flex items-center gap-3"><Truck className="h-5 w-5 text-[#0071e3]" /><div><h2 className="text-xl font-semibold tracking-[-.03em]">Entrega</h2><p className="mt-0.5 text-xs text-[#86868b]">Seu endereço e o frete são validados antes do pedido.</p></div></div><div className="mt-6 grid gap-3 sm:grid-cols-2"><Field label="Nome de quem recebe" value={address.recipient} onChange={(v) => updateAddress("recipient", v)} disabled={paymentLocked} className="sm:col-span-2" /><Field label="CEP" value={address.postalCode} onChange={(v) => updateAddress("postalCode", v.replace(/\D/g, "").slice(0, 8))} disabled={paymentLocked} inputMode="numeric" maxLength={8} /><Field label="Telefone" value={address.phone} onChange={(v) => updateAddress("phone", v)} disabled={paymentLocked} inputMode="tel" /><Field label="Rua / avenida" value={address.street} onChange={(v) => updateAddress("street", v)} disabled={paymentLocked} className="sm:col-span-2" /><Field label="Número" value={address.number} onChange={(v) => updateAddress("number", v)} disabled={paymentLocked} /><Field label="Complemento" value={address.complement} onChange={(v) => updateAddress("complement", v)} disabled={paymentLocked} /><Field label="Bairro" value={address.neighborhood} onChange={(v) => updateAddress("neighborhood", v)} disabled={paymentLocked} /><Field label="Cidade" value={address.city} onChange={(v) => updateAddress("city", v)} disabled={paymentLocked} /><Field label="UF" value={address.state} onChange={(v) => updateAddress("state", v)} disabled={paymentLocked} maxLength={2} /></div><button type="button" disabled={paymentLocked || shippingLoading || address.postalCode.replace(/\D/g, "").length !== 8} onClick={calculateShipping} className="mt-5 inline-flex rounded-full bg-[#1d1d1f] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-35">{shippingLoading ? "Calculando…" : "Calcular entrega"}</button>{shippingOptions.length > 0 && <div className="mt-5 grid gap-2">{shippingOptions.map((option) => <button key={option.id} type="button" disabled={paymentLocked} onClick={() => setSelectedShippingId(option.id)} className={`flex items-center justify-between gap-5 rounded-2xl border p-4 text-left ${selectedShippingId === option.id ? "border-[#0071e3] bg-[#f5f9ff]" : "border-black/10"}`}><div><p className="text-sm font-semibold">{option.name}</p><p className="mt-1 text-[11px] text-[#86868b]">{option.company || shippingProvider || "Koda"}{option.deadline_days != null ? ` · até ${option.deadline_days} dias úteis` : ""}</p></div><strong className="text-sm">{option.price_cents === 0 ? "Grátis" : formatMoney(option.price_cents)}</strong></button>)}</div>}</section>}
             </div>
+
+            <section className="rounded-[38px] bg-white p-7 sm:p-9 lg:sticky lg:top-16"><div className="flex items-center justify-between gap-4"><div><p className="text-sm font-semibold text-[#0071e3]">Resumo</p><h2 className="mt-1 text-3xl font-semibold tracking-[-.045em]">Finalizar compra</h2></div><LockKeyhole className="h-6 w-6 text-[#0071e3]" /></div><div className="mt-7 space-y-3 border-y border-black/10 py-6 text-sm"><div className="flex justify-between gap-4"><span className="text-[#6e6e73]">Produtos</span><span>{formatMoney(subtotalCents, catalog.product.currency)}</span></div>{shippingRequired && <div className="flex justify-between gap-4"><span className="text-[#6e6e73]">Entrega</span><span>{selectedShipping ? (selectedShipping.price_cents === 0 ? "Grátis" : formatMoney(selectedShipping.price_cents, catalog.product.currency)) : "Calcule acima"}</span></div>}{selectedDevice && <div className="flex justify-between gap-4"><span className="text-[#6e6e73]">Vinculado a</span><span className="font-mono text-xs">{selectedDevice.serial_number}</span></div>}<div className="flex items-end justify-between gap-4 border-t border-black/10 pt-4"><div><span className="font-semibold">Total</span><p className="mt-1 text-[11px] text-[#86868b]">Calculado e validado no servidor</p></div><strong className="text-2xl tracking-[-.04em]">{formatMoney(totalCents, catalog.product.currency)}</strong></div></div>
+              <div className="mt-6 grid grid-cols-2 gap-2"><button type="button" disabled={!pixReady || paymentLocked} onClick={() => setPaymentMethod("pix")} className={`rounded-2xl border p-4 text-left ${paymentMethod === "pix" ? "border-[#0071e3] bg-[#f5f9ff]" : "border-black/10"} disabled:opacity-40`}><QrCode className="h-5 w-5 text-[#0071e3]" /><p className="mt-3 text-sm font-semibold">Pix</p></button><button type="button" disabled={!cardReady || paymentLocked} onClick={() => setPaymentMethod("card")} className={`rounded-2xl border p-4 text-left ${paymentMethod === "card" ? "border-[#0071e3] bg-[#f5f9ff]" : "border-black/10"} disabled:opacity-40`}><CreditCard className="h-5 w-5 text-[#0071e3]" /><p className="mt-3 text-sm font-semibold">Cartão</p></button></div>
+              {!user ? <a href={`/conta/entrar?returnTo=${encodeURIComponent(`/checkout/${productSlug}`)}`} className="mt-6 flex w-full justify-center rounded-full bg-[#0071e3] px-6 py-3.5 text-sm font-semibold text-white">Entrar para continuar</a> : paymentMethod === "pix" ? (pix ? <div className="mt-6 rounded-[24px] border border-[#b8d9ff] bg-[#f5f9ff] p-5"><p className="text-sm font-semibold">Pague com Pix</p><p className="mt-1 text-xs text-[#6e6e73]">A confirmação é automática pelo Koda Pay.</p>{pix.qr_code_base64 && <div className="mx-auto mt-5 w-fit rounded-2xl bg-white p-3"><img src={`data:image/png;base64,${pix.qr_code_base64}`} alt="QR Code Pix" className="h-48 w-48" /></div>}<div className="mt-4 rounded-xl bg-white p-3"><p className="max-h-16 overflow-hidden break-all font-mono text-[10px] text-[#424245]">{pix.qr_code}</p><button type="button" onClick={copyPix} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-[#0066cc]"><Copy className="h-3.5 w-3.5" />{copied ? "Copiado" : "Copiar Pix"}</button>{pix.ticket_url && <a href={pix.ticket_url} target="_blank" rel="noreferrer" className="ml-4 inline-flex items-center gap-1 text-xs font-semibold text-[#0066cc]">Abrir <ExternalLink className="h-3 w-3" /></a>}</div><div className="mt-4 flex items-center gap-2 text-[11px] text-[#6e6e73]"><LoaderCircle className="h-3.5 w-3.5 animate-spin" />Aguardando confirmação…</div></div> : <button type="button" onClick={createPixOrder} disabled={!checkoutReady || !pixReady || submitting} className="mt-6 flex w-full justify-center rounded-full bg-[#0071e3] px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#0077ed] disabled:cursor-not-allowed disabled:bg-[#d2d2d7]">{submitting ? "Preparando Pix…" : "Pagar com Pix"}</button>) : <CardPaymentBrick amountCents={totalCents} enabled={checkoutReady && cardReady} orderRequest={orderRequest} onOrderCreated={(created) => setOrder({ id: created.id, display_number: created.display_number, status: created.status ?? "draft" })} />}
+              {!checkoutReady && user && catalog.product.available && <div className="mt-5 rounded-2xl bg-[#f5f5f7] p-4 text-xs leading-relaxed text-[#6e6e73]">{deviceRequired && !deviceReady ? "Escolha um KodaBot para continuar." : shippingRequired && !shippingReady ? "Preencha o endereço e escolha uma opção de entrega." : "Complete os dados acima para continuar."}</div>}{!catalog.product.available && <div className="mt-5 rounded-2xl bg-[#fff4e5] p-4 text-xs text-[#7a4a00]">Este produto está indisponível no momento.</div>}{error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-center text-xs font-medium text-red-700">{error}</p>}
+              <div className="mt-7 space-y-2 border-t border-black/10 pt-6 text-[11px] leading-relaxed text-[#86868b]"><p>O preço, estoque, dispositivo e entrega são validados no servidor da Koda antes da cobrança.</p><p>Pagamentos são processados pelo Mercado Pago por meio do Koda Pay.</p>{catalog.product.product_type === "coverage" && <p>O KodaCare só é ativado depois da confirmação do pagamento e da validação de elegibilidade do KodaBot.</p>}</div>
+            </section>
           </div>
-
-          {requiresShipping ? <div className="rounded-[36px] bg-white p-7 sm:p-10">
-            <div className="flex items-start gap-3"><MapPin className="mt-0.5 h-6 w-6 shrink-0 text-[#0071e3]"/><div><p className="text-sm font-semibold text-[#0071e3]">Entrega</p><h2 className="mt-1 text-3xl font-semibold tracking-[-0.04em]">Onde devemos entregar?</h2></div></div>
-            <div className="mt-7 grid gap-4 sm:grid-cols-2">
-              <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">Nome de quem recebe</span><input disabled={locked} value={address.recipient} onChange={e=>updateAddress("recipient",e.target.value)} className={inputClass} autoComplete="name"/></label>
-              <label><span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">CEP</span><div className="flex gap-2"><input disabled={locked} inputMode="numeric" value={showCep(address.postalCode)} onChange={e=>updateAddress("postalCode",e.target.value)} placeholder="00000-000" className={inputClass}/><button type="button" disabled={shippingLoading || locked || cleanCep(address.postalCode).length!==8 || !user} onClick={calculateShipping} className="rounded-2xl bg-[#1d1d1f] px-4 py-3 text-xs font-semibold text-white disabled:bg-[#d2d2d7]">{shippingLoading?"Calculando…":"Calcular"}</button></div></label>
-              <label><span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">Telefone (opcional)</span><input disabled={locked} inputMode="tel" value={address.phone} onChange={e=>updateAddress("phone",e.target.value)} className={inputClass}/></label>
-              <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">Rua / avenida</span><input disabled={locked} value={address.street} onChange={e=>updateAddress("street",e.target.value)} className={inputClass}/></label>
-              <label><span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">Número</span><input disabled={locked} value={address.number} onChange={e=>updateAddress("number",e.target.value)} className={inputClass}/></label>
-              <label><span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">Complemento (opcional)</span><input disabled={locked} value={address.complement} onChange={e=>updateAddress("complement",e.target.value)} className={inputClass}/></label>
-              <label><span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">Bairro</span><input disabled={locked} value={address.neighborhood} onChange={e=>updateAddress("neighborhood",e.target.value)} className={inputClass}/></label>
-              <label><span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">Cidade</span><input disabled={locked} value={address.city} onChange={e=>updateAddress("city",e.target.value)} className={inputClass}/></label>
-              <label><span className="mb-1.5 block text-xs font-semibold text-[#6e6e73]">UF</span><input disabled={locked} value={address.state} onChange={e=>updateAddress("state",e.target.value)} placeholder="RJ" className={inputClass}/></label>
-            </div>
-            {!user && <p className="mt-4 text-xs text-[#6e6e73]">Entre na sua conta para consultar transportadoras.</p>}
-            {shippingError && <p className="mt-4 text-xs font-medium text-red-600">{shippingError}</p>}
-            {shippingOptions.length>0 && <div className="mt-7"><div className="mb-3 flex items-center gap-2"><Truck className="h-4 w-4 text-[#0071e3]"/><p className="text-sm font-semibold">Escolha a entrega</p></div><div className="space-y-3">{shippingOptions.map(option=>{const checked=option.id===selectedShippingId; return <button key={option.id} type="button" disabled={locked} onClick={()=>{setSelectedShippingId(option.id);setCheckoutReference(makeRef());setOrder(null);setPix(null)}} className={`flex w-full items-center justify-between gap-4 rounded-2xl border p-4 text-left ${checked?"border-[#0071e3] bg-[#f5f9ff]":"border-black/10"}`}><div><p className="font-semibold">{option.carrier} · {option.service_name}</p><p className="mt-1 text-xs text-[#6e6e73]">Até {option.deadline_days} {option.deadline_days===1?"dia útil":"dias úteis"}</p></div><div className="text-right"><p className="font-semibold">{money(option.price_cents,catalog.product.currency)}</p><span className={`mt-1 inline-block h-3 w-3 rounded-full border ${checked?"border-[#0071e3] bg-[#0071e3]":"border-black/25"}`}/></div></button>})}</div></div>}
-            {selectedShipping && !addressComplete(address) && <p className="mt-4 text-xs text-[#6e6e73]">Complete o endereço para liberar o pagamento.</p>}
-          </div> : <div className="rounded-[36px] bg-white p-7 sm:p-10"><div className="flex gap-3"><PackageCheck className="h-6 w-6 text-[#0071e3]"/><div><p className="text-sm font-semibold text-[#0071e3]">Entrega</p><h2 className="mt-1 text-2xl font-semibold">Sem frete</h2><p className="mt-2 text-sm text-[#6e6e73]">Este item não exige envio físico.</p></div></div></div>}
-        </section>
-
-        <section className="h-fit rounded-[36px] bg-white p-7 sm:p-10">
-          <div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-[#0071e3]">Pagamento</p><h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em]">Koda Pay</h2></div><LockKeyhole className="h-7 w-7 text-[#0071e3]"/></div>
-          {selectedShipping && <div className="mt-6 rounded-2xl bg-[#f5f5f7] p-4 text-xs text-[#6e6e73]"><p className="font-semibold text-[#1d1d1f]">{selectedShipping.carrier} · {selectedShipping.service_name}</p><p className="mt-1">{money(selectedShipping.price_cents,catalog.product.currency)} · até {selectedShipping.deadline_days} dias úteis</p></div>}
-          <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <button disabled={!pixReady || locked} onClick={()=>setPaymentMethod("pix")} className={`rounded-2xl border p-5 text-left ${paymentMethod==="pix"?"border-[#0071e3] bg-[#f5f9ff]":"border-black/10"} disabled:opacity-50`}><QrCode className="h-6 w-6 text-[#0071e3]"/><p className="mt-4 font-semibold">Pix</p><p className="mt-1 text-xs text-[#6e6e73]">QR Code e confirmação automática.</p></button>
-            <button disabled={!cardReady || locked} onClick={()=>setPaymentMethod("card")} className={`rounded-2xl border p-5 text-left ${paymentMethod==="card"?"border-[#0071e3] bg-[#f5f9ff]":"border-black/10"} disabled:opacity-50`}><CreditCard className="h-6 w-6 text-[#0071e3]"/><p className="mt-4 font-semibold">Cartão</p><p className="mt-1 text-xs text-[#6e6e73]">Tokenizado pelo Mercado Pago + 3DS.</p></button>
-          </div>
-          {!catalog.koda_pay.payment_ready && <div className="mt-6 rounded-2xl bg-[#f5f5f7] p-5 text-xs text-[#6e6e73]">{catalog.koda_pay.message}</div>}
-          {requiresShipping && !selectedShipping && user && <div className="mt-6 rounded-2xl bg-[#f5f5f7] p-4 text-xs text-[#6e6e73]">Calcule e selecione o frete antes do pagamento.</div>}
-
-          {paymentMethod==="card" && <CardPaymentBrick productSlug={catalog.product.slug} quantity={quantity} amountCents={checkoutReady?totalCents:null} enabled={Boolean(user)&&checkoutReady&&cardReady&&!pix} shippingAddress={normalizedAddress} shippingQuoteToken={selectedShipping?.quote_token??null} checkoutReference={checkoutReference} onOrderCreated={created=>setOrder(created)}/>} 
-
-          {paymentMethod==="pix" && <>
-            {pix ? <div className="mt-6 rounded-[24px] border border-[#b8d9ff] bg-[#f5f9ff] p-5"><div className="flex gap-3"><QrCode className="h-5 w-5 shrink-0 text-[#0071e3]"/><div><p className="text-sm font-semibold">Escaneie para pagar com Pix</p><p className="mt-1 text-xs text-[#6e6e73]">A confirmação do pedido acontece depois do retorno do Koda Pay.</p></div></div>{pix.qr_code_base64&&<div className="mx-auto mt-5 w-fit rounded-2xl bg-white p-3"><img src={`data:image/png;base64,${pix.qr_code_base64}`} alt="QR Code Pix" className="h-52 w-52"/></div>}<div className="mt-5 rounded-2xl bg-white p-4"><p className="break-all font-mono text-[11px] text-[#424245]">{pix.qr_code}</p><button onClick={copyPix} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#0071e3] px-4 py-2 text-xs font-semibold text-white"><Copy className="h-3.5 w-3.5"/>{copied?"Copiado":"Copiar código Pix"}</button>{pix.ticket_url&&<a href={pix.ticket_url} target="_blank" rel="noreferrer" className="ml-3 inline-flex items-center gap-1 text-xs font-semibold text-[#0066cc]">Abrir <ExternalLink className="h-3 w-3"/></a>}</div></div>
-            : order ? <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5"><div className="flex gap-3"><CheckCircle2 className="h-5 w-5 text-green-700"/><div><p className="text-sm font-semibold">Pedido {order.display_number??"Koda"} iniciado.</p><button onClick={()=>generatePix(order.id)} className="mt-2 text-xs font-semibold text-[#0066cc]">Tentar gerar Pix novamente</button></div></div></div> : null}
-            {!user ? <a href={`/conta/entrar?returnTo=${encodeURIComponent(`/checkout/${productSlug}`)}`} className="mt-7 flex w-full justify-center rounded-full bg-[#0071e3] px-6 py-3.5 text-sm font-semibold text-white">Entrar para continuar</a> : <button onClick={createPixOrder} disabled={!checkoutReady||!pixReady||submitting||Boolean(order)} className="mt-7 flex w-full justify-center rounded-full bg-[#0071e3] px-6 py-3.5 text-sm font-semibold text-white disabled:bg-[#d2d2d7]">{submitting?"Gerando Pix…":pix?"Pix gerado":order?"Pedido iniciado":requiresShipping&&!selectedShipping?"Calcule o frete":"Pagar com Pix"}</button>}
-          </>}
-
-          {error&&<p className="mt-4 text-center text-xs font-medium text-red-600">{error}</p>}
-          <div className="mt-7 space-y-3 border-t border-black/10 pt-6 text-xs leading-relaxed text-[#6e6e73]"><p>• Produto e frete são validados no servidor.</p><p>• A cotação de frete é assinada e expira antes do pagamento.</p><p>• Pix e cartão são processados pelo Mercado Pago.</p><p>• Dados brutos do cartão e CVV não são armazenados pela Koda.</p></div>
-        </section>
-      </div> : null}
-    </main><SiteFooter />
-  </div>;
+        ) : null}
+      </main>
+      <SiteFooter />
+    </div>
+  );
 }
