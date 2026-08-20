@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/components/koda/AuthProvider";
+import { AdminSectionNav } from "@/components/koda/AdminSectionNav";
 import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
@@ -182,6 +183,7 @@ function FactoryPage() {
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
       <Nav />
+      <AdminSectionNav active="factory" />
       {feedback && (
         <div className="fixed right-5 top-24 z-[140] rounded-2xl bg-[#1d1d1f] px-5 py-3 text-sm font-semibold text-white shadow-xl">
           {feedback}

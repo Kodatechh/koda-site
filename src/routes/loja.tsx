@@ -11,7 +11,6 @@ import {
   HeartHandshake,
   LoaderCircle,
   Package,
-  ShieldCheck,
   UserRound,
   Wrench,
   type LucideIcon,
@@ -60,10 +59,10 @@ type CatalogListResponse = { products: StoreProduct[]; categories: StoreCategory
 export const Route = createFileRoute("/loja")({
   head: () => ({
     meta: [
-      { title: "Loja Koda — Produtos, KodaCare e acessórios" },
+      { title: "Loja Koda — Produtos e acessórios" },
       {
         name: "description",
-        content: "Compre produtos Koda, KodaCare, acessórios e serviços diretamente da Koda.",
+        content: "Compre produtos e acessórios diretamente da Koda.",
       },
     ],
   }),
@@ -76,7 +75,6 @@ function money(cents: number | null, currency = "BRL") {
 }
 
 function visualTone(product: StoreProduct) {
-  if (product.slug.startsWith("kodacare")) return "bg-[#e11900] text-white";
   if (product.slug.includes("pro")) return "bg-[#0b0b0d] text-white";
   if (product.slug.startsWith("kodabot"))
     return "bg-[linear-gradient(145deg,#f9fbff,#e8eef8)] text-[#111216]";
@@ -92,9 +90,9 @@ function ProductVisual({ product, compact = false }: { product: StoreProduct; co
     >
       {isKodaBot ? (
         <img
-          src="/kodabot-home-hero-v3.png"
+          src="/kodabot-store-product-v1.png"
           alt="KodaBot"
-          className="h-full w-full object-cover object-[70%_center]"
+          className="h-full w-full object-contain p-3"
           loading="lazy"
         />
       ) : product.image_url ? (
@@ -104,13 +102,6 @@ function ProductVisual({ product, compact = false }: { product: StoreProduct; co
           className="h-full w-full object-contain p-5"
           loading="lazy"
         />
-      ) : product.slug.startsWith("kodacare") ? (
-        <div className="grid place-items-center text-center">
-          <div>
-            <ShieldCheck className="mx-auto h-20 w-20" strokeWidth={1.15} />
-            <p className="mt-7 text-3xl font-semibold tracking-[-.05em]">KodaCare</p>
-          </div>
-        </div>
       ) : (
         <div className="grid place-items-center p-8 text-center">
           <div>
@@ -151,10 +142,9 @@ type Department = {
 };
 
 const departments: Department[] = [
-  { label: "KodaBot", href: "/kodabot", image: "/kodabot-home-hero-v3.png" },
+  { label: "KodaBot", href: "/kodabot", image: "/kodabot-store-product-v1.png" },
   { label: "KodaBot Pro", href: "/kodabot-pro", icon: Bot },
   { label: "Acessórios", href: "#catalogo", icon: Cable },
-  { label: "KodaCare", href: "/kodacare", icon: ShieldCheck, accent: "text-[#e11900]" },
   { label: "Pedidos", href: "/conta/pedidos", icon: Package },
   { label: "Conta Koda", href: "/conta", icon: UserRound },
   { label: "Reparos", href: "/reparos/solicitar", icon: Wrench },
@@ -182,7 +172,9 @@ function StorePage() {
         setError("Não foi possível carregar a loja agora.");
         setProducts([]);
       } else {
-        setProducts(data.products ?? []);
+        setProducts(
+          (data.products ?? []).filter((product) => !product.slug.startsWith("kodacare")),
+        );
       }
       setLoading(false);
     }
@@ -276,7 +268,7 @@ function StorePage() {
                       <img
                         src={department.image}
                         alt=""
-                        className="h-[108px] w-[138px] max-w-none object-cover object-[72%_center] mix-blend-multiply"
+                        className="h-[108px] w-[118px] max-w-none object-contain mix-blend-multiply"
                       />
                     ) : Icon ? (
                       <Icon
@@ -326,9 +318,7 @@ function StorePage() {
                     >
                       <ProductVisual product={product} />
                       <div className="p-7 sm:p-8">
-                        <p
-                          className={`text-[11px] font-semibold uppercase tracking-[.09em] ${product.slug.startsWith("kodacare") ? "text-[#e11900]" : "text-[#0071e3]"}`}
-                        >
+                        <p className="text-[11px] font-semibold uppercase tracking-[.09em] text-[#0071e3]">
                           {product.category || "Koda"}
                         </p>
                         <h3 className="mt-2 text-3xl font-semibold tracking-[-.05em]">
@@ -363,22 +353,7 @@ function StorePage() {
                     Tudo conectado ao que vem depois da compra.
                   </span>
                 </h2>
-                <div className="mt-8 grid gap-4 md:grid-cols-3">
-                  <a
-                    href="/kodacare"
-                    className="group min-h-[270px] overflow-hidden rounded-[30px] bg-[#e11900] p-7 text-white transition-transform duration-300 hover:-translate-y-1 sm:p-8"
-                  >
-                    <ShieldCheck className="h-8 w-8" />
-                    <h3 className="mt-14 text-3xl font-semibold tracking-[-.05em]">KodaCare.</h3>
-                    <p className="mt-3 max-w-xs text-sm text-white/78">
-                      Cobertura vinculada ao seu KodaBot, acompanhamento e assistência em um só
-                      lugar.
-                    </p>
-                    <span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold">
-                      Conhecer{" "}
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </span>
-                  </a>
+                <div className="mt-8 grid gap-4 md:grid-cols-2">
                   <a
                     href="/conta/pedidos"
                     className="group min-h-[270px] rounded-[30px] bg-[#f5f5f7] p-7 transition-transform duration-300 hover:-translate-y-1 sm:p-8"

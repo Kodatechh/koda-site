@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Banknote, Factory, Headphones, ShieldCheck } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
+import { AdminSectionNav } from "@/components/koda/AdminSectionNav";
 import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
 
@@ -45,6 +46,7 @@ function AdminHome() {
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
       <Nav />
+      {allowed && <AdminSectionNav active="home" />}
       <main className="mx-auto max-w-[1100px] px-5 py-14 sm:py-20">
         {!allowed ? (
           <section className="grid min-h-[560px] place-items-center text-center">

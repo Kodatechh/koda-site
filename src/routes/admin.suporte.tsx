@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
+import { AdminSectionNav } from "@/components/koda/AdminSectionNav";
 import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
 import {
@@ -274,6 +275,7 @@ function SupportConsole() {
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
       <Nav />
+      <AdminSectionNav active="support" />
       <main className="mx-auto max-w-7xl px-5 py-10 sm:py-14">
         <section className="rounded-[34px] bg-white p-7 sm:p-10">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">

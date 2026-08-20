@@ -64,6 +64,7 @@ Deno.serve(async (req: Request) => {
         "slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,published_at",
       )
       .eq("active", true)
+      .neq("product_type", "coverage")
       .not("published_at", "is", null)
       .order("published_at", { ascending: false });
 
