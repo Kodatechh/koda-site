@@ -1,6 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
 
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -45,6 +47,16 @@ function extractCard(order: any) {
     challenge_url: method?.transaction_security?.url ?? null,
     transaction_security_status: method?.transaction_security?.status ?? null,
   };
+}
+
+function runCustomerPostPaymentJobs(supabaseUrl: string, serviceRoleKey: string, orderId: string) {
+  for (const functionName of ["koda-fiscal-process", "koda-order-confirmation-email"]) {
+    EdgeRuntime.waitUntil(fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId }),
+    }).catch(() => null));
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -115,17 +127,24 @@ Deno.serve(async (req: Request) => {
   if (localPaymentStatus === "paid") orderUpdate.paid_at = order.paid_at ?? now;
   await admin.from("orders").update(orderUpdate).eq("id", order.id);
 
-  if (firstPaidConfirmation) {
-    await admin.from("order_events").insert({
-      order_id: order.id,
-      event_type: "payment_confirmed",
-      status: "paid",
-      title: "Pagamento confirmado",
-      body: order.order_type === "coverage"
-        ? "Pagamento confirmado. Estamos ativando a cobertura no KodaBot escolhido."
-        : "Pagamento confirmado. Seu pedido seguirá para preparação.",
-    });
-    await admin.rpc("fulfill_paid_order", { _order_id: order.id });
+  let fulfillmentResult: any = null;
+  if (localPaymentStatus === "paid") {
+    const { data: existingEvent } = await admin.from("order_events").select("id").eq("order_id", order.id).eq("event_type", "payment_confirmed").maybeSingle();
+    if (!existingEvent) {
+      await admin.from("order_events").insert({
+        order_id: order.id,
+        event_type: "payment_confirmed",
+        status: "paid",
+        title: "Pagamento confirmado",
+        body: order.order_type === "coverage"
+          ? "Pagamento confirmado. Estamos ativando a cobertura no KodaBot escolhido."
+          : "Pagamento confirmado. Seu pedido seguirá para preparação.",
+      });
+    }
+
+    const { data: fulfillment, error: fulfillmentError } = await admin.rpc("fulfill_paid_order", { _order_id: order.id });
+    fulfillmentResult = fulfillmentError ? { ok: false, error: "fulfillment_rpc_failed" } : fulfillment;
+    if (firstPaidConfirmation) runCustomerPostPaymentJobs(supabaseUrl, serviceRoleKey, order.id);
   }
 
   return json({
@@ -134,5 +153,6 @@ Deno.serve(async (req: Request) => {
       local_status: localPaymentStatus,
       order_status: localOrderStatus,
     },
+    fulfillment: fulfillmentResult ? { ok: Boolean(fulfillmentResult.ok), error: fulfillmentResult.error ?? null } : null,
   });
 });
