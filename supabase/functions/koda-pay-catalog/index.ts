@@ -54,9 +54,9 @@ Deno.serve(async (req: Request) => {
 
   const originPostalCode = Deno.env.get("KODA_ORIGIN_POSTAL_CODE")?.replace(/\D/g, "") ?? "";
   const carrierConfigured = Boolean(
-    Deno.env.get("MELHOR_ENVIO_TOKEN")?.trim() &&
+    Deno.env.get("SUPERFRETE_TOKEN")?.trim() &&
     originPostalCode.length === 8 &&
-    Deno.env.get("MELHOR_ENVIO_USER_AGENT")?.trim() &&
+    Deno.env.get("SUPERFRETE_USER_AGENT")?.trim() &&
     product.weight_grams && product.length_mm && product.width_mm && product.height_mm
   );
   const shippingConfigured = !product.requires_shipping ||
@@ -93,7 +93,7 @@ Deno.serve(async (req: Request) => {
           : "Pix conectado ao Koda Pay. Falta a Public Key para habilitar cartão.",
     },
     koda_shipping: {
-      provider: product.requires_shipping && product.shipping_mode === "carrier" ? "melhor_envio" : "koda",
+      provider: product.requires_shipping && product.shipping_mode === "carrier" ? "superfrete" : "koda",
       required: product.requires_shipping,
       ready: shippingConfigured,
       mode: product.shipping_mode,
