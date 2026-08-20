@@ -6,7 +6,7 @@ declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
 }
 
@@ -35,7 +35,8 @@ async function validateSignature(xSignature: string, xRequestId: string, dataId:
   const timestamp = parts.ts;
   const expected = parts.v1;
   if (!timestamp || !expected) return false;
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${timestamp};`;
+  const normalizedDataId = /[A-Za-z]/.test(dataId) ? dataId.toLowerCase() : dataId;
+  const manifest = `id:${normalizedDataId};request-id:${xRequestId};ts:${timestamp};`;
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -62,6 +63,16 @@ function mapOrderStatus(status: string) {
   if (status === "canceled" || status === "expired" || status === "charged_back") return "cancelled";
   if (status === "refunded") return "refunded";
   return "pending_payment";
+}
+
+function runCustomerPostPaymentJobs(supabaseUrl: string, serviceRoleKey: string, orderId: string) {
+  for (const functionName of ["koda-fiscal-process", "koda-order-confirmation-email"]) {
+    EdgeRuntime.waitUntil(fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId }),
+    }).catch(() => null));
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -160,24 +171,20 @@ Deno.serve(async (req: Request) => {
   await admin.from("orders").update(orderUpdate).eq("id", localOrder.id);
 
   if (firstPaidConfirmation) {
-    EdgeRuntime.waitUntil(fetch(`${supabaseUrl}/functions/v1/koda-fiscal-process`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${serviceRoleKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ orderId: localOrder.id }),
-    }).catch(() => null));
+    runCustomerPostPaymentJobs(supabaseUrl, serviceRoleKey, localOrder.id);
 
-    await admin.from("order_events").insert({
-      order_id: localOrder.id,
-      event_type: "payment_confirmed",
-      status: "paid",
-      title: "Pagamento confirmado",
-      body: localOrder.order_type === "coverage"
-        ? "Pagamento confirmado. Estamos ativando a cobertura no KodaBot escolhido."
-        : "Pagamento confirmado. Seu pedido seguirá para preparação.",
-    });
+    const { data: existingPaymentConfirmed } = await admin.from("order_events").select("id").eq("order_id", localOrder.id).eq("event_type", "payment_confirmed").maybeSingle();
+    if (!existingPaymentConfirmed) {
+      await admin.from("order_events").insert({
+        order_id: localOrder.id,
+        event_type: "payment_confirmed",
+        status: "paid",
+        title: "Pagamento confirmado",
+        body: localOrder.order_type === "coverage"
+          ? "Pagamento confirmado. Estamos ativando a cobertura no KodaBot escolhido."
+          : "Pagamento confirmado. Seu pedido seguirá para preparação.",
+      });
+    }
   }
 
   let fulfillmentResult: any = null;
