@@ -14,6 +14,10 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -38,7 +42,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: product, error } = await admin
     .from("commerce_products")
-    .select("slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,shipping_mode,flat_shipping_cents,weight_grams,length_mm,width_mm,height_mm,published_at")
+    .select("slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,shipping_mode,flat_shipping_cents,weight_grams,length_mm,width_mm,height_mm,published_at,fiscal_document_type,fiscal_config")
     .eq("slug", productSlug)
     .maybeSingle();
 
@@ -64,6 +68,13 @@ Deno.serve(async (req: Request) => {
     (product.shipping_mode === "flat" && Number.isInteger(product.flat_shipping_cents) && product.flat_shipping_cents >= 0) ||
     (product.shipping_mode === "carrier" && carrierConfigured);
 
+  const fiscalConfig = isObject(product.fiscal_config) ? product.fiscal_config : {};
+  const fiscalDocumentSupported = product.fiscal_document_type === "nfe" || product.fiscal_document_type === "nfce";
+  const fiscalProductConfigured = fiscalDocumentSupported && isObject(fiscalConfig.focus_document) && isObject(fiscalConfig.focus_item);
+  const fiscalProviderConfigured = Boolean(Deno.env.get("FOCUS_NFE_TOKEN")?.trim());
+  const fiscalReady = fiscalProviderConfigured && fiscalProductConfigured;
+  const available = Boolean(product.active && product.unit_amount_cents != null && inStock && shippingConfigured && fiscalReady);
+
   return json({
     product: {
       slug: product.slug,
@@ -72,7 +83,7 @@ Deno.serve(async (req: Request) => {
       description: product.description,
       product_type: product.product_type,
       image_url: product.image_url,
-      available: Boolean(product.active && product.unit_amount_cents != null && inStock),
+      available,
       currency: product.currency,
       unit_amount_cents: product.unit_amount_cents,
       compare_at_cents: product.compare_at_cents,
@@ -102,6 +113,15 @@ Deno.serve(async (req: Request) => {
         : shippingConfigured
           ? "Cálculo de entrega disponível."
           : "A configuração de entrega deste produto ainda está incompleta.",
+    },
+    koda_fiscal: {
+      provider: "focus_nfe",
+      required: true,
+      ready: fiscalReady,
+      document_type: fiscalDocumentSupported ? product.fiscal_document_type : null,
+      message: fiscalReady
+        ? "Emissão fiscal automática preparada para este produto."
+        : "Venda bloqueada até a configuração fiscal deste produto estar concluída.",
     },
   });
 });
