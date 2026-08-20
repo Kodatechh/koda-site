@@ -52,7 +52,7 @@ function KodaBot() {
               KODA OS
             </a>
             <a
-              href="/kodabot-i/comprar"
+              href="/checkout/kodabot-i"
               className="rounded-full bg-[#0071e3] px-4 py-1.5 font-medium text-white hover:bg-[#0077ed]"
             >
               Comprar
@@ -65,9 +65,7 @@ function KodaBot() {
         <section className="overflow-hidden bg-white pt-16 text-center sm:pt-24">
           <div className="mx-auto max-w-6xl px-5">
             <p className="text-sm font-semibold text-[#0071e3]">Pré-venda · R$ 99,90</p>
-            <h1 className="mt-3 text-6xl font-semibold tracking-[-0.055em] sm:text-8xl">
-              KodaBot
-            </h1>
+            <h1 className="mt-3 text-6xl font-semibold tracking-[-0.055em] sm:text-8xl">KodaBot</h1>
             <p className="mx-auto mt-5 max-w-3xl text-3xl font-semibold tracking-[-0.04em] text-[#6e6e73] sm:text-5xl">
               Simples, útil e bonito para o seu dia.
             </p>
@@ -79,7 +77,8 @@ function KodaBot() {
 
           <div className="mx-auto mt-12 max-w-5xl px-5 sm:mt-16">
             <ProductPhotoSlot
-              label="Aguardando kodabot-i-hero-light"
+              src="/kodabot-home-hero-v3.png"
+              alt="KodaBot com corpo transparente em fotografia de estúdio"
               className="h-[460px] sm:h-[680px]"
             />
           </div>
@@ -102,7 +101,9 @@ function KodaBot() {
                   </h3>
                 </div>
                 <ProductPhotoSlot
-                  label="Aguardando kodabot-i-kodaos-dark"
+                  src="/kodabot-official-reference.png"
+                  alt="Tela do KODA OS no KodaBot"
+                  objectPosition="center 38%"
                   className="h-[420px] sm:h-[560px]"
                   dark
                 />
@@ -148,7 +149,12 @@ function KodaBot() {
                       Presença quando você precisa. Discrição quando não precisa.
                     </h3>
                   </div>
-                  <ProductPhotoSlot label="Aguardando kodabot-i-hero-light" className="h-[430px]" />
+                  <ProductPhotoSlot
+                    src="/kodabot-official-reference.png"
+                    alt="KodaBot sobre uma mesa"
+                    objectPosition="center 62%"
+                    className="h-[430px]"
+                  />
                 </div>
               </article>
             </div>
@@ -168,7 +174,9 @@ function KodaBot() {
 
             <div className="mt-16 overflow-hidden bg-[#f5f5f7]">
               <ProductPhotoSlot
-                label="Aguardando kodabot-i-product-cutout"
+                src="/kodabot-home-hero-v3.png"
+                alt="Design transparente do KodaBot"
+                objectPosition="72% center"
                 className="h-[620px] sm:h-[820px]"
               />
             </div>
@@ -192,7 +200,9 @@ function KodaBot() {
 
           <div className="mx-auto mt-16 max-w-7xl px-5">
             <ProductPhotoSlot
-              label="Aguardando kodabot-i-lifestyle"
+              src="/kodabot-official-reference.png"
+              alt="KodaBot em uso sobre uma mesa"
+              objectPosition="center"
               className="h-[620px] sm:h-[850px]"
               dark
             />
@@ -223,24 +233,19 @@ function KodaBot() {
         <section id="disponibilidade" className="bg-white py-28 text-center sm:py-36">
           <div className="mx-auto max-w-3xl px-5">
             <p className="text-sm font-semibold text-[#0071e3]">Pré-venda disponível</p>
-            <h2 className="mt-4 text-5xl font-semibold tracking-[-0.05em] sm:text-7xl">
-              KodaBot
-            </h2>
+            <h2 className="mt-4 text-5xl font-semibold tracking-[-0.05em] sm:text-7xl">KodaBot</h2>
             <p className="mx-auto mt-6 max-w-2xl text-xl leading-relaxed text-[#6e6e73]">
               Garanta seu KodaBot por R$ 99,90 e escolha a proteção KodaCare ideal para ele.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-5">
               <a
-                href="/kodabot-i/comprar"
+                href="/checkout/kodabot-i"
                 className="rounded-full bg-[#0071e3] px-6 py-3 text-sm font-medium text-white hover:bg-[#0077ed]"
               >
                 Comprar
               </a>
-              <a
-                href="/suporte"
-                className="py-3 text-sm font-medium text-[#0066cc] hover:underline"
-              >
-                Falar com a Koda ›
+              <a href="/loja" className="py-3 text-sm font-medium text-[#0066cc] hover:underline">
+                Ver acessórios ›
               </a>
             </div>
           </div>

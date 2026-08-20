@@ -173,8 +173,8 @@ function RepairRequestPage() {
                     onChange={(e) => setModel(e.target.value)}
                     className="contact-input mt-3"
                   >
-                    <option value="kodabot-i">KodaBot I</option>
-                    <option value="kodabot-i-pro">KodaBot I Pro</option>
+                    <option value="kodabot-i">KodaBot</option>
+                    <option value="kodabot-i-pro">KodaBot Pro</option>
                   </select>
                 )}
               </Field>

@@ -48,8 +48,8 @@ export type CompareSection = {
 };
 
 export const productNames: Record<ProductId, string> = {
-  "kodabot-i": "KodaBot I",
-  "kodabot-i-pro": "KodaBot I Pro",
+  "kodabot-i": "KodaBot",
+  "kodabot-i-pro": "KodaBot Pro",
 };
 
 export const compareSections: CompareSection[] = [
@@ -199,7 +199,10 @@ export const compareSections: CompareSection[] = [
       {
         label: "Bluetooth",
         icon: Bluetooth,
-        values: { "kodabot-i": "Não utilizado atualmente", "kodabot-i-pro": "Hardware compatível · uso em definição" },
+        values: {
+          "kodabot-i": "Não utilizado atualmente",
+          "kodabot-i-pro": "Hardware compatível · uso em definição",
+        },
       },
       {
         label: "KodaBot-Setup",
@@ -357,7 +360,8 @@ export const repairOptions: Record<ProductId, RepairOption[]> = {
     {
       id: "general",
       label: "Outro problema",
-      description: "Se o problema não estiver listado, a Koda pode realizar um diagnóstico completo.",
+      description:
+        "Se o problema não estiver listado, a Koda pode realizar um diagnóstico completo.",
       category: "Diagnóstico",
       estimate: "Inspeção necessária",
     },
@@ -416,11 +420,31 @@ export const repairOptions: Record<ProductId, RepairOption[]> = {
 };
 
 export const supportTopics = [
-  { title: "Configurar um KodaBot", href: "/suporte/configurar", keywords: "setup wifi captive portal kodabot-setup ativar" },
-  { title: "Reparo e assistência", href: "/suporte/reparo", keywords: "conserto tela audio bateria microfone touch" },
-  { title: "Garantia e cobertura", href: "/suporte/garantia", keywords: "garantia serial cobertura compra expiração" },
-  { title: "Manuais e downloads", href: "/suporte/manuais", keywords: "manual guia rápido documentação download" },
+  {
+    title: "Configurar um KodaBot",
+    href: "/suporte/configurar",
+    keywords: "setup wifi captive portal kodabot-setup ativar",
+  },
+  {
+    title: "Reparo e assistência",
+    href: "/suporte/reparo",
+    keywords: "conserto tela audio bateria microfone touch",
+  },
+  {
+    title: "Garantia e cobertura",
+    href: "/suporte/garantia",
+    keywords: "garantia serial cobertura compra expiração",
+  },
+  {
+    title: "Manuais e downloads",
+    href: "/suporte/manuais",
+    keywords: "manual guia rápido documentação download",
+  },
   { title: "Perguntas frequentes", href: "/suporte/faq", keywords: "faq dúvidas" },
-  { title: "Fale com a Koda", href: "/suporte/contato", keywords: "contato atendimento email suporte" },
+  {
+    title: "Fale com a Koda",
+    href: "/suporte/contato",
+    keywords: "contato atendimento email suporte",
+  },
   { title: "Meu KodaBot", href: "/conta", keywords: "conta kodacloud serial dispositivo ativação" },
 ];

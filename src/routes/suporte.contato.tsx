@@ -6,20 +6,181 @@ import { useAuth } from "@/components/koda/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { productNames, type ProductId } from "@/lib/koda-data";
 
-export const Route = createFileRoute("/suporte/contato")({ head: () => ({ meta: [{ title: "Fale com a Koda — Suporte" }] }), component: Contact });
+export const Route = createFileRoute("/suporte/contato")({
+  head: () => ({ meta: [{ title: "Fale com a Koda — Suporte" }] }),
+  component: Contact,
+});
 
 type DeviceOption = { id: string; serial_number: string; model: string };
 
 function Contact() {
   const { user, loading } = useAuth();
   const [devices, setDevices] = useState<DeviceOption[]>([]);
-  const [category,setCategory]=useState("produto"); const [deviceId,setDeviceId]=useState(""); const [subject,setSubject]=useState(""); const [message,setMessage]=useState(""); const [sending,setSending]=useState(false); const [success,setSuccess]=useState(false); const [error,setError]=useState<string|null>(null);
+  const [category, setCategory] = useState("produto");
+  const [deviceId, setDeviceId] = useState("");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(()=>{if(!user)return;supabase.from("devices").select("id,serial_number,model").order("created_at",{ascending:false}).then(({data})=>setDevices((data??[]) as DeviceOption[]));const params=new URLSearchParams(window.location.search);if(params.get("assunto")==="reparo"){setCategory("reparo");const model=params.get("modelo");const problem=params.get("problema");setSubject(`Reparo ${model ?? "KodaBot"}${problem?` — ${problem}`:""}`);}},[user]);
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("devices")
+      .select("id,serial_number,model")
+      .eq("owner_user_id", user.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setDevices((data ?? []) as DeviceOption[]));
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("assunto") === "reparo") {
+      setCategory("reparo");
+      const model = params.get("modelo");
+      const problem = params.get("problema");
+      setSubject(`Reparo ${model ?? "KodaBot"}${problem ? ` — ${problem}` : ""}`);
+    }
+  }, [user]);
 
-  async function submit(e:FormEvent){e.preventDefault();if(!user)return;setSending(true);setError(null);const{error:insertError}=await supabase.from("support_cases").insert({owner_user_id:user.id,device_id:deviceId||null,category,subject,message});setSending(false);if(insertError){setError(insertError.message);return;}setSuccess(true);setSubject("");setMessage("");}
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!user) return;
+    setSending(true);
+    setError(null);
+    const { error: insertError } = await supabase
+      .from("support_cases")
+      .insert({ owner_user_id: user.id, device_id: deviceId || null, category, subject, message });
+    setSending(false);
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+    setSuccess(true);
+    setSubject("");
+    setMessage("");
+  }
 
-  return <main><section className="bg-[#f5f5f7] px-5 py-20 text-center sm:py-28"><MessageCircle className="mx-auto h-10 w-10 text-[#0071e3]"/><h1 className="mt-5 text-5xl font-semibold tracking-[-0.055em] sm:text-7xl">Fale com a Koda.</h1><p className="mx-auto mt-5 max-w-xl text-lg text-[#6e6e73]">Produto, conta, reparo ou outra dúvida. Escolha o assunto e envie uma solicitação ligada à sua Conta KodaCloud.</p></section><section className="mx-auto max-w-3xl px-5 py-16 sm:py-20">{loading?<p className="text-center text-sm text-[#6e6e73]">Carregando…</p>:!user?<div className="rounded-[30px] bg-[#f5f5f7] p-8 text-center"><h2 className="text-3xl font-semibold tracking-[-0.04em]">Entre para abrir uma solicitação.</h2><p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-[#6e6e73]">Usamos a Conta KodaCloud para relacionar o atendimento ao comprador e, quando necessário, ao KodaBot correto.</p><a href="/conta/entrar" className="mt-6 inline-flex rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white">Entrar na KodaCloud</a><p className="mt-5 text-xs text-[#86868b]">Para contato geral sem conta: Kodatechproducts@gmail.com</p></div>:success?<div className="rounded-[30px] bg-[#f1fbf5] p-10 text-center"><CheckCircle2 className="mx-auto h-11 w-11 text-[#34c759]"/><h2 className="mt-5 text-3xl font-semibold">Solicitação enviada.</h2><p className="mt-3 text-sm text-[#6e6e73]">Ela ficou registrada na sua Conta KodaCloud.</p><button onClick={()=>setSuccess(false)} className="mt-6 text-sm font-semibold text-[#0066cc] hover:underline">Enviar outra mensagem</button></div>:<form onSubmit={submit} className="space-y-5 rounded-[30px] bg-white p-7 shadow-sm sm:p-9"><div className="grid gap-5 sm:grid-cols-2"><Field label="Assunto"><select value={category} onChange={(e)=>setCategory(e.target.value)} className="contact-input"><option value="produto">Dúvida sobre produto</option><option value="reparo">Reparo e assistência</option><option value="garantia">Garantia</option><option value="conta">Conta KodaCloud</option><option value="kodaos">KODA OS</option><option value="parcerias">Parcerias / imprensa</option><option value="outro">Outro</option></select></Field><Field label="KodaBot (opcional)"><select value={deviceId} onChange={(e)=>setDeviceId(e.target.value)} className="contact-input"><option value="">Nenhum dispositivo</option>{devices.map((d)=><option key={d.id} value={d.id}>{productNames[d.model as ProductId]??d.model} · {d.serial_number}</option>)}</select></Field></div><Field label="Título"><input required value={subject} onChange={(e)=>setSubject(e.target.value)} className="contact-input" placeholder="Como podemos ajudar?"/></Field><Field label="Mensagem"><textarea required rows={7} value={message} onChange={(e)=>setMessage(e.target.value)} className="contact-input h-auto py-3" placeholder="Conte o que aconteceu ou o que você precisa."/></Field>{error&&<p className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}<button disabled={sending} className="h-12 rounded-full bg-[#0071e3] px-7 text-sm font-semibold text-white disabled:opacity-60">{sending?"Enviando…":"Enviar para a Koda"}</button></form>}</section></main>;
+  return (
+    <main>
+      <section className="bg-[#f5f5f7] px-5 py-20 text-center sm:py-28">
+        <MessageCircle className="mx-auto h-10 w-10 text-[#0071e3]" />
+        <h1 className="mt-5 text-5xl font-semibold tracking-[-0.055em] sm:text-7xl">
+          Fale com a Koda.
+        </h1>
+        <p className="mx-auto mt-5 max-w-xl text-lg text-[#6e6e73]">
+          Produto, conta, reparo ou outra dúvida. Escolha o assunto e envie uma solicitação ligada à
+          sua Conta KodaCloud.
+        </p>
+      </section>
+      <section className="mx-auto max-w-3xl px-5 py-16 sm:py-20">
+        {loading ? (
+          <p className="text-center text-sm text-[#6e6e73]">Carregando…</p>
+        ) : !user ? (
+          <div className="rounded-[30px] bg-[#f5f5f7] p-8 text-center">
+            <h2 className="text-3xl font-semibold tracking-[-0.04em]">
+              Entre para abrir uma solicitação.
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-[#6e6e73]">
+              Usamos a Conta KodaCloud para relacionar o atendimento ao comprador e, quando
+              necessário, ao KodaBot correto.
+            </p>
+            <a
+              href="/conta/entrar"
+              className="mt-6 inline-flex rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white"
+            >
+              Entrar na KodaCloud
+            </a>
+            <p className="mt-5 text-xs text-[#86868b]">
+              Para contato geral sem conta: Kodatechproducts@gmail.com
+            </p>
+          </div>
+        ) : success ? (
+          <div className="rounded-[30px] bg-[#f1fbf5] p-10 text-center">
+            <CheckCircle2 className="mx-auto h-11 w-11 text-[#34c759]" />
+            <h2 className="mt-5 text-3xl font-semibold">Solicitação enviada.</h2>
+            <p className="mt-3 text-sm text-[#6e6e73]">
+              Ela ficou registrada na sua Conta KodaCloud.
+            </p>
+            <button
+              onClick={() => setSuccess(false)}
+              className="mt-6 text-sm font-semibold text-[#0066cc] hover:underline"
+            >
+              Enviar outra mensagem
+            </button>
+          </div>
+        ) : (
+          <form
+            onSubmit={submit}
+            className="space-y-5 rounded-[30px] bg-white p-7 shadow-sm sm:p-9"
+          >
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Assunto">
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="contact-input"
+                >
+                  <option value="produto">Dúvida sobre produto</option>
+                  <option value="reparo">Reparo e assistência</option>
+                  <option value="garantia">Garantia</option>
+                  <option value="conta">Conta KodaCloud</option>
+                  <option value="kodaos">KODA OS</option>
+                  <option value="parcerias">Parcerias / imprensa</option>
+                  <option value="outro">Outro</option>
+                </select>
+              </Field>
+              <Field label="KodaBot (opcional)">
+                <select
+                  value={deviceId}
+                  onChange={(e) => setDeviceId(e.target.value)}
+                  className="contact-input"
+                >
+                  <option value="">Nenhum dispositivo</option>
+                  {devices.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {productNames[d.model as ProductId] ?? d.model} · {d.serial_number}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <Field label="Título">
+              <input
+                required
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="contact-input"
+                placeholder="Como podemos ajudar?"
+              />
+            </Field>
+            <Field label="Mensagem">
+              <textarea
+                required
+                rows={7}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="contact-input h-auto py-3"
+                placeholder="Conte o que aconteceu ou o que você precisa."
+              />
+            </Field>
+            {error && <p className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{error}</p>}
+            <button
+              disabled={sending}
+              className="h-12 rounded-full bg-[#0071e3] px-7 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {sending ? "Enviando…" : "Enviar para a Koda"}
+            </button>
+          </form>
+        )}
+      </section>
+    </main>
+  );
 }
 
-function Field({label,children}:{label:string;children:ReactNode}){return <label className="block text-xs font-medium text-[#6e6e73]">{label}<div className="mt-1.5">{children}</div></label>}
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block text-xs font-medium text-[#6e6e73]">
+      {label}
+      <div className="mt-1.5">{children}</div>
+    </label>
+  );
+}

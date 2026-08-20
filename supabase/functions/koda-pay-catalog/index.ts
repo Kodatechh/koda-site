@@ -10,7 +10,11 @@ const corsHeaders = {
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
   });
 }
 
@@ -20,35 +24,77 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  if (req.method !== "POST" && req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
+  if (req.method !== "POST" && req.method !== "GET")
+    return json({ error: "method_not_allowed" }, 405);
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) return json({ error: "server_configuration_error" }, 500);
 
   let productSlug = "";
+  let list = false;
   if (req.method === "GET") {
     const url = new URL(req.url);
-    productSlug = (url.searchParams.get("productSlug") ?? url.searchParams.get("slug") ?? "").trim();
+    productSlug = (
+      url.searchParams.get("productSlug") ??
+      url.searchParams.get("slug") ??
+      ""
+    ).trim();
   } else {
-    let input: { productSlug?: string };
+    let input: { productSlug?: string; list?: boolean };
     try {
       input = await req.json();
     } catch {
       return json({ error: "invalid_json" }, 400);
     }
     productSlug = typeof input.productSlug === "string" ? input.productSlug.trim() : "";
+    list = input.list === true;
   }
 
-  if (!productSlug) return json({ error: "invalid_product" }, 400);
+  if (!productSlug && !list) return json({ error: "invalid_product" }, 400);
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  if (list) {
+    const { data: products, error: listError } = await admin
+      .from("commerce_products")
+      .select(
+        "slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,published_at",
+      )
+      .eq("active", true)
+      .not("published_at", "is", null)
+      .order("published_at", { ascending: false });
+
+    if (listError) return json({ error: "catalog_error" }, 500);
+    return json({
+      products: (products ?? []).map((product, index) => ({
+        ...product,
+        available: Boolean(
+          product.unit_amount_cents != null &&
+          (!product.track_stock || (product.stock_quantity ?? 0) > 0),
+        ),
+        in_stock: !product.track_stock || (product.stock_quantity ?? 0) > 0,
+        category:
+          product.product_type === "coverage"
+            ? "KodaCare"
+            : product.product_type === "physical"
+              ? "KodaBot"
+              : "Serviços",
+        category_id: null,
+        media: [],
+        featured: index < 4,
+      })),
+      categories: [],
+    });
+  }
+
   const { data: product, error } = await admin
     .from("commerce_products")
-    .select("slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,shipping_mode,flat_shipping_cents,weight_grams,length_mm,width_mm,height_mm,published_at,fiscal_document_type,fiscal_config")
+    .select(
+      "slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,shipping_mode,flat_shipping_cents,weight_grams,length_mm,width_mm,height_mm,published_at,fiscal_document_type,fiscal_config",
+    )
     .eq("slug", productSlug)
     .maybeSingle();
 
@@ -57,7 +103,8 @@ Deno.serve(async (req: Request) => {
 
   const inStock = !product.track_stock || (product.stock_quantity ?? 0) > 0;
   const mercadoPagoConfigured = Boolean(Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN")?.trim());
-  const cardConfigured = mercadoPagoConfigured && Boolean(Deno.env.get("MERCADO_PAGO_PUBLIC_KEY")?.trim());
+  const cardConfigured =
+    mercadoPagoConfigured && Boolean(Deno.env.get("MERCADO_PAGO_PUBLIC_KEY")?.trim());
   const readyMethods: Array<"pix" | "card"> = [];
   if (mercadoPagoConfigured) readyMethods.push("pix");
   if (cardConfigured) readyMethods.push("card");
@@ -67,16 +114,26 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPERFRETE_TOKEN")?.trim() &&
     originPostalCode.length === 8 &&
     Deno.env.get("SUPERFRETE_USER_AGENT")?.trim() &&
-    product.weight_grams && product.length_mm && product.width_mm && product.height_mm
+    product.weight_grams &&
+    product.length_mm &&
+    product.width_mm &&
+    product.height_mm,
   );
-  const shippingConfigured = !product.requires_shipping ||
+  const shippingConfigured =
+    !product.requires_shipping ||
     product.shipping_mode === "free" ||
-    (product.shipping_mode === "flat" && Number.isInteger(product.flat_shipping_cents) && product.flat_shipping_cents >= 0) ||
+    (product.shipping_mode === "flat" &&
+      Number.isInteger(product.flat_shipping_cents) &&
+      product.flat_shipping_cents >= 0) ||
     (product.shipping_mode === "carrier" && carrierConfigured);
 
   const fiscalConfig = isObject(product.fiscal_config) ? product.fiscal_config : {};
-  const fiscalDocumentSupported = product.fiscal_document_type === "nfe" || product.fiscal_document_type === "nfce";
-  const fiscalProductConfigured = fiscalDocumentSupported && isObject(fiscalConfig.focus_document) && isObject(fiscalConfig.focus_item);
+  const fiscalDocumentSupported =
+    product.fiscal_document_type === "nfe" || product.fiscal_document_type === "nfce";
+  const fiscalProductConfigured =
+    fiscalDocumentSupported &&
+    isObject(fiscalConfig.focus_document) &&
+    isObject(fiscalConfig.focus_item);
   const fiscalProviderConfigured = Boolean(Deno.env.get("FOCUS_NFE_TOKEN")?.trim());
   const fiscalReady = fiscalProviderConfigured && fiscalProductConfigured;
   const fiscalEnforced = Deno.env.get("KODA_FISCAL_ENFORCE")?.trim().toLowerCase() === "true";
@@ -85,7 +142,7 @@ Deno.serve(async (req: Request) => {
     product.unit_amount_cents != null &&
     inStock &&
     shippingConfigured &&
-    (!fiscalEnforced || fiscalReady)
+    (!fiscalEnforced || fiscalReady),
   );
 
   return json({
@@ -117,7 +174,8 @@ Deno.serve(async (req: Request) => {
           : "Pix conectado ao Koda Pay. Falta a Public Key para habilitar cartão.",
     },
     koda_shipping: {
-      provider: product.requires_shipping && product.shipping_mode === "carrier" ? "superfrete" : "koda",
+      provider:
+        product.requires_shipping && product.shipping_mode === "carrier" ? "superfrete" : "koda",
       required: product.requires_shipping,
       ready: shippingConfigured,
       mode: product.shipping_mode,

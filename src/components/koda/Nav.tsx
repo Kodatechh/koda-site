@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Menu, Search, ShoppingBag, X } from "lucide-react";
 
@@ -18,10 +18,9 @@ const navItems: NavItem[] = [
         title: "Comprar",
         emphasis: true,
         items: [
-          { label: "Loja Koda", href: "/loja" },
+          { label: "Acessórios", href: "/loja" },
           { label: "KodaBot", href: "/kodabot" },
           { label: "KodaBot Pro", href: "/kodabot-pro" },
-          { label: "KodaCare", href: "/kodacare" },
           { label: "Comparar modelos", href: "/comparar" },
         ],
       },
@@ -38,7 +37,6 @@ const navItems: NavItem[] = [
         title: "Serviços Koda",
         items: [
           { label: "KodaCare", href: "/kodacare" },
-          { label: "KODA OS", href: "/kodaos" },
           { label: "Garantia", href: "/suporte/garantia" },
           { label: "Conta Koda", href: "/conta" },
         ],
@@ -70,50 +68,7 @@ const navItems: NavItem[] = [
         title: "Comprar",
         items: [
           { label: "Comprar KodaBot", href: "/checkout/kodabot-i" },
-          { label: "Ver na Loja Koda", href: "/loja" },
-        ],
-      },
-    ],
-  },
-  {
-    label: "KodaCare",
-    href: "/kodacare",
-    menu: [
-      {
-        title: "KodaCare",
-        emphasis: true,
-        items: [
-          { label: "Conheça o KodaCare", href: "/kodacare" },
-          { label: "Comprar KodaCare", href: "/checkout/kodacare" },
-        ],
-      },
-      {
-        title: "Cobertura",
-        items: [
-          { label: "Garantia e cobertura", href: "/suporte/garantia" },
-          { label: "Solicitar reparo", href: "/suporte/reparo" },
-        ],
-      },
-    ],
-  },
-  {
-    label: "KODA OS",
-    href: "/kodaos",
-    menu: [
-      {
-        title: "KODA OS",
-        emphasis: true,
-        items: [
-          { label: "Visão geral", href: "/kodaos" },
-          { label: "Atualizações", href: "/kodaos/updates" },
-          { label: "Changelog", href: "/kodaos/changelog" },
-        ],
-      },
-      {
-        title: "Recursos",
-        items: [
-          { label: "Configurar KodaBot", href: "/suporte/configurar" },
-          { label: "Manuais", href: "/suporte/manuais" },
+          { label: "Ver acessórios", href: "/loja" },
         ],
       },
     ],
@@ -142,7 +97,37 @@ const navItems: NavItem[] = [
       },
     ],
   },
-  { label: "Sobre", href: "/sobre" },
+  {
+    label: "Sobre",
+    href: "/sobre",
+    menu: [
+      {
+        title: "Conheça a Koda",
+        emphasis: true,
+        items: [
+          { label: "Sobre nós", href: "/sobre" },
+          { label: "Sobre os KodaBots", href: "/kodabot" },
+          { label: "KODA OS", href: "/kodaos" },
+        ],
+      },
+      {
+        title: "Documentos",
+        items: [
+          { label: "Contratos", href: "/contratos" },
+          { label: "Privacidade", href: "/privacidade" },
+          { label: "Garantia", href: "/suporte/garantia" },
+        ],
+      },
+      {
+        title: "KODA OS",
+        items: [
+          { label: "Visão geral", href: "/kodaos" },
+          { label: "Atualizações", href: "/kodaos/updates" },
+          { label: "Changelog", href: "/kodaos/changelog" },
+        ],
+      },
+    ],
+  },
 ];
 
 export function Nav() {

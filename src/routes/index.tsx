@@ -38,9 +38,7 @@ function Home() {
         <section className="relative overflow-hidden bg-white text-center">
           <div className="mx-auto max-w-6xl px-5 pb-0 pt-14 sm:pt-20">
             <p className="text-sm font-semibold text-[#0071e3]">Pré-venda por R$ 99,90</p>
-            <h1 className="mt-1 text-5xl font-semibold tracking-[-0.045em] sm:text-6xl">
-              KodaBot
-            </h1>
+            <h1 className="mt-1 text-5xl font-semibold tracking-[-0.045em] sm:text-6xl">KodaBot</h1>
             <p className="mx-auto mt-3 max-w-xl text-xl font-medium tracking-[-0.02em] sm:text-2xl">
               Simples, útil e bonito para o seu dia.
             </p>
@@ -49,18 +47,27 @@ function Home() {
                 Saiba mais ›
               </a>
               <a
-                href="/kodabot-i/comprar"
+                href="/checkout/kodabot-i"
                 className="rounded-full bg-[#0071e3] px-5 py-2.5 font-medium text-white"
               >
                 Comprar
               </a>
             </div>
 
-            <a href="/kodabot" className="mt-8 block" aria-label="Conhecer o KodaBot">
-              <ProductPhotoSlot
-                label="Aguardando kodabot-i-hero-light"
-                className="mx-auto h-[430px] max-w-5xl sm:h-[620px]"
-              />
+            <a
+              href="/kodabot"
+              className="mx-auto mt-8 block max-w-[1100px]"
+              aria-label="Conhecer o KodaBot"
+            >
+              <div className="relative h-[390px] overflow-hidden sm:h-[590px]">
+                <img
+                  src="/kodabot-home-hero-v3.png"
+                  alt="KodaBot com corpo transparente e tela KODA OS"
+                  className="h-full w-full object-cover object-center"
+                  fetchPriority="high"
+                />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
+              </div>
             </a>
           </div>
         </section>

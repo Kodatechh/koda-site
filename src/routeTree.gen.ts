@@ -10,9 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AtivarRouteImport } from './routes/ativar'
 import { Route as CompararRouteImport } from './routes/comparar'
 import { Route as ContaRouteImport } from './routes/conta'
+import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as FabricaRouteImport } from './routes/fabrica'
 import { Route as FinanceiroInternoRouteImport } from './routes/financeiro-interno'
 import { Route as KodabotRouteImport } from './routes/kodabot'
@@ -25,6 +27,10 @@ import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as SuporteRouteImport } from './routes/suporte'
 import { Route as SuporteInternoRouteImport } from './routes/suporte-interno'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminFabricaRouteImport } from './routes/admin.fabrica'
+import { Route as AdminFinanceiroRouteImport } from './routes/admin.financeiro'
+import { Route as AdminSuporteRouteImport } from './routes/admin.suporte'
 import { Route as CheckoutProductSlugRouteImport } from './routes/checkout.$productSlug'
 import { Route as ContaIndexRouteImport } from './routes/conta.index'
 import { Route as ContaConfiguracoesRouteImport } from './routes/conta.configuracoes'
@@ -65,6 +71,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AtivarRoute = AtivarRouteImport.update({
   id: '/ativar',
   path: '/ativar',
@@ -78,6 +89,11 @@ const CompararRoute = CompararRouteImport.update({
 const ContaRoute = ContaRouteImport.update({
   id: '/conta',
   path: '/conta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContratosRoute = ContratosRouteImport.update({
+  id: '/contratos',
+  path: '/contratos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FabricaRoute = FabricaRouteImport.update({
@@ -139,6 +155,26 @@ const SuporteInternoRoute = SuporteInternoRouteImport.update({
   id: '/suporte-interno',
   path: '/suporte-interno',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFabricaRoute = AdminFabricaRouteImport.update({
+  id: '/fabrica',
+  path: '/fabrica',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFinanceiroRoute = AdminFinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSuporteRoute = AdminSuporteRouteImport.update({
+  id: '/suporte',
+  path: '/suporte',
+  getParentRoute: () => AdminRoute,
 } as any)
 const CheckoutProductSlugRoute = CheckoutProductSlugRouteImport.update({
   id: '/checkout/$productSlug',
@@ -315,9 +351,11 @@ const ContaReparosRepairIdRoute = ContaReparosRepairIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/ativar': typeof AtivarRoute
   '/comparar': typeof CompararRoute
   '/conta': typeof ContaRouteWithChildren
+  '/contratos': typeof ContratosRoute
   '/fabrica': typeof FabricaRoute
   '/financeiro-interno': typeof FinanceiroInternoRoute
   '/kodabot': typeof KodabotRouteWithChildren
@@ -330,6 +368,9 @@ export interface FileRoutesByFullPath {
   '/status': typeof StatusRoute
   '/suporte': typeof SuporteRouteWithChildren
   '/suporte-interno': typeof SuporteInternoRoute
+  '/admin/fabrica': typeof AdminFabricaRoute
+  '/admin/financeiro': typeof AdminFinanceiroRoute
+  '/admin/suporte': typeof AdminSuporteRoute
   '/checkout/$productSlug': typeof CheckoutProductSlugRoute
   '/conta/configuracoes': typeof ContaConfiguracoesRoute
   '/conta/criar': typeof ContaCriarRoute
@@ -353,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/suporte/manuais': typeof SuporteManuaisRoute
   '/suporte/orcamentos': typeof SuporteOrcamentosRoute
   '/suporte/reparo': typeof SuporteReparoRoute
+  '/admin/': typeof AdminIndexRoute
   '/conta/': typeof ContaIndexRoute
   '/kodabot-pro/': typeof KodabotProIndexRoute
   '/kodabot/': typeof KodabotIndexRoute
@@ -369,6 +411,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ativar': typeof AtivarRoute
   '/comparar': typeof CompararRoute
+  '/contratos': typeof ContratosRoute
   '/fabrica': typeof FabricaRoute
   '/financeiro-interno': typeof FinanceiroInternoRoute
   '/kodacare': typeof KodacareRoute
@@ -377,6 +420,9 @@ export interface FileRoutesByTo {
   '/sobre': typeof SobreRoute
   '/status': typeof StatusRoute
   '/suporte-interno': typeof SuporteInternoRoute
+  '/admin/fabrica': typeof AdminFabricaRoute
+  '/admin/financeiro': typeof AdminFinanceiroRoute
+  '/admin/suporte': typeof AdminSuporteRoute
   '/checkout/$productSlug': typeof CheckoutProductSlugRoute
   '/conta/configuracoes': typeof ContaConfiguracoesRoute
   '/conta/criar': typeof ContaCriarRoute
@@ -400,6 +446,7 @@ export interface FileRoutesByTo {
   '/suporte/manuais': typeof SuporteManuaisRoute
   '/suporte/orcamentos': typeof SuporteOrcamentosRoute
   '/suporte/reparo': typeof SuporteReparoRoute
+  '/admin': typeof AdminIndexRoute
   '/conta': typeof ContaIndexRoute
   '/kodabot-pro': typeof KodabotProIndexRoute
   '/kodabot': typeof KodabotIndexRoute
@@ -415,9 +462,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/ativar': typeof AtivarRoute
   '/comparar': typeof CompararRoute
   '/conta': typeof ContaRouteWithChildren
+  '/contratos': typeof ContratosRoute
   '/fabrica': typeof FabricaRoute
   '/financeiro-interno': typeof FinanceiroInternoRoute
   '/kodabot': typeof KodabotRouteWithChildren
@@ -430,6 +479,9 @@ export interface FileRoutesById {
   '/status': typeof StatusRoute
   '/suporte': typeof SuporteRouteWithChildren
   '/suporte-interno': typeof SuporteInternoRoute
+  '/admin/fabrica': typeof AdminFabricaRoute
+  '/admin/financeiro': typeof AdminFinanceiroRoute
+  '/admin/suporte': typeof AdminSuporteRoute
   '/checkout/$productSlug': typeof CheckoutProductSlugRoute
   '/conta/configuracoes': typeof ContaConfiguracoesRoute
   '/conta/criar': typeof ContaCriarRoute
@@ -453,6 +505,7 @@ export interface FileRoutesById {
   '/suporte/manuais': typeof SuporteManuaisRoute
   '/suporte/orcamentos': typeof SuporteOrcamentosRoute
   '/suporte/reparo': typeof SuporteReparoRoute
+  '/admin/': typeof AdminIndexRoute
   '/conta/': typeof ContaIndexRoute
   '/kodabot-pro/': typeof KodabotProIndexRoute
   '/kodabot/': typeof KodabotIndexRoute
@@ -469,9 +522,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/ativar'
     | '/comparar'
     | '/conta'
+    | '/contratos'
     | '/fabrica'
     | '/financeiro-interno'
     | '/kodabot'
@@ -484,6 +539,9 @@ export interface FileRouteTypes {
     | '/status'
     | '/suporte'
     | '/suporte-interno'
+    | '/admin/fabrica'
+    | '/admin/financeiro'
+    | '/admin/suporte'
     | '/checkout/$productSlug'
     | '/conta/configuracoes'
     | '/conta/criar'
@@ -507,6 +565,7 @@ export interface FileRouteTypes {
     | '/suporte/manuais'
     | '/suporte/orcamentos'
     | '/suporte/reparo'
+    | '/admin/'
     | '/conta/'
     | '/kodabot-pro/'
     | '/kodabot/'
@@ -523,6 +582,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ativar'
     | '/comparar'
+    | '/contratos'
     | '/fabrica'
     | '/financeiro-interno'
     | '/kodacare'
@@ -531,6 +591,9 @@ export interface FileRouteTypes {
     | '/sobre'
     | '/status'
     | '/suporte-interno'
+    | '/admin/fabrica'
+    | '/admin/financeiro'
+    | '/admin/suporte'
     | '/checkout/$productSlug'
     | '/conta/configuracoes'
     | '/conta/criar'
@@ -554,6 +617,7 @@ export interface FileRouteTypes {
     | '/suporte/manuais'
     | '/suporte/orcamentos'
     | '/suporte/reparo'
+    | '/admin'
     | '/conta'
     | '/kodabot-pro'
     | '/kodabot'
@@ -568,9 +632,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/ativar'
     | '/comparar'
     | '/conta'
+    | '/contratos'
     | '/fabrica'
     | '/financeiro-interno'
     | '/kodabot'
@@ -583,6 +649,9 @@ export interface FileRouteTypes {
     | '/status'
     | '/suporte'
     | '/suporte-interno'
+    | '/admin/fabrica'
+    | '/admin/financeiro'
+    | '/admin/suporte'
     | '/checkout/$productSlug'
     | '/conta/configuracoes'
     | '/conta/criar'
@@ -606,6 +675,7 @@ export interface FileRouteTypes {
     | '/suporte/manuais'
     | '/suporte/orcamentos'
     | '/suporte/reparo'
+    | '/admin/'
     | '/conta/'
     | '/kodabot-pro/'
     | '/kodabot/'
@@ -621,9 +691,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   AtivarRoute: typeof AtivarRoute
   CompararRoute: typeof CompararRoute
   ContaRoute: typeof ContaRouteWithChildren
+  ContratosRoute: typeof ContratosRoute
   FabricaRoute: typeof FabricaRoute
   FinanceiroInternoRoute: typeof FinanceiroInternoRoute
   KodabotRoute: typeof KodabotRouteWithChildren
@@ -651,6 +723,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ativar': {
       id: '/ativar'
       path: '/ativar'
@@ -670,6 +749,13 @@ declare module '@tanstack/react-router' {
       path: '/conta'
       fullPath: '/conta'
       preLoaderRoute: typeof ContaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contratos': {
+      id: '/contratos'
+      path: '/contratos'
+      fullPath: '/contratos'
+      preLoaderRoute: typeof ContratosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fabrica': {
@@ -755,6 +841,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/suporte-interno'
       preLoaderRoute: typeof SuporteInternoRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/fabrica': {
+      id: '/admin/fabrica'
+      path: '/fabrica'
+      fullPath: '/admin/fabrica'
+      preLoaderRoute: typeof AdminFabricaRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/financeiro': {
+      id: '/admin/financeiro'
+      path: '/financeiro'
+      fullPath: '/admin/financeiro'
+      preLoaderRoute: typeof AdminFinanceiroRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/suporte': {
+      id: '/admin/suporte'
+      path: '/suporte'
+      fullPath: '/admin/suporte'
+      preLoaderRoute: typeof AdminSuporteRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/checkout/$productSlug': {
       id: '/checkout/$productSlug'
@@ -997,6 +1111,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminFabricaRoute: typeof AdminFabricaRoute
+  AdminFinanceiroRoute: typeof AdminFinanceiroRoute
+  AdminSuporteRoute: typeof AdminSuporteRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminFabricaRoute: AdminFabricaRoute,
+  AdminFinanceiroRoute: AdminFinanceiroRoute,
+  AdminSuporteRoute: AdminSuporteRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 interface ContaPedidosRouteChildren {
   ContaPedidosOrderIdRoute: typeof ContaPedidosOrderIdRoute
 }
@@ -1124,9 +1254,11 @@ const SuporteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   AtivarRoute: AtivarRoute,
   CompararRoute: CompararRoute,
   ContaRoute: ContaRouteWithChildren,
+  ContratosRoute: ContratosRoute,
   FabricaRoute: FabricaRoute,
   FinanceiroInternoRoute: FinanceiroInternoRoute,
   KodabotRoute: KodabotRouteWithChildren,

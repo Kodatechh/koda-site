@@ -402,6 +402,10 @@ export type Database = {
           device_secret_hex: string;
         }[];
       };
+      request_device_command: {
+        Args: { _device_id: string; _command: string; _payload?: Json };
+        Returns: string;
+      };
       koda_factory_register_device: {
         Args: {
           p_serial_number: string;

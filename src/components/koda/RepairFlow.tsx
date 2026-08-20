@@ -192,10 +192,10 @@ export function RepairFlow({ compact = false }: { compact?: boolean }) {
                 </p>
               </div>
               <a
-                href={`/suporte/contato?assunto=reparo&modelo=${model}&problema=${service.id}`}
+                href={`/reparos/solicitar?modelo=${model}&servico=${service.id}`}
                 className="mt-7 inline-flex w-full justify-center rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0077ed]"
               >
-                Solicitar reparo
+                Iniciar solicitação
               </a>
             </div>
           </div>

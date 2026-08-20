@@ -55,6 +55,7 @@ function DevicePage() {
           "id,serial_number,model,status,purchase_date,warranty_start,warranty_end,kodaos_version,activated_at,last_seen_at",
         )
         .eq("id", deviceId)
+        .eq("owner_user_id", user.id)
         .maybeSingle(),
       supabase
         .from("device_health")

@@ -22,7 +22,12 @@ function CoveragePage() {
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      supabase.from("devices").select("serial_number,model").eq("id", deviceId).maybeSingle(),
+      supabase
+        .from("devices")
+        .select("serial_number,model")
+        .eq("id", deviceId)
+        .eq("owner_user_id", user.id)
+        .maybeSingle(),
       supabase.rpc("get_device_kodacare_status", { _device_id: deviceId }),
     ]).then(([deviceResult, coverageResult]) => {
       if (!deviceResult.error) {

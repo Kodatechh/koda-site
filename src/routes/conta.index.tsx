@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Cloud,
   Gauge,
-  Headphones,
   LogOut,
   Package,
   Settings2,
@@ -49,7 +48,7 @@ function formatDate(value: string | null) {
 }
 
 function Account() {
-  const { user, loading, isFactoryAdmin, isSupportAgent, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [devices, setDevices] = useState<DeviceSummary[]>([]);
   const [cases, setCases] = useState<SupportCaseSummary[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
@@ -70,11 +69,13 @@ function Account() {
         .select(
           "id,serial_number,model,status,purchase_date,warranty_start,warranty_end,kodaos_version,activated_at",
         )
+        .eq("owner_user_id", user.id)
         .order("created_at", { ascending: false }),
       supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle(),
       supabase
         .from("support_cases")
         .select("id,category,subject,status,created_at")
+        .eq("owner_user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(6),
     ]).then(([devicesResult, profileResult, casesResult]) => {
@@ -147,22 +148,6 @@ function Account() {
             <p className="mt-2 text-sm text-[#6e6e73]">{user.email}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {isSupportAgent && (
-              <a
-                href="/suporte-interno"
-                className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-[#f5f5f7] px-5 py-2.5 text-xs font-semibold"
-              >
-                <Headphones className="h-3.5 w-3.5" /> Koda Support
-              </a>
-            )}
-            {isFactoryAdmin && (
-              <a
-                href="/fabrica"
-                className="rounded-full bg-black px-5 py-2.5 text-xs font-semibold text-white"
-              >
-                Menu de Fábrica
-              </a>
-            )}
             <button
               onClick={async () => {
                 await signOut();

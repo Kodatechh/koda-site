@@ -31,6 +31,7 @@ function DeviceDiagnostics() {
         .from("devices")
         .select("id,serial_number,model,kodaos_version,last_seen_at")
         .eq("id", deviceId)
+        .eq("owner_user_id", user.id)
         .maybeSingle(),
       db
         .from("device_health")

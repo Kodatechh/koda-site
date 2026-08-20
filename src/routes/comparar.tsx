@@ -94,7 +94,11 @@ function ProductVisual({ id, catalog }: { id: ProductId; catalog?: CatalogProduc
   if (catalog?.image_url) {
     return (
       <div className="mx-auto grid h-[220px] w-full place-items-center sm:h-[260px]">
-        <img src={catalog.image_url} alt={names[id]} className="max-h-full max-w-[280px] object-contain" />
+        <img
+          src={catalog.image_url}
+          alt={names[id]}
+          className="max-h-full max-w-[280px] object-contain"
+        />
       </div>
     );
   }
@@ -102,12 +106,26 @@ function ProductVisual({ id, catalog }: { id: ProductId; catalog?: CatalogProduc
 }
 
 function Value({ value }: { value: string | boolean }) {
-  if (value === true) return <Check className="mx-auto h-6 w-6 stroke-[1.7] text-[#1d1d1f]" aria-label="Sim" />;
-  if (value === false) return <Minus className="mx-auto h-6 w-6 stroke-[1.5] text-[#86868b]" aria-label="Não" />;
-  return <span className="mx-auto block max-w-[270px] text-center text-[13px] font-normal leading-[1.45] text-[#1d1d1f] sm:text-sm">{value}</span>;
+  if (value === true)
+    return <Check className="mx-auto h-6 w-6 stroke-[1.7] text-[#1d1d1f]" aria-label="Sim" />;
+  if (value === false)
+    return <Minus className="mx-auto h-6 w-6 stroke-[1.5] text-[#86868b]" aria-label="Não" />;
+  return (
+    <span className="mx-auto block max-w-[270px] text-center text-[13px] font-normal leading-[1.45] text-[#1d1d1f] sm:text-sm">
+      {value}
+    </span>
+  );
 }
 
-function ProductSelector({ value, other, onChange }: { value: ProductId; other: ProductId; onChange: (id: ProductId) => void }) {
+function ProductSelector({
+  value,
+  other,
+  onChange,
+}: {
+  value: ProductId;
+  other: ProductId;
+  onChange: (id: ProductId) => void;
+}) {
   return (
     <div className="relative">
       <select
@@ -117,10 +135,18 @@ function ProductSelector({ value, other, onChange }: { value: ProductId; other: 
         aria-label="Escolher modelo para comparar"
       >
         {ids.map((id) => (
-          <option key={id} value={id} disabled={id === other}>{names[id]}</option>
+          <option key={id} value={id} disabled={id === other}>
+            {names[id]}
+          </option>
         ))}
       </select>
-      <svg viewBox="0 0 10 6" className="pointer-events-none absolute right-4 top-1/2 h-2 w-3 -translate-y-1/2 fill-[#1d1d1f]" aria-hidden="true"><path d="M0 0h10L5 6z" /></svg>
+      <svg
+        viewBox="0 0 10 6"
+        className="pointer-events-none absolute right-4 top-1/2 h-2 w-3 -translate-y-1/2 fill-[#1d1d1f]"
+        aria-hidden="true"
+      >
+        <path d="M0 0h10L5 6z" />
+      </svg>
     </div>
   );
 }
@@ -132,11 +158,15 @@ function Compare() {
 
   useEffect(() => {
     let alive = true;
-    supabase.functions.invoke<CatalogResponse>("koda-pay-catalog", { body: { list: true } }).then(({ data }) => {
-      if (!alive || !data?.products) return;
-      setCatalog(Object.fromEntries(data.products.map((product) => [product.slug, product])));
-    });
-    return () => { alive = false; };
+    supabase.functions
+      .invoke<CatalogResponse>("koda-pay-catalog", { body: { list: true } })
+      .then(({ data }) => {
+        if (!alive || !data?.products) return;
+        setCatalog(Object.fromEntries(data.products.map((product) => [product.slug, product])));
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const compared = useMemo(() => [left, right] as const, [left, right]);
@@ -156,10 +186,16 @@ function Compare() {
       <main>
         <section className="mx-auto max-w-[980px] px-5 pb-10 pt-14 sm:pb-12 sm:pt-20">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <h1 className="max-w-[640px] text-[40px] font-semibold leading-[1.04] tracking-[-.055em] sm:text-[56px]">Compare os modelos de KodaBot</h1>
+            <h1 className="max-w-[640px] text-[40px] font-semibold leading-[1.04] tracking-[-.055em] sm:text-[56px]">
+              Compare os modelos de KodaBot
+            </h1>
             <div className="shrink-0 space-y-2 pb-1 text-[13px] font-semibold text-[#0066cc]">
-              <a href="/loja" className="flex items-center gap-0.5 hover:underline">Comprar KodaBot <ChevronRight className="h-3.5 w-3.5" /></a>
-              <a href="/suporte/contato" className="flex items-center gap-0.5 hover:underline">Precisa de ajuda para escolher? <ChevronRight className="h-3.5 w-3.5" /></a>
+              <a href="/loja" className="flex items-center gap-0.5 hover:underline">
+                Comprar KodaBot <ChevronRight className="h-3.5 w-3.5" />
+              </a>
+              <a href="/suporte/contato" className="flex items-center gap-0.5 hover:underline">
+                Precisa de ajuda para escolher? <ChevronRight className="h-3.5 w-3.5" />
+              </a>
             </div>
           </div>
         </section>
@@ -177,14 +213,36 @@ function Compare() {
               const product = catalog[id];
               return (
                 <article key={id} className="min-w-0 text-center">
-                  <ProductVisual id={id} catalog={product} />
-                  <p className="mt-4 min-h-4 text-[11px] font-semibold text-[#bf4800]">{id === "kodabot-i-pro" ? "Em desenvolvimento" : ""}</p>
-                  <h2 className="mt-1 text-[21px] font-semibold tracking-[-.035em] sm:text-[28px]">{names[id]}</h2>
-                  <p className="mx-auto mt-2 max-w-[290px] min-h-10 text-[12px] leading-relaxed text-[#6e6e73] sm:text-[13px]">{subtitles[id]}</p>
-                  <p className="mt-4 text-[13px] font-semibold">{product ? money(product.unit_amount_cents, product.currency) : id === "kodabot-i" ? "R$ 99,90" : "Preço em breve"}</p>
+                  <ProductVisual id={id} {...(product ? { catalog: product } : {})} />
+                  <p className="mt-4 min-h-4 text-[11px] font-semibold text-[#bf4800]">
+                    {id === "kodabot-i-pro" ? "Em desenvolvimento" : ""}
+                  </p>
+                  <h2 className="mt-1 text-[21px] font-semibold tracking-[-.035em] sm:text-[28px]">
+                    {names[id]}
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-[290px] min-h-10 text-[12px] leading-relaxed text-[#6e6e73] sm:text-[13px]">
+                    {subtitles[id]}
+                  </p>
+                  <p className="mt-4 text-[13px] font-semibold">
+                    {product
+                      ? money(product.unit_amount_cents, product.currency)
+                      : id === "kodabot-i"
+                        ? "R$ 99,90"
+                        : "Preço em breve"}
+                  </p>
                   <div className="mt-5 flex flex-col items-center gap-3">
-                    <a href={checkoutHrefs[id]} className={`rounded-full bg-[#0071e3] px-5 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#0077ed] ${product && !product.available ? "pointer-events-none opacity-35" : ""}`}>Comprar</a>
-                    <a href={hrefs[id]} className="flex items-center text-[12px] font-semibold text-[#0066cc] hover:underline">Saiba mais <ChevronRight className="h-3.5 w-3.5" /></a>
+                    <a
+                      href={checkoutHrefs[id]}
+                      className={`rounded-full bg-[#0071e3] px-5 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#0077ed] ${product && !product.available ? "pointer-events-none opacity-35" : ""}`}
+                    >
+                      Comprar
+                    </a>
+                    <a
+                      href={hrefs[id]}
+                      className="flex items-center text-[12px] font-semibold text-[#0066cc] hover:underline"
+                    >
+                      Saiba mais <ChevronRight className="h-3.5 w-3.5" />
+                    </a>
                   </div>
                 </article>
               );
@@ -197,7 +255,12 @@ function Compare() {
             {compared.map((id) => (
               <div key={id} className="flex min-w-0 items-center justify-between gap-3">
                 <span className="truncate text-[12px] font-semibold">{names[id]}</span>
-                <a href={checkoutHrefs[id]} className="hidden rounded-full bg-[#0071e3] px-3 py-1.5 text-[10px] font-semibold text-white sm:inline-flex">Comprar</a>
+                <a
+                  href={checkoutHrefs[id]}
+                  className="hidden rounded-full bg-[#0071e3] px-3 py-1.5 text-[10px] font-semibold text-white sm:inline-flex"
+                >
+                  Comprar
+                </a>
               </div>
             ))}
           </div>
@@ -207,19 +270,32 @@ function Compare() {
           {compareSections.map((section) => (
             <section key={section.title} className="border-b border-black/[.14] py-12 sm:py-16">
               <div className="mb-9">
-                <h2 className="text-[28px] font-semibold tracking-[-.04em] sm:text-[34px]">{section.title}</h2>
-                {section.description && <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-[#6e6e73]">{section.description}</p>}
+                <h2 className="text-[28px] font-semibold tracking-[-.04em] sm:text-[34px]">
+                  {section.title}
+                </h2>
+                {section.description && (
+                  <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-[#6e6e73]">
+                    {section.description}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-0">
                 {section.items.map((item, index) => (
-                  <div key={item.label} className={`${index === 0 ? "border-t" : ""} border-black/[.1] py-7`}>
+                  <div
+                    key={item.label}
+                    className={`${index === 0 ? "border-t" : ""} border-black/[.1] py-7`}
+                  >
                     <div className="mb-5 flex items-center gap-2 text-[12px] font-semibold text-[#6e6e73] sm:text-[13px]">
                       {item.icon && <item.icon className="h-4 w-4 stroke-[1.6] text-[#86868b]" />}
                       <span>{item.label}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-5 sm:gap-10">
-                      {compared.map((id) => <div key={id} className="min-w-0 text-center"><Value value={item.values[id]} /></div>)}
+                      {compared.map((id) => (
+                        <div key={id} className="min-w-0 text-center">
+                          <Value value={item.values[id]} />
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
@@ -228,9 +304,19 @@ function Compare() {
           ))}
 
           <section className="py-16 text-center sm:py-20">
-            <h2 className="text-[32px] font-semibold tracking-[-.045em] sm:text-[42px]">Encontre o KodaBot ideal para você.</h2>
-            <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-[#6e6e73]">Compare as diferenças, conheça cada modelo e escolha o que combina mais com a forma como você usa a Koda.</p>
-            <a href="/loja" className="mt-6 inline-flex items-center text-[14px] font-semibold text-[#0066cc] hover:underline">Ver a Loja Koda <ChevronRight className="h-4 w-4" /></a>
+            <h2 className="text-[32px] font-semibold tracking-[-.045em] sm:text-[42px]">
+              Encontre o KodaBot ideal para você.
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-[#6e6e73]">
+              Compare as diferenças, conheça cada modelo e escolha o que combina mais com a forma
+              como você usa a Koda.
+            </p>
+            <a
+              href="/loja"
+              className="mt-6 inline-flex items-center text-[14px] font-semibold text-[#0066cc] hover:underline"
+            >
+              Ver a Loja Koda <ChevronRight className="h-4 w-4" />
+            </a>
           </section>
         </section>
       </main>
