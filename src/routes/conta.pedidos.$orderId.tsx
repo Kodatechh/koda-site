@@ -43,6 +43,7 @@ type Order = {
   shipping_deadline_days: number | null;
   shipping_address: Record<string, any> | null;
   tracking_code: string | null;
+  tracking_url: string | null;
   fulfillment_status: string | null;
   created_at: string;
   paid_at: string | null;
@@ -112,7 +113,7 @@ function OrderDetailPage() {
       setLoading(true);
       const [orderResult, eventsResult, fiscalResult] = await Promise.all([
         db.from("orders")
-          .select("id,order_number,status,currency,subtotal_cents,shipping_cents,discount_cents,total_cents,shipping_service,shipping_deadline_days,shipping_address,tracking_code,fulfillment_status,created_at,paid_at,fulfilled_at,order_items(id,product_name,quantity,unit_amount_cents,total_amount_cents)")
+          .select("id,order_number,status,currency,subtotal_cents,shipping_cents,discount_cents,total_cents,shipping_service,shipping_deadline_days,shipping_address,tracking_code,tracking_url,fulfillment_status,created_at,paid_at,fulfilled_at,order_items(id,product_name,quantity,unit_amount_cents,total_amount_cents)")
           .eq("id", orderId)
           .eq("user_id", user.id)
           .maybeSingle(),
@@ -145,12 +146,12 @@ function OrderDetailPage() {
   const stages = useMemo(() => {
     if (!order) return [];
     const paid = ["paid", "processing", "shipped", "delivered"].includes(order.status) || Boolean(order.paid_at);
-    const preparing = paid && (order.fulfillment_status === "fulfilled" || ["processing", "shipped", "delivered"].includes(order.status));
+    const preparing = ["processing", "shipped", "delivered"].includes(order.status);
     const shipped = ["shipped", "delivered"].includes(order.status) || Boolean(order.tracking_code);
     const delivered = order.status === "delivered";
     return [
       { label: "Pagamento", detail: paid ? "Confirmado" : "Aguardando confirmação", done: paid, icon: ReceiptText },
-      { label: "Preparação", detail: preparing ? "Pedido confirmado para preparação" : "Começa após o pagamento", done: preparing, icon: Package },
+      { label: "Preparação", detail: preparing ? "Seu pedido entrou em preparação" : "Começa depois da confirmação", done: preparing, icon: Package },
       { label: "Envio", detail: shipped ? "Postado para entrega" : "Você receberá o rastreio aqui", done: shipped, icon: Truck },
       { label: "Entrega", detail: delivered ? "Pedido entregue" : "A caminho de você", done: delivered, icon: CheckCircle2 },
     ];
@@ -218,7 +219,7 @@ function OrderDetailPage() {
             <div className="flex items-center gap-3"><Truck className="h-5 w-5 text-[#0071e3]" /><h2 className="text-lg font-semibold">Entrega</h2></div>
             <p className="mt-5 text-sm font-semibold">{order.shipping_service}</p>
             {order.shipping_deadline_days != null && <p className="mt-1 text-xs text-[#6e6e73]">Prazo estimado: até {order.shipping_deadline_days} dias úteis após a postagem.</p>}
-            {order.tracking_code && <div className="mt-4 rounded-2xl bg-[#f5f5f7] p-4"><p className="text-[10px] font-semibold uppercase tracking-[.08em] text-[#86868b]">Código de rastreio</p><p className="mt-1 font-mono text-sm font-semibold">{order.tracking_code}</p></div>}
+            {order.tracking_code && <div className="mt-4 rounded-2xl bg-[#f5f5f7] p-4"><p className="text-[10px] font-semibold uppercase tracking-[.08em] text-[#86868b]">Código de rastreio</p><p className="mt-1 font-mono text-sm font-semibold">{order.tracking_code}</p>{order.tracking_url && <a href={order.tracking_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#0071e3] px-4 py-2 text-xs font-semibold text-white">Rastrear pedido <ExternalLink className="h-3 w-3" /></a>}</div>}
           </section>}
 
           {address.street && <section className="rounded-[32px] bg-white p-6 sm:p-8">
