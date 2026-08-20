@@ -1,12 +1,14 @@
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Mic2, Minus, Monitor } from "lucide-react";
+import { Check, ChevronRight, Minus } from "lucide-react";
 
 import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
-import { compareSections, productNames, type ProductId } from "@/lib/koda-data";
+import { compareSections, type ProductId } from "@/lib/koda-data";
+import { supabase } from "@/integrations/supabase/client";
 
-const title = "Compare os modelos KodaBot — Koda";
-const description = "Compare detalhadamente o KodaBot I e o KodaBot I Pro.";
+const title = "Compare os modelos de KodaBot — Koda";
+const description = "Compare KodaBot e KodaBot Pro lado a lado.";
 
 export const Route = createFileRoute("/comparar")({
   head: () => ({
@@ -21,100 +23,215 @@ export const Route = createFileRoute("/comparar")({
   component: Compare,
 });
 
-const modelMeta: Record<ProductId, { href: string; subtitle: string; dark?: boolean }> = {
-  "kodabot-i": { href: "/kodabot", subtitle: "Tela touch. Informação à primeira vista." },
-  "kodabot-i-pro": { href: "/kodabot-pro", subtitle: "Voz. Áudio. Bateria integrada.", dark: true },
+type CatalogProduct = {
+  slug: string;
+  name: string;
+  image_url: string | null;
+  unit_amount_cents: number | null;
+  currency: string;
+  available: boolean;
 };
 
-function ModelVisual({ id }: { id: ProductId }) {
-  const pro = id === "kodabot-i-pro";
+type CatalogResponse = { products: CatalogProduct[] };
+
+const ids: ProductId[] = ["kodabot-i", "kodabot-i-pro"];
+const names: Record<ProductId, string> = {
+  "kodabot-i": "KodaBot",
+  "kodabot-i-pro": "KodaBot Pro",
+};
+const subtitles: Record<ProductId, string> = {
+  "kodabot-i": "Tela touch. Informação à primeira vista.",
+  "kodabot-i-pro": "Voz, áudio e inteligência Koda.",
+};
+const hrefs: Record<ProductId, string> = {
+  "kodabot-i": "/kodabot",
+  "kodabot-i-pro": "/kodabot-pro",
+};
+const checkoutHrefs: Record<ProductId, string> = {
+  "kodabot-i": "/checkout/kodabot-i",
+  "kodabot-i-pro": "/checkout/kodabot-i-pro",
+};
+
+function money(cents: number | null | undefined, currency = "BRL") {
+  if (cents == null) return "Preço em breve";
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(cents / 100);
+}
+
+function ProductFallback({ id }: { id: ProductId }) {
+  if (id === "kodabot-i") {
+    return (
+      <div className="relative mx-auto h-[220px] w-[190px] sm:h-[260px] sm:w-[220px]">
+        <div className="absolute inset-x-3 bottom-4 top-3 rounded-[34px] bg-[#dadce2] shadow-[inset_0_0_0_1px_rgba(0,0,0,.06),0_18px_45px_rgba(0,0,0,.08)]">
+          <div className="absolute left-1/2 top-8 h-[142px] w-[104px] -translate-x-1/2 overflow-hidden rounded-[13px] bg-[#111216] sm:h-[168px] sm:w-[122px]">
+            <div className="p-3 text-left text-white">
+              <p className="text-[8px] font-semibold opacity-55">KODA OS</p>
+              <p className="mt-5 text-2xl font-semibold tracking-[-.06em]">10:42</p>
+              <div className="mt-5 h-1.5 w-12 rounded-full bg-white/20" />
+              <div className="mt-2 h-1.5 w-16 rounded-full bg-white/10" />
+              <div className="mt-2 h-1.5 w-10 rounded-full bg-white/10" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`mx-auto grid aspect-[4/3] w-full max-w-[310px] place-items-center overflow-hidden rounded-[30px] ${pro ? "bg-black text-white" : "bg-[#f5f5f7] text-[#1d1d1f]"}`}>
-      <div className="text-center">
-        {pro ? <Mic2 className="mx-auto h-12 w-12 text-[#4d86ff]" /> : <Monitor className="mx-auto h-12 w-12 text-[#0071e3]" />}
-        <p className="mt-5 text-lg font-semibold">{productNames[id]}</p>
-        <p className={`mt-1 text-[11px] ${pro ? "text-white/40" : "text-[#86868b]"}`}>Foto oficial será adicionada</p>
+    <div className="relative mx-auto h-[220px] w-[190px] sm:h-[260px] sm:w-[220px]">
+      <div className="absolute inset-x-7 bottom-5 top-8 overflow-hidden rounded-[46px] bg-[#151517] shadow-[0_20px_48px_rgba(0,0,0,.14)]">
+        <div className="absolute inset-x-5 top-7 grid grid-cols-7 gap-[5px] opacity-55">
+          {Array.from({ length: 56 }).map((_, index) => (
+            <span key={index} className="h-[3px] w-[3px] rounded-full bg-white/55" />
+          ))}
+        </div>
+        <div className="absolute bottom-6 left-1/2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-white/15" />
       </div>
     </div>
   );
 }
 
+function ProductVisual({ id, catalog }: { id: ProductId; catalog?: CatalogProduct }) {
+  if (catalog?.image_url) {
+    return (
+      <div className="mx-auto grid h-[220px] w-full place-items-center sm:h-[260px]">
+        <img src={catalog.image_url} alt={names[id]} className="max-h-full max-w-[280px] object-contain" />
+      </div>
+    );
+  }
+  return <ProductFallback id={id} />;
+}
+
 function Value({ value }: { value: string | boolean }) {
-  if (value === true) return <Check className="mx-auto h-5 w-5 text-[#0071e3]" aria-label="Sim" />;
-  if (value === false) return <Minus className="mx-auto h-5 w-5 text-[#86868b]" aria-label="Não" />;
-  return <span className="block text-sm font-medium leading-relaxed">{value}</span>;
+  if (value === true) return <Check className="mx-auto h-6 w-6 stroke-[1.7] text-[#1d1d1f]" aria-label="Sim" />;
+  if (value === false) return <Minus className="mx-auto h-6 w-6 stroke-[1.5] text-[#86868b]" aria-label="Não" />;
+  return <span className="mx-auto block max-w-[270px] text-center text-[13px] font-normal leading-[1.45] text-[#1d1d1f] sm:text-sm">{value}</span>;
+}
+
+function ProductSelector({ value, other, onChange }: { value: ProductId; other: ProductId; onChange: (id: ProductId) => void }) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as ProductId)}
+        className="h-12 w-full appearance-none rounded-[12px] border border-black/20 bg-white px-4 pr-10 text-[14px] font-semibold outline-none transition-colors focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/10"
+        aria-label="Escolher modelo para comparar"
+      >
+        {ids.map((id) => (
+          <option key={id} value={id} disabled={id === other}>{names[id]}</option>
+        ))}
+      </select>
+      <svg viewBox="0 0 10 6" className="pointer-events-none absolute right-4 top-1/2 h-2 w-3 -translate-y-1/2 fill-[#1d1d1f]" aria-hidden="true"><path d="M0 0h10L5 6z" /></svg>
+    </div>
+  );
 }
 
 function Compare() {
-  const ids: ProductId[] = ["kodabot-i", "kodabot-i-pro"];
+  const [left, setLeft] = useState<ProductId>("kodabot-i");
+  const [right, setRight] = useState<ProductId>("kodabot-i-pro");
+  const [catalog, setCatalog] = useState<Record<string, CatalogProduct>>({});
+
+  useEffect(() => {
+    let alive = true;
+    supabase.functions.invoke<CatalogResponse>("koda-pay-catalog", { body: { list: true } }).then(({ data }) => {
+      if (!alive || !data?.products) return;
+      setCatalog(Object.fromEntries(data.products.map((product) => [product.slug, product])));
+    });
+    return () => { alive = false; };
+  }, []);
+
+  const compared = useMemo(() => [left, right] as const, [left, right]);
+
+  const changeLeft = (id: ProductId) => {
+    if (id === right) setRight(left);
+    setLeft(id);
+  };
+  const changeRight = (id: ProductId) => {
+    if (id === left) setLeft(right);
+    setRight(id);
+  };
 
   return (
     <div className="min-h-screen bg-white text-[#1d1d1f]">
       <Nav />
       <main>
-        <section className="mx-auto max-w-5xl px-5 pb-14 pt-16 sm:pt-24">
-          <h1 className="text-5xl font-semibold tracking-[-0.055em] sm:text-7xl">Compare os modelos KodaBot.</h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[#6e6e73] sm:text-xl">
-            Veja cada diferença importante — da forma de interação à energia, conectividade, KodaCloud e opções de reparo.
-          </p>
-        </section>
-
-        <section className="mx-auto max-w-5xl px-5 pb-8">
-          <div className="grid grid-cols-2 gap-4 sm:gap-10">
-            {ids.map((id) => (
-              <article key={id} className="text-center">
-                <ModelVisual id={id} />
-                <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#bf4800]">Em desenvolvimento</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{productNames[id]}</h2>
-                <p className="mx-auto mt-2 max-w-[260px] text-xs leading-relaxed text-[#6e6e73] sm:text-sm">{modelMeta[id].subtitle}</p>
-                <a href={modelMeta[id].href} className="mt-4 inline-flex rounded-full bg-[#0071e3] px-5 py-2 text-xs font-semibold text-white sm:text-sm">Saiba mais</a>
-              </article>
-            ))}
+        <section className="mx-auto max-w-[980px] px-5 pb-10 pt-14 sm:pb-12 sm:pt-20">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <h1 className="max-w-[640px] text-[40px] font-semibold leading-[1.04] tracking-[-.055em] sm:text-[56px]">Compare os modelos de KodaBot</h1>
+            <div className="shrink-0 space-y-2 pb-1 text-[13px] font-semibold text-[#0066cc]">
+              <a href="/loja" className="flex items-center gap-0.5 hover:underline">Comprar KodaBot <ChevronRight className="h-3.5 w-3.5" /></a>
+              <a href="/suporte/contato" className="flex items-center gap-0.5 hover:underline">Precisa de ajuda para escolher? <ChevronRight className="h-3.5 w-3.5" /></a>
+            </div>
           </div>
         </section>
 
-        <div className="sticky top-11 z-30 mt-8 border-y border-black/10 bg-white/92 backdrop-blur-xl">
-          <div className="mx-auto grid max-w-5xl grid-cols-[minmax(115px,1fr)_repeat(2,minmax(135px,1fr))] items-center gap-x-3 px-5 py-3 text-xs sm:grid-cols-[220px_repeat(2,1fr)] sm:gap-x-8">
-            <span className="font-semibold text-[#6e6e73]">Comparando</span>
-            {ids.map((id) => <a key={id} href={modelMeta[id].href} className="text-center font-semibold hover:text-[#0071e3]">{productNames[id]}</a>)}
+        <section className="mx-auto max-w-[980px] px-5 pb-8">
+          <div className="grid grid-cols-2 gap-5 sm:gap-10">
+            <ProductSelector value={left} other={right} onChange={changeLeft} />
+            <ProductSelector value={right} other={left} onChange={changeRight} />
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-[980px] px-5 pb-14">
+          <div className="grid grid-cols-2 gap-5 sm:gap-10">
+            {compared.map((id) => {
+              const product = catalog[id];
+              return (
+                <article key={id} className="min-w-0 text-center">
+                  <ProductVisual id={id} catalog={product} />
+                  <p className="mt-4 min-h-4 text-[11px] font-semibold text-[#bf4800]">{id === "kodabot-i-pro" ? "Em desenvolvimento" : ""}</p>
+                  <h2 className="mt-1 text-[21px] font-semibold tracking-[-.035em] sm:text-[28px]">{names[id]}</h2>
+                  <p className="mx-auto mt-2 max-w-[290px] min-h-10 text-[12px] leading-relaxed text-[#6e6e73] sm:text-[13px]">{subtitles[id]}</p>
+                  <p className="mt-4 text-[13px] font-semibold">{product ? money(product.unit_amount_cents, product.currency) : id === "kodabot-i" ? "R$ 99,90" : "Preço em breve"}</p>
+                  <div className="mt-5 flex flex-col items-center gap-3">
+                    <a href={checkoutHrefs[id]} className={`rounded-full bg-[#0071e3] px-5 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#0077ed] ${product && !product.available ? "pointer-events-none opacity-35" : ""}`}>Comprar</a>
+                    <a href={hrefs[id]} className="flex items-center text-[12px] font-semibold text-[#0066cc] hover:underline">Saiba mais <ChevronRight className="h-3.5 w-3.5" /></a>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <div className="sticky top-11 z-30 border-y border-black/[.12] bg-white/95 backdrop-blur-xl">
+          <div className="mx-auto grid h-[62px] max-w-[980px] grid-cols-2 items-center gap-5 px-5 sm:gap-10">
+            {compared.map((id) => (
+              <div key={id} className="flex min-w-0 items-center justify-between gap-3">
+                <span className="truncate text-[12px] font-semibold">{names[id]}</span>
+                <a href={checkoutHrefs[id]} className="hidden rounded-full bg-[#0071e3] px-3 py-1.5 text-[10px] font-semibold text-white sm:inline-flex">Comprar</a>
+              </div>
+            ))}
           </div>
         </div>
 
-        <section className="mx-auto max-w-5xl px-5 pb-28">
+        <section className="mx-auto max-w-[980px] px-5 pb-24">
           {compareSections.map((section) => (
-            <section key={section.title} className="border-b border-black/15 py-14 sm:py-16">
-              <div className="mb-8 max-w-2xl">
-                <h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{section.title}</h2>
-                {section.description && <p className="mt-3 text-sm leading-relaxed text-[#6e6e73]">{section.description}</p>}
+            <section key={section.title} className="border-b border-black/[.14] py-12 sm:py-16">
+              <div className="mb-9">
+                <h2 className="text-[28px] font-semibold tracking-[-.04em] sm:text-[34px]">{section.title}</h2>
+                {section.description && <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-[#6e6e73]">{section.description}</p>}
               </div>
 
-              <div>
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div
-                      key={item.label}
-                      className="grid grid-cols-[minmax(115px,1fr)_repeat(2,minmax(135px,1fr))] items-start gap-x-3 border-t border-black/10 py-6 sm:grid-cols-[220px_repeat(2,1fr)] sm:gap-x-8"
-                    >
-                      <div className="flex gap-2.5 pr-2 text-xs font-medium leading-relaxed sm:text-sm">
-                        {Icon && <Icon className="mt-0.5 hidden h-4 w-4 shrink-0 text-[#86868b] sm:block" />}
-                        <span>{item.label}</span>
-                      </div>
-                      {ids.map((id) => (
-                        <div key={id} className="px-1 text-center text-[#1d1d1f]"><Value value={item.values[id]} /></div>
-                      ))}
+              <div className="space-y-0">
+                {section.items.map((item, index) => (
+                  <div key={item.label} className={`${index === 0 ? "border-t" : ""} border-black/[.1] py-7`}>
+                    <div className="mb-5 flex items-center gap-2 text-[12px] font-semibold text-[#6e6e73] sm:text-[13px]">
+                      {item.icon && <item.icon className="h-4 w-4 stroke-[1.6] text-[#86868b]" />}
+                      <span>{item.label}</span>
                     </div>
-                  );
-                })}
+                    <div className="grid grid-cols-2 gap-5 sm:gap-10">
+                      {compared.map((id) => <div key={id} className="min-w-0 text-center"><Value value={item.values[id]} /></div>)}
+                    </div>
+                  </div>
+                ))}
               </div>
             </section>
           ))}
 
-          <div className="mt-16 rounded-[30px] bg-[#f5f5f7] px-6 py-12 text-center sm:px-10">
-            <h2 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">Ainda não sabe qual escolher?</h2>
-            <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-[#6e6e73]">Na página inicial, o assistente “Ajude-me a escolher” faz algumas perguntas e recomenda o modelo mais adequado.</p>
-            <a href="/#escolher" className="mt-6 inline-flex text-sm font-semibold text-[#0066cc] hover:underline">Voltar para a página inicial ›</a>
-          </div>
+          <section className="py-16 text-center sm:py-20">
+            <h2 className="text-[32px] font-semibold tracking-[-.045em] sm:text-[42px]">Encontre o KodaBot ideal para você.</h2>
+            <p className="mx-auto mt-4 max-w-xl text-[14px] leading-relaxed text-[#6e6e73]">Compare as diferenças, conheça cada modelo e escolha o que combina mais com a forma como você usa a Koda.</p>
+            <a href="/loja" className="mt-6 inline-flex items-center text-[14px] font-semibold text-[#0066cc] hover:underline">Ver a Loja Koda <ChevronRight className="h-4 w-4" /></a>
+          </section>
         </section>
       </main>
       <SiteFooter />
