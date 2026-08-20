@@ -79,7 +79,14 @@ Deno.serve(async (req: Request) => {
   const fiscalProductConfigured = fiscalDocumentSupported && isObject(fiscalConfig.focus_document) && isObject(fiscalConfig.focus_item);
   const fiscalProviderConfigured = Boolean(Deno.env.get("FOCUS_NFE_TOKEN")?.trim());
   const fiscalReady = fiscalProviderConfigured && fiscalProductConfigured;
-  const available = Boolean(product.active && product.unit_amount_cents != null && inStock && shippingConfigured && fiscalReady);
+  const fiscalEnforced = Deno.env.get("KODA_FISCAL_ENFORCE")?.trim().toLowerCase() === "true";
+  const available = Boolean(
+    product.active &&
+    product.unit_amount_cents != null &&
+    inStock &&
+    shippingConfigured &&
+    (!fiscalEnforced || fiscalReady)
+  );
 
   return json({
     product: {
@@ -122,12 +129,14 @@ Deno.serve(async (req: Request) => {
     },
     koda_fiscal: {
       provider: "focus_nfe",
-      required: true,
+      required: fiscalEnforced,
       ready: fiscalReady,
       document_type: fiscalDocumentSupported ? product.fiscal_document_type : null,
       message: fiscalReady
         ? "Emissão fiscal automática preparada para este produto."
-        : "Venda bloqueada até a configuração fiscal deste produto estar concluída.",
+        : fiscalEnforced
+          ? "Venda bloqueada até a configuração fiscal deste produto estar concluída."
+          : "Configuração fiscal pendente; não bloqueia o checkout enquanto o modo de testes estiver ativo.",
     },
   });
 });
