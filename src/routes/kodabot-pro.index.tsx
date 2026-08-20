@@ -4,8 +4,8 @@ import { BatteryCharging, Mic2, SlidersHorizontal, Speaker, Wifi } from "lucide-
 export const Route = createFileRoute("/kodabot-pro/")({
   head: () => ({
     meta: [
-      { title: "KodaBot I Pro — Koda" },
-      { name: "description", content: "KodaBot I Pro: o assistente de voz da Koda, em desenvolvimento." },
+      { title: "KodaBot Pro — Koda" },
+      { name: "description", content: "KodaBot Pro: o assistente de voz da Koda, em desenvolvimento." },
     ],
   }),
   component: KodaBotPro,
@@ -42,7 +42,7 @@ function KodaBotPro() {
     <main className="bg-black text-white">
       <div className="sticky top-11 z-40 border-b border-white/10 bg-black/88 backdrop-blur-xl">
         <div className="mx-auto flex h-[52px] max-w-5xl items-center justify-between px-5">
-          <a href="/kodabot-pro" className="text-lg font-semibold tracking-[-0.03em]">KodaBot I Pro</a>
+          <a href="/kodabot-pro" className="text-lg font-semibold tracking-[-0.03em]">KodaBot Pro</a>
           <div className="flex items-center gap-5 text-xs">
             <a href="#destaques" className="hidden text-white/55 hover:text-white sm:inline">Visão geral</a>
             <a href="/kodabot-pro/tech-specs" className="text-white/55 hover:text-white">Especificações</a>
@@ -53,7 +53,7 @@ function KodaBotPro() {
       <section className="relative min-h-[calc(100vh-96px)] overflow-hidden px-5 py-24 text-center">
         <div className="relative z-10 mx-auto max-w-4xl">
           <p className="text-sm font-semibold text-white/50">Em desenvolvimento</p>
-          <h1 className="mt-4 text-6xl font-semibold tracking-[-0.055em] sm:text-8xl">KodaBot I Pro</h1>
+          <h1 className="mt-4 text-6xl font-semibold tracking-[-0.055em] sm:text-8xl">KodaBot Pro</h1>
           <p className="mx-auto mt-6 max-w-2xl text-2xl font-semibold tracking-[-0.035em] text-white/62 sm:text-4xl">
             A experiência Koda, agora feita para conversar.
           </p>
