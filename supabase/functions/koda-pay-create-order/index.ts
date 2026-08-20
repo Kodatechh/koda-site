@@ -42,7 +42,9 @@ function validCpf(value: string) {
 function validCnpj(value: string) {
   if (!/^\d{14}$/.test(value) || /^(\d)\1{13}$/.test(value)) return false;
   const digit = (base: string, weights: number[]) => {
-    const sum = base.split("").reduce((total, current, index) => total + Number(current) * weights[index], 0);
+    const sum = base
+      .split("")
+      .reduce((total, current, index) => total + Number(current) * weights[index], 0);
     const result = 11 - (sum % 11);
     return result >= 10 ? 0 : result;
   };
@@ -78,13 +80,15 @@ function normalizeAddress(value: unknown) {
     !address.neighborhood ||
     !address.city ||
     !/^[A-Z]{2}$/.test(address.state)
-  ) return null;
+  )
+    return null;
   if (address.phone && (address.phone.length < 10 || address.phone.length > 11)) return null;
   return address;
 }
 
 function base64UrlToBytes(value: string) {
-  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
+  const padded =
+    value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (value.length % 4)) % 4);
   const binary = atob(padded);
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
@@ -108,7 +112,7 @@ async function verifyQuote(token: string, secret: string) {
     );
     if (!valid) return null;
     const parsed = JSON.parse(new TextDecoder().decode(base64UrlToBytes(parts[0])));
-    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
   } catch {
     return null;
   }
@@ -118,7 +122,8 @@ function displayOrder(order: any) {
   return { ...order, display_number: `KD-${String(order.order_number).padStart(6, "0")}` };
 }
 
-const orderSelect = "id,order_number,status,order_type,context_type,context_id,currency,subtotal_cents,shipping_cents,discount_cents,total_cents,shipping_provider,shipping_service,shipping_deadline_days,fulfillment_status,created_at";
+const orderSelect =
+  "id,order_number,status,order_type,context_type,context_id,currency,subtotal_cents,shipping_cents,discount_cents,total_cents,shipping_provider,shipping_service,shipping_deadline_days,fulfillment_status,created_at";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -167,7 +172,8 @@ Deno.serve(async (req: Request) => {
   if (checkoutReference && !/^[A-Za-z0-9_-]{16,100}$/.test(checkoutReference)) {
     return json({ error: "invalid_checkout_reference" }, 400);
   }
-  if (!customerTaxId || !validTaxId(customerTaxId)) return json({ error: "invalid_customer_tax_id" }, 400);
+  if (!customerTaxId || !validTaxId(customerTaxId))
+    return json({ error: "invalid_customer_tax_id" }, 400);
 
   if (checkoutReference) {
     const { data: existing, error: existingError } = await admin
@@ -182,17 +188,22 @@ Deno.serve(async (req: Request) => {
 
   const { data: product, error: productError } = await admin
     .from("commerce_products")
-    .select("id,slug,name,active,currency,unit_amount_cents,track_stock,stock_quantity,product_type,requires_shipping,requires_device,shipping_mode,flat_shipping_cents")
+    .select(
+      "id,slug,name,active,currency,unit_amount_cents,track_stock,stock_quantity,product_type,requires_shipping,requires_device,shipping_mode,flat_shipping_cents",
+    )
     .eq("slug", productSlug)
     .maybeSingle();
 
   if (productError) return json({ error: "catalog_error" }, 500);
-  if (!product || !product.active || product.unit_amount_cents == null) return json({ error: "product_unavailable" }, 409);
-  if (product.track_stock && (product.stock_quantity ?? 0) < quantity) return json({ error: "insufficient_stock" }, 409);
-  if (product.requires_device && quantity !== 1) return json({ error: "invalid_order" }, 400);
+  if (!product || !product.active || product.unit_amount_cents == null)
+    return json({ error: "product_unavailable" }, 409);
+  if (product.track_stock && (product.stock_quantity ?? 0) < quantity)
+    return json({ error: "insufficient_stock" }, 409);
+  const requiresOwnedDevice = product.requires_device || product.product_type === "coverage";
+  if (requiresOwnedDevice && quantity !== 1) return json({ error: "invalid_order" }, 400);
 
   let validatedDeviceId: string | null = null;
-  if (product.requires_device) {
+  if (requiresOwnedDevice) {
     if (!deviceId) return json({ error: "device_required" }, 400);
     const { data: device, error: deviceError } = await admin
       .from("devices")
@@ -200,11 +211,15 @@ Deno.serve(async (req: Request) => {
       .eq("id", deviceId)
       .maybeSingle();
     if (deviceError) return json({ error: "device_lookup_failed" }, 500);
-    if (!device || device.owner_user_id !== user.id) return json({ error: "device_not_owned" }, 403);
+    if (!device || device.owner_user_id !== user.id)
+      return json({ error: "device_not_owned" }, 403);
     validatedDeviceId = device.id;
 
     if (product.product_type === "coverage") {
-      const { data: rawStatus, error: statusError } = await admin.rpc("get_device_kodacare_status", { _device_id: device.id });
+      const { data: rawStatus, error: statusError } = await admin.rpc(
+        "get_device_kodacare_status",
+        { _device_id: device.id },
+      );
       if (statusError) return json({ error: "device_eligibility_failed" }, 500);
       const status = Array.isArray(rawStatus) ? rawStatus[0] : rawStatus;
       if (!status?.eligible) return json({ error: "device_not_eligible_for_kodacare" }, 409);
@@ -243,9 +258,10 @@ Deno.serve(async (req: Request) => {
     const quotedMode = quoteVersion === 1 ? "carrier" : cleanText(quote.shipping_mode, 20);
     const deadlineRaw = quote.deadline_days;
     const deadline = deadlineRaw == null ? null : Number(deadlineRaw);
-    const expectedMode = product.shipping_mode === "free" || product.shipping_mode === "flat"
-      ? product.shipping_mode
-      : "carrier";
+    const expectedMode =
+      product.shipping_mode === "free" || product.shipping_mode === "flat"
+        ? product.shipping_mode
+        : "carrier";
 
     const baseValid =
       (quoteVersion === 1 || quoteVersion === 2) &&
@@ -265,9 +281,15 @@ Deno.serve(async (req: Request) => {
       (deadline == null || (Number.isInteger(deadline) && deadline >= 0 && deadline <= 120));
 
     if (!baseValid) return json({ error: "shipping_service_invalid" }, 400);
-    if (expectedMode === "carrier" && provider !== "superfrete") return json({ error: "shipping_service_invalid" }, 400);
-    if (expectedMode === "free" && price !== 0) return json({ error: "shipping_service_invalid" }, 400);
-    if (expectedMode === "flat" && (!Number.isInteger(product.flat_shipping_cents) || price !== Number(product.flat_shipping_cents))) {
+    if (expectedMode === "carrier" && provider !== "superfrete")
+      return json({ error: "shipping_service_invalid" }, 400);
+    if (expectedMode === "free" && price !== 0)
+      return json({ error: "shipping_service_invalid" }, 400);
+    if (
+      expectedMode === "flat" &&
+      (!Number.isInteger(product.flat_shipping_cents) ||
+        price !== Number(product.flat_shipping_cents))
+    ) {
       return json({ error: "shipping_service_invalid" }, 400);
     }
 

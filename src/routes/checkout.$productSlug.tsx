@@ -294,7 +294,8 @@ function CheckoutPage() {
         setCatalog(null);
       } else {
         setCatalog(data);
-        if (data.product.requires_device) setQuantity(1);
+        if (data.product.requires_device || data.product.product_type === "coverage")
+          setQuantity(1);
         if (
           !data.koda_pay.ready_methods.includes("pix") &&
           data.koda_pay.ready_methods.includes("card")
@@ -341,7 +342,10 @@ function CheckoutPage() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!user || !catalog?.product.requires_device) {
+    const requiresOwnedDevice = Boolean(
+      catalog?.product.requires_device || catalog?.product.product_type === "coverage",
+    );
+    if (!user || !requiresOwnedDevice) {
       setDevices([]);
       setSelectedDeviceId("");
       return;
@@ -383,7 +387,12 @@ function CheckoutPage() {
     return () => {
       alive = false;
     };
-  }, [user?.id, catalog?.product.slug, catalog?.product.requires_device]);
+  }, [
+    user?.id,
+    catalog?.product.slug,
+    catalog?.product.requires_device,
+    catalog?.product.product_type,
+  ]);
 
   useEffect(() => {
     setShippingOptions([]);
@@ -412,7 +421,9 @@ function CheckoutPage() {
   }, [order?.id, user?.id]);
 
   const shippingRequired = Boolean(catalog?.product.requires_shipping);
-  const deviceRequired = Boolean(catalog?.product.requires_device);
+  const deviceRequired = Boolean(
+    catalog?.product.requires_device || catalog?.product.product_type === "coverage",
+  );
   const paymentLocked = Boolean(order || pix || submitting);
   const pixReady = Boolean(catalog?.koda_pay.ready_methods.includes("pix"));
   const cardReady = Boolean(catalog?.koda_pay.ready_methods.includes("card"));
@@ -717,9 +728,20 @@ function CheckoutPage() {
                     </div>
                   </div>
                   {!user ? (
-                    <p className="mt-6 rounded-2xl bg-[#f5f5f7] p-5 text-sm text-[#6e6e73]">
-                      Entre na Conta Koda para selecionar um dispositivo.
-                    </p>
+                    <div className="mt-6 rounded-2xl bg-[#f5f5f7] p-5 text-sm text-[#6e6e73]">
+                      <p className="font-semibold text-[#1d1d1f]">
+                        Você precisa ter um KodaBot vinculado.
+                      </p>
+                      <p className="mt-1 text-xs">
+                        Entre na Conta Koda para validar seu aparelho antes de comprar o KodaCare.
+                      </p>
+                      <a
+                        href={`/conta/entrar?next=${encodeURIComponent(`/checkout/${productSlug}`)}`}
+                        className="mt-4 inline-flex rounded-full bg-[#1d1d1f] px-4 py-2 text-xs font-semibold text-white"
+                      >
+                        Entrar na Conta Koda
+                      </a>
+                    </div>
                   ) : devicesLoading ? (
                     <p className="mt-6 flex items-center gap-2 text-sm text-[#6e6e73]">
                       <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -761,7 +783,8 @@ function CheckoutPage() {
                     <div className="mt-6 rounded-2xl bg-[#fff4e5] p-5 text-sm text-[#7a4a00]">
                       <p className="font-semibold">Nenhum KodaBot disponível.</p>
                       <p className="mt-1 text-xs">
-                        Ative um KodaBot na sua Conta Koda antes de comprar este item.
+                        O KodaCare só pode ser comprado depois que um KodaBot estiver ativado e
+                        vinculado à sua Conta Koda.
                       </p>
                     </div>
                   )}

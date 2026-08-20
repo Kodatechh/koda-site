@@ -90,8 +90,8 @@ function KodaCarePage() {
                 Cobertura clara, sem ruído.
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[#6e6e73]">
-                Compare o tempo de cobertura e os benefícios. Você também pode contratar um plano
-                elegível separadamente do KodaBot.
+                Compare o tempo de cobertura e os benefícios. Para contratar, você precisa ter um
+                KodaBot ativado e vinculado à sua Conta Koda.
               </p>
             </div>
             <div className="grid gap-5 lg:grid-cols-3">

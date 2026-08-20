@@ -1,7 +1,17 @@
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Bell, CalendarDays, Clock3, CloudSun, Wifi } from "lucide-react";
-
-import { ProductPhotoSlot } from "@/components/koda/ProductPhotoSlot";
+import {
+  Bell,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  CloudSun,
+  Minus,
+  Monitor,
+  Plus,
+  Touchpad,
+  Wifi,
+} from "lucide-react";
 
 export const Route = createFileRoute("/kodabot/")({
   head: () => ({
@@ -25,6 +35,39 @@ export const Route = createFileRoute("/kodabot/")({
 });
 
 function KodaBot() {
+  const [activeFeature, setActiveFeature] = useState(0);
+  const features = [
+    {
+      title: "Tela e toque",
+      description:
+        "A tela touch de 2,8 polegadas reúne hora, alertas e controles em uma interface direta.",
+    },
+    {
+      title: "Rotina à primeira vista",
+      description:
+        "Tarefas, lembretes, alarmes e calendário aparecem sem abrir o celular ou entrar em um feed.",
+    },
+    {
+      title: "Informações do ambiente",
+      description:
+        "O sensor BME280 permite consultar temperatura, umidade e pressão diretamente no KodaBot.",
+    },
+    {
+      title: "Configuração por Wi‑Fi",
+      description:
+        "A rede KodaBot-Setup orienta a primeira conexão. Depois, o aparelho volta à sua rede automaticamente.",
+    },
+    {
+      title: "KODA OS",
+      description:
+        "Uma interface criada para o KodaBot, com painel local e base preparada para atualizações OTA.",
+    },
+  ];
+
+  const moveFeature = (direction: number) => {
+    setActiveFeature((current) => (current + direction + features.length) % features.length);
+  };
+
   return (
     <>
       <div className="sticky top-11 z-40 border-b border-black/10 bg-white/88 backdrop-blur-xl">
@@ -75,136 +118,170 @@ function KodaBot() {
             </p>
           </div>
 
-          <div className="mx-auto mt-12 max-w-5xl px-5 sm:mt-16">
-            <ProductPhotoSlot
+          <div className="mx-auto mt-8 h-[500px] max-w-[1400px] sm:h-[720px]">
+            <img
               src="/kodabot-home-hero-v3.png"
               alt="KodaBot com corpo transparente em fotografia de estúdio"
-              className="h-[460px] sm:h-[680px]"
+              className="h-full w-full object-cover object-[72%_center]"
+              style={{
+                maskImage:
+                  "linear-gradient(to bottom, transparent 0%, black 7%, black 88%, transparent 100%)",
+                WebkitMaskImage:
+                  "linear-gradient(to bottom, transparent 0%, black 7%, black 88%, transparent 100%)",
+              }}
             />
           </div>
         </section>
 
-        <section id="destaques" className="bg-[#f5f5f7] py-24 sm:py-32">
-          <div className="mx-auto max-w-6xl px-5">
-            <div className="flex items-end justify-between gap-6">
-              <h2 className="text-4xl font-semibold tracking-[-0.045em] sm:text-6xl">
-                Veja os destaques.
-              </h2>
-            </div>
+        <section id="destaques" className="relative bg-black text-white">
+          <div className="mx-auto max-w-6xl px-5 pb-12 pt-24 sm:pt-32">
+            <p className="text-sm font-semibold text-white/50">Conheça de perto</p>
+            <h2 className="mt-4 max-w-4xl text-5xl font-semibold tracking-[-0.055em] sm:text-7xl">
+              Tudo o que importa. Bem na sua frente.
+            </h2>
+          </div>
 
-            <div className="mt-12 grid gap-5 lg:grid-cols-3">
-              <article className="overflow-hidden rounded-[28px] bg-black text-white lg:col-span-2">
-                <div className="p-8 sm:p-10">
-                  <p className="text-sm font-semibold text-[#a1a1a6]">Informação na medida certa</p>
-                  <h3 className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">
-                    O que importa, sem abrir mais uma tela.
-                  </h3>
+          <div className="mx-auto min-h-[760px] max-w-[1500px] px-5 pb-20 lg:min-h-[880px]">
+            <div className="relative grid overflow-hidden lg:min-h-[760px] lg:grid-cols-[390px_1fr] lg:items-center">
+              <div className="relative z-10 order-2 pb-8 pt-4 lg:order-1 lg:py-16">
+                <div className="mb-6 hidden gap-3 lg:flex">
+                  <button
+                    type="button"
+                    onClick={() => moveFeature(-1)}
+                    aria-label="Destaque anterior"
+                    className="grid h-11 w-11 place-items-center rounded-full bg-[#1d1d1f] text-white transition hover:bg-[#2d2d2f]"
+                  >
+                    <ChevronUp className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveFeature(1)}
+                    aria-label="Próximo destaque"
+                    className="grid h-11 w-11 place-items-center rounded-full bg-[#1d1d1f] text-white transition hover:bg-[#2d2d2f]"
+                  >
+                    <ChevronDown className="h-5 w-5" />
+                  </button>
                 </div>
-                <ProductPhotoSlot
-                  src="/kodabot-official-reference.png"
-                  alt="Tela do KODA OS no KodaBot"
-                  objectPosition="center 38%"
-                  className="h-[420px] sm:h-[560px]"
-                  dark
+
+                <div className="space-y-2">
+                  {features.map((feature, index) => {
+                    const active = activeFeature === index;
+                    return (
+                      <button
+                        key={feature.title}
+                        type="button"
+                        onClick={() => setActiveFeature(index)}
+                        aria-expanded={active}
+                        className={`w-full rounded-[24px] px-5 text-left transition-all duration-500 ${
+                          active ? "bg-[#1d1d1f] py-5" : "bg-[#111113] py-3.5 hover:bg-[#18181a]"
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-4">
+                          <span className="text-[15px] font-semibold">{feature.title}</span>
+                          {active ? (
+                            <Minus className="h-4 w-4 shrink-0 text-white/60" />
+                          ) : (
+                            <Plus className="h-4 w-4 shrink-0 text-white/60" />
+                          )}
+                        </span>
+                        <span
+                          className={`grid overflow-hidden transition-all duration-500 ${
+                            active
+                              ? "mt-3 grid-rows-[1fr] opacity-100"
+                              : "grid-rows-[0fr] opacity-0"
+                          }`}
+                        >
+                          <span className="min-h-0 text-sm leading-relaxed text-white/62">
+                            {feature.description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="relative order-1 h-[470px] lg:order-2 lg:h-[760px]">
+                <img
+                  src="/kodabot-dark-explorer-v1.png"
+                  alt="KodaBot em estúdio escuro"
+                  className="absolute inset-0 h-full w-full object-cover object-[68%_center] transition-transform duration-700 ease-out"
+                  style={{
+                    transform: `scale(${1 + activeFeature * 0.012}) translateX(${activeFeature * -0.35}%)`,
+                  }}
                 />
-              </article>
-
-              <article className="rounded-[28px] bg-white p-8 shadow-sm sm:p-10">
-                <Wifi className="h-9 w-9 text-[#0071e3]" />
-                <p className="mt-10 text-sm font-semibold text-[#6e6e73]">Configuração simples</p>
-                <h3 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
-                  Ligue. Conecte. Pronto.
-                </h3>
-                <p className="mt-4 text-base leading-relaxed text-[#6e6e73]">
-                  Na primeira configuração, o KodaBot cria a rede KodaBot-Setup e guia a conexão ao
-                  Wi‑Fi. Depois, ele volta à sua rede automaticamente.
-                </p>
-              </article>
-
-              <article className="rounded-[28px] bg-[#e8f2ff] p-8 sm:p-10">
-                <div className="grid grid-cols-2 gap-3">
-                  {[Clock3, CalendarDays, Bell, CloudSun].map((Icon, index) => (
-                    <div
-                      key={index}
-                      className="grid aspect-square place-items-center rounded-3xl bg-white/70"
-                    >
-                      <Icon className="h-9 w-9 text-[#0071e3]" />
-                    </div>
-                  ))}
-                </div>
-                <h3 className="mt-8 text-3xl font-semibold tracking-[-0.04em]">
-                  Feito para o seu dia.
-                </h3>
-                <p className="mt-4 text-base leading-relaxed text-[#6e6e73]">
-                  Hora, agenda, tarefas, alarmes e informações do ambiente aparecem de forma direta
-                  e fácil de consultar.
-                </p>
-              </article>
-
-              <article className="relative overflow-hidden rounded-[28px] bg-white lg:col-span-2">
-                <div className="grid items-center md:grid-cols-[0.8fr_1.2fr]">
-                  <div className="p-8 sm:p-10">
-                    <p className="text-sm font-semibold text-[#6e6e73]">Compacto de verdade</p>
-                    <h3 className="mt-3 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
-                      Presença quando você precisa. Discrição quando não precisa.
-                    </h3>
-                  </div>
-                  <ProductPhotoSlot
-                    src="/kodabot-official-reference.png"
-                    alt="KodaBot sobre uma mesa"
-                    objectPosition="center 62%"
-                    className="h-[430px]"
-                  />
-                </div>
-              </article>
+                <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-black via-black/55 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black to-transparent" />
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="bg-white py-28 sm:py-40">
+        <section className="bg-black px-5 pb-28 text-white sm:pb-40">
+          <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <article className="rounded-[32px] bg-[#1d1d1f] p-8 md:col-span-2 sm:p-10">
+              <Touchpad className="h-10 w-10 text-[#28d7d7]" />
+              <h3 className="mt-16 max-w-3xl text-4xl font-semibold tracking-[-0.045em] sm:text-6xl">
+                Toque. Veja. Continue o seu dia.
+              </h3>
+              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/55">
+                Tela touch de 2,8 polegadas e interface visual feita para consultas rápidas.
+              </p>
+            </article>
+
+            <article className="rounded-[32px] bg-[#1d1d1f] p-8 sm:p-10">
+              <Wifi className="h-10 w-10 text-[#5e9cff]" />
+              <h3 className="mt-16 text-3xl font-semibold tracking-[-0.04em]">Wi‑Fi de 2,4 GHz.</h3>
+              <p className="mt-4 text-base leading-relaxed text-white/55">
+                Configuração guiada pela rede KodaBot-Setup e acesso local em kodabot.local.
+              </p>
+            </article>
+
+            <article className="rounded-[32px] bg-[#1d1d1f] p-8 sm:p-10">
+              <CloudSun className="h-10 w-10 text-[#ff9f0a]" />
+              <h3 className="mt-16 text-3xl font-semibold tracking-[-0.04em]">
+                O ambiente também conta.
+              </h3>
+              <p className="mt-4 text-base leading-relaxed text-white/55">
+                Temperatura, umidade e pressão medidas pelo sensor BME280.
+              </p>
+            </article>
+
+            <article className="rounded-[32px] bg-[#1d1d1f] p-8 md:col-span-2 sm:p-10">
+              <div className="flex gap-4 text-[#30d158]">
+                <CalendarDays className="h-10 w-10" />
+                <Bell className="h-10 w-10" />
+                <Monitor className="h-10 w-10" />
+              </div>
+              <h3 className="mt-16 max-w-3xl text-4xl font-semibold tracking-[-0.045em] sm:text-6xl">
+                Hora, tarefas, alarmes e alertas. Sem mais uma distração.
+              </h3>
+            </article>
+          </div>
+        </section>
+
+        <section className="overflow-hidden bg-white py-28 sm:py-40">
           <div className="mx-auto max-w-6xl px-5">
             <p className="text-sm font-semibold text-[#6e6e73]">Design</p>
             <h2 className="mt-4 max-w-4xl text-5xl font-semibold tracking-[-0.055em] sm:text-7xl">
               Criado para morar na sua mesa.
             </h2>
             <p className="mt-8 max-w-3xl text-xl font-medium leading-relaxed text-[#6e6e73] sm:text-2xl">
-              A tela touch de 2,8 polegadas fica na frente para ser consultada rapidamente, enquanto
-              o corpo compacto mantém o KodaBot perto sem ocupar espaço demais.
-            </p>
-
-            <div className="mt-16 overflow-hidden bg-[#f5f5f7]">
-              <ProductPhotoSlot
-                src="/kodabot-home-hero-v3.png"
-                alt="Design transparente do KodaBot"
-                objectPosition="72% center"
-                className="h-[620px] sm:h-[820px]"
-              />
-            </div>
-          </div>
-        </section>
-
-        <section
-          id="experiencia"
-          className="overflow-hidden bg-[#05070b] py-28 text-white sm:py-40"
-        >
-          <div className="mx-auto max-w-6xl px-5">
-            <p className="text-sm font-semibold text-white/55">Experiência</p>
-            <h2 className="mt-4 max-w-4xl text-5xl font-semibold tracking-[-0.055em] sm:text-7xl">
-              Informação que chega antes de virar distração.
-            </h2>
-            <p className="mt-8 max-w-3xl text-xl font-medium leading-relaxed text-white/58 sm:text-2xl">
-              O KodaBot foi pensado para mostrar o que você precisa sem puxar você para um feed, uma
-              conversa ou mais uma sequência de notificações.
+              Transparente por fora. Direto ao ponto por dentro. O KodaBot permanece perto sem
+              dominar o espaço.
             </p>
           </div>
-
-          <div className="mx-auto mt-16 max-w-7xl px-5">
-            <ProductPhotoSlot
-              src="/kodabot-official-reference.png"
-              alt="KodaBot em uso sobre uma mesa"
-              objectPosition="center"
-              className="h-[620px] sm:h-[850px]"
-              dark
+          <div className="mx-auto mt-10 h-[560px] max-w-[1500px] sm:h-[820px]">
+            <img
+              src="/kodabot-home-hero-v3.png"
+              alt="Design transparente do KodaBot"
+              className="h-full w-full object-cover object-[72%_center]"
+              style={{
+                maskImage:
+                  "linear-gradient(to right, transparent 0%, black 16%, black 88%, transparent 100%)",
+                WebkitMaskImage:
+                  "linear-gradient(to right, transparent 0%, black 16%, black 88%, transparent 100%)",
+              }}
             />
           </div>
         </section>

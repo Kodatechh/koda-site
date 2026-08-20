@@ -71,6 +71,7 @@ Deno.serve(async (req: Request) => {
     return json({
       products: (products ?? []).map((product, index) => ({
         ...product,
+        requires_device: product.requires_device || product.product_type === "coverage",
         available: Boolean(
           product.unit_amount_cents != null &&
           (!product.track_stock || (product.stock_quantity ?? 0) > 0),
@@ -159,7 +160,7 @@ Deno.serve(async (req: Request) => {
       compare_at_cents: product.compare_at_cents,
       in_stock: inStock,
       requires_shipping: product.requires_shipping,
-      requires_device: product.requires_device,
+      requires_device: product.requires_device || product.product_type === "coverage",
       shipping_mode: product.shipping_mode,
     },
     koda_pay: {

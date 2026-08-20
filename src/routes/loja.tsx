@@ -2,14 +2,19 @@ import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ArrowRight,
-  BatteryCharging,
+  Bot,
+  Cable,
+  ChevronLeft,
   ChevronRight,
+  CircleHelp,
   Headphones,
   HeartHandshake,
   LoaderCircle,
   Package,
   ShieldCheck,
-  Sparkles,
+  UserRound,
+  Wrench,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Nav } from "@/components/koda/Nav";
@@ -70,34 +75,55 @@ function money(cents: number | null, currency = "BRL") {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(cents / 100);
 }
 
-function categoryIcon(name: string) {
-  const key = name.toLowerCase();
-  if (key.includes("care")) return ShieldCheck;
-  if (key.includes("energia")) return BatteryCharging;
-  if (key.includes("acess")) return Headphones;
-  if (key.includes("serv")) return HeartHandshake;
-  return Package;
-}
-
 function visualTone(product: StoreProduct) {
   if (product.slug.startsWith("kodacare")) return "bg-[#e11900] text-white";
   if (product.slug.includes("pro")) return "bg-[#0b0b0d] text-white";
-  if (product.slug.startsWith("kodabot")) return "bg-[linear-gradient(145deg,#f9fbff,#e8eef8)] text-[#111216]";
+  if (product.slug.startsWith("kodabot"))
+    return "bg-[linear-gradient(145deg,#f9fbff,#e8eef8)] text-[#111216]";
   return "bg-[linear-gradient(145deg,#fafafa,#e9e9ed)] text-[#1d1d1f]";
 }
 
 function ProductVisual({ product, compact = false }: { product: StoreProduct; compact?: boolean }) {
+  const isKodaBot = product.slug === "kodabot-i";
+
   return (
-    <div className={`relative grid overflow-hidden ${compact ? "h-48" : "h-[290px] sm:h-[330px]"} ${visualTone(product)}`}>
-      {product.image_url ? (
-        <img src={product.image_url} alt={product.name} className="h-full w-full object-contain p-5" loading="lazy" />
+    <div
+      className={`relative grid overflow-hidden ${compact ? "h-48" : "h-[310px] sm:h-[360px]"} ${visualTone(product)}`}
+    >
+      {isKodaBot ? (
+        <img
+          src="/kodabot-home-hero-v3.png"
+          alt="KodaBot"
+          className="h-full w-full object-cover object-[70%_center]"
+          loading="lazy"
+        />
+      ) : product.image_url ? (
+        <img
+          src={product.image_url}
+          alt={product.name}
+          className="h-full w-full object-contain p-5"
+          loading="lazy"
+        />
+      ) : product.slug.startsWith("kodacare") ? (
+        <div className="grid place-items-center text-center">
+          <div>
+            <ShieldCheck className="mx-auto h-20 w-20" strokeWidth={1.15} />
+            <p className="mt-7 text-3xl font-semibold tracking-[-.05em]">KodaCare</p>
+          </div>
+        </div>
       ) : (
         <div className="grid place-items-center p-8 text-center">
           <div>
-            <div className={`mx-auto grid ${compact ? "h-14 w-14 text-2xl" : "h-20 w-20 text-4xl"} place-items-center rounded-[28%] bg-current/10 font-semibold tracking-[-.08em]`}>
+            <div
+              className={`mx-auto grid ${compact ? "h-14 w-14 text-2xl" : "h-20 w-20 text-4xl"} place-items-center rounded-[28%] bg-current/10 font-semibold tracking-[-.08em]`}
+            >
               K
             </div>
-            <p className={`${compact ? "mt-5 text-xl" : "mt-7 text-3xl"} font-semibold tracking-[-.05em]`}>{product.name}</p>
+            <p
+              className={`${compact ? "mt-5 text-xl" : "mt-7 text-3xl"} font-semibold tracking-[-.05em]`}
+            >
+              {product.name}
+            </p>
           </div>
         </div>
       )}
@@ -116,29 +142,47 @@ function BuyLink({ product, small = false }: { product: StoreProduct; small?: bo
   );
 }
 
+type Department = {
+  label: string;
+  href: string;
+  image?: string;
+  icon?: LucideIcon;
+  accent?: string;
+};
+
+const departments: Department[] = [
+  { label: "KodaBot", href: "/kodabot", image: "/kodabot-home-hero-v3.png" },
+  { label: "KodaBot Pro", href: "/kodabot-pro", icon: Bot },
+  { label: "Acessórios", href: "#catalogo", icon: Cable },
+  { label: "KodaCare", href: "/kodacare", icon: ShieldCheck, accent: "text-[#e11900]" },
+  { label: "Pedidos", href: "/conta/pedidos", icon: Package },
+  { label: "Conta Koda", href: "/conta", icon: UserRound },
+  { label: "Reparos", href: "/reparos/solicitar", icon: Wrench },
+  { label: "Suporte", href: "/suporte", icon: Headphones },
+];
+
 function StorePage() {
   const [products, setProducts] = useState<StoreProduct[]>([]);
-  const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     async function load() {
       setLoading(true);
       setError(null);
-      const { data, error: invokeError } = await supabase.functions.invoke<CatalogListResponse>("koda-pay-catalog", {
-        body: { list: true },
-      });
+      const { data, error: invokeError } = await supabase.functions.invoke<CatalogListResponse>(
+        "koda-pay-catalog",
+        {
+          body: { list: true },
+        },
+      );
       if (!alive) return;
       if (invokeError || !data) {
         setError("Não foi possível carregar a loja agora.");
         setProducts([]);
-        setCategories([]);
       } else {
         setProducts(data.products ?? []);
-        setCategories(data.categories ?? []);
       }
       setLoading(false);
     }
@@ -153,80 +197,155 @@ function StorePage() {
     return explicit.length ? explicit : products.slice(0, 6);
   }, [products]);
 
-  const visibleProducts = useMemo(
-    () => (selectedCategory ? products.filter((product) => product.category_id === selectedCategory) : products),
-    [products, selectedCategory],
-  );
-
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
       <Nav />
       <main className="overflow-hidden">
-        <section className="bg-[#f5f5f7] px-5 pb-10 pt-14 sm:pb-14 sm:pt-20">
-          <div className="mx-auto grid max-w-[1200px] gap-8 lg:grid-cols-[1fr_330px] lg:items-end">
+        <section className="border-b border-black/[.04] bg-white">
+          <div className="mx-auto flex min-h-[58px] max-w-[1200px] items-center justify-between gap-4 px-5 py-3 text-center text-xs sm:text-sm">
+            <button
+              type="button"
+              aria-label="Oferta anterior"
+              className="hidden text-[#6e6e73] sm:block"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <p className="mx-auto">
+              KodaBot em pré-venda por R$ 99,90. Entrega calculada pelo seu CEP.{" "}
+              <a href="/checkout/kodabot-i" className="text-[#0066cc] hover:underline">
+                Comprar <CircleHelp className="inline h-4 w-4" />
+              </a>
+            </p>
+            <button
+              type="button"
+              aria-label="Próxima oferta"
+              className="hidden text-[#6e6e73] sm:block"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </section>
+
+        <section className="bg-[#f5f5f7] px-5 pb-6 pt-14 sm:pb-8 sm:pt-20">
+          <div className="mx-auto grid max-w-[1200px] gap-10 lg:grid-cols-[1fr_320px] lg:items-center">
             <div>
-              <p className="mb-3 text-sm font-semibold text-[#0071e3]">Loja Koda</p>
-              <h1 className="max-w-[850px] text-5xl font-semibold leading-[.98] tracking-[-.065em] sm:text-7xl lg:text-[78px]">
-                Loja. <span className="text-[#6e6e73]">Tecnologia que fica perto de você.</span>
+              <h1 className="max-w-[880px] text-5xl font-semibold leading-[.98] tracking-[-.065em] sm:text-7xl lg:text-[76px]">
+                Loja.{" "}
+                <span className="text-[#6e6e73]">O melhor jeito de comprar tudo da Koda.</span>
               </h1>
             </div>
-            <div className="space-y-4 pb-1 text-sm">
-              <a href="/suporte" className="group flex items-center gap-3 rounded-2xl bg-white p-4 transition-transform hover:-translate-y-0.5">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-[#f5f5f7]"><HeartHandshake className="h-4 w-4" /></span>
-                <span><strong className="block text-xs">Precisa de ajuda?</strong><span className="text-xs text-[#0066cc]">Fale com a Koda <ChevronRight className="inline h-3 w-3" /></span></span>
+            <div className="space-y-5 text-sm lg:justify-self-end">
+              <a href="/suporte" className="group flex items-center gap-3">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm">
+                  <HeartHandshake className="h-4 w-4" />
+                </span>
+                <span>
+                  <strong className="block text-xs">Precisa de ajuda para comprar?</strong>
+                  <span className="text-xs text-[#0066cc]">
+                    Fale com a Koda <ChevronRight className="inline h-3 w-3" />
+                  </span>
+                </span>
               </a>
-              <a href="/conta" className="group flex items-center gap-3 rounded-2xl bg-white p-4 transition-transform hover:-translate-y-0.5">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-[#f5f5f7]"><Sparkles className="h-4 w-4" /></span>
-                <span><strong className="block text-xs">Já tem um produto Koda?</strong><span className="text-xs text-[#0066cc]">Acesse sua Conta Koda <ChevronRight className="inline h-3 w-3" /></span></span>
+              <a href="/conta" className="group flex items-center gap-3">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm">
+                  <UserRound className="h-4 w-4" />
+                </span>
+                <span>
+                  <strong className="block text-xs">Continue de onde parou.</strong>
+                  <span className="text-xs text-[#0066cc]">
+                    Acesse sua Conta Koda <ChevronRight className="inline h-3 w-3" />
+                  </span>
+                </span>
               </a>
             </div>
           </div>
         </section>
 
+        <section className="bg-[#f5f5f7] pb-16 pt-8 sm:pb-20">
+          <div className="no-scrollbar mx-auto flex max-w-[1320px] gap-7 overflow-x-auto px-5 pb-3 sm:gap-10">
+            {departments.map((department) => {
+              const Icon = department.icon;
+              return (
+                <a
+                  key={department.label}
+                  href={department.href}
+                  className="group w-[116px] shrink-0 text-center"
+                >
+                  <span className="grid h-[112px] place-items-center transition-transform duration-300 group-hover:-translate-y-1.5">
+                    {department.image ? (
+                      <img
+                        src={department.image}
+                        alt=""
+                        className="h-[108px] w-[138px] max-w-none object-cover object-[72%_center] mix-blend-multiply"
+                      />
+                    ) : Icon ? (
+                      <Icon
+                        className={`h-16 w-16 ${department.accent || "text-[#1d1d1f]"}`}
+                        strokeWidth={1.05}
+                      />
+                    ) : null}
+                  </span>
+                  <span className="mt-2 block text-sm font-semibold">{department.label}</span>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+
         {loading ? (
           <section className="grid min-h-[500px] place-items-center bg-white">
-            <div className="text-center text-sm text-[#6e6e73]"><LoaderCircle className="mx-auto h-7 w-7 animate-spin text-[#0071e3]" /><p className="mt-3">Preparando a Loja Koda…</p></div>
+            <div className="text-center text-sm text-[#6e6e73]">
+              <LoaderCircle className="mx-auto h-7 w-7 animate-spin text-[#0071e3]" />
+              <p className="mt-3">Preparando a Loja Koda…</p>
+            </div>
           </section>
         ) : error ? (
-          <section className="mx-auto max-w-[1200px] px-5 py-20"><div className="rounded-[32px] bg-white p-12 text-center"><Package className="mx-auto h-9 w-9 text-[#86868b]" /><h2 className="mt-5 text-3xl font-semibold tracking-[-.04em]">A loja está temporariamente indisponível.</h2><p className="mt-3 text-sm text-[#6e6e73]">{error}</p></div></section>
+          <section className="mx-auto max-w-[1200px] px-5 py-20">
+            <div className="rounded-[32px] bg-white p-12 text-center">
+              <Package className="mx-auto h-9 w-9 text-[#86868b]" />
+              <h2 className="mt-5 text-3xl font-semibold tracking-[-.04em]">
+                A loja está temporariamente indisponível.
+              </h2>
+              <p className="mt-3 text-sm text-[#6e6e73]">{error}</p>
+            </div>
+          </section>
         ) : (
           <>
-            <section className="bg-[#f5f5f7] pb-14">
-              <div className="mx-auto max-w-[1200px] px-5">
-                <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2 sm:gap-5">
-                  <button type="button" onClick={() => setSelectedCategory(null)} className="group min-w-[118px] text-center">
-                    <span className={`mx-auto grid h-[98px] w-[98px] place-items-center rounded-[32px] transition-transform duration-300 group-hover:-translate-y-1 ${selectedCategory === null ? "bg-[#1d1d1f] text-white" : "bg-white text-[#1d1d1f]"}`}><Sparkles className="h-8 w-8" strokeWidth={1.4} /></span>
-                    <span className="mt-3 block text-xs font-semibold">Todos</span>
-                  </button>
-                  {categories.map((category) => {
-                    const Icon = categoryIcon(category.name);
-                    const active = selectedCategory === category.id;
-                    return (
-                      <button key={category.id} type="button" onClick={() => setSelectedCategory(category.id)} className="group min-w-[118px] text-center">
-                        <span className={`mx-auto grid h-[98px] w-[98px] place-items-center rounded-[32px] transition-transform duration-300 group-hover:-translate-y-1 ${category.slug === "kodacare" ? "bg-[#e11900] text-white" : active ? "bg-[#1d1d1f] text-white" : "bg-white text-[#1d1d1f]"}`}><Icon className="h-8 w-8" strokeWidth={1.35} /></span>
-                        <span className="mt-3 block text-xs font-semibold">{category.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
-
-            {!selectedCategory && featured.length > 0 && (
+            {featured.length > 0 && (
               <section className="bg-[#f5f5f7] pb-20">
                 <div className="mx-auto max-w-[1200px] px-5">
-                  <h2 className="text-3xl font-semibold tracking-[-.05em] sm:text-4xl">Novidades. <span className="text-[#6e6e73]">Veja o que está em destaque.</span></h2>
+                  <h2 className="text-3xl font-semibold tracking-[-.05em] sm:text-4xl">
+                    Novidades. <span className="text-[#6e6e73]">Veja o que está em destaque.</span>
+                  </h2>
                 </div>
                 <div className="no-scrollbar mx-auto mt-7 flex max-w-[1280px] gap-5 overflow-x-auto px-5 pb-6">
                   {featured.map((product) => (
-                    <article key={product.slug} className="w-[330px] shrink-0 overflow-hidden rounded-[32px] bg-white shadow-[0_12px_35px_rgba(0,0,0,.07)] transition-transform duration-300 hover:-translate-y-1 sm:w-[390px]">
+                    <article
+                      key={product.slug}
+                      className="w-[330px] shrink-0 overflow-hidden rounded-[32px] bg-white shadow-[0_12px_35px_rgba(0,0,0,.07)] transition-transform duration-300 hover:-translate-y-1 sm:w-[390px]"
+                    >
                       <ProductVisual product={product} />
                       <div className="p-7 sm:p-8">
-                        <p className={`text-[11px] font-semibold uppercase tracking-[.09em] ${product.slug.startsWith("kodacare") ? "text-[#e11900]" : "text-[#0071e3]"}`}>{product.category || "Koda"}</p>
-                        <h3 className="mt-2 text-3xl font-semibold tracking-[-.05em]">{product.name}</h3>
-                        <p className="mt-3 min-h-10 text-sm leading-relaxed text-[#6e6e73]">{product.short_description || product.description || "Feito para funcionar de forma simples no ecossistema Koda."}</p>
+                        <p
+                          className={`text-[11px] font-semibold uppercase tracking-[.09em] ${product.slug.startsWith("kodacare") ? "text-[#e11900]" : "text-[#0071e3]"}`}
+                        >
+                          {product.category || "Koda"}
+                        </p>
+                        <h3 className="mt-2 text-3xl font-semibold tracking-[-.05em]">
+                          {product.name}
+                        </h3>
+                        <p className="mt-3 min-h-10 text-sm leading-relaxed text-[#6e6e73]">
+                          {product.short_description ||
+                            product.description ||
+                            "Feito para funcionar de forma simples no ecossistema Koda."}
+                        </p>
                         <div className="mt-7 flex items-end justify-between gap-4">
-                          <div><p className="text-[11px] text-[#86868b]">A partir de</p><p className="mt-1 text-lg font-semibold">{money(product.unit_amount_cents, product.currency)}</p></div>
+                          <div>
+                            <p className="text-[11px] text-[#86868b]">A partir de</p>
+                            <p className="mt-1 text-lg font-semibold">
+                              {money(product.unit_amount_cents, product.currency)}
+                            </p>
+                          </div>
                           <BuyLink product={product} />
                         </div>
                       </div>
@@ -238,42 +357,119 @@ function StorePage() {
 
             <section className="bg-white py-20">
               <div className="mx-auto max-w-[1200px] px-5">
-                <h2 className="text-3xl font-semibold tracking-[-.05em] sm:text-4xl">Mais da Koda. <span className="text-[#6e6e73]">Tudo conectado ao que vem depois da compra.</span></h2>
+                <h2 className="text-3xl font-semibold tracking-[-.05em] sm:text-4xl">
+                  Mais da Koda.{" "}
+                  <span className="text-[#6e6e73]">
+                    Tudo conectado ao que vem depois da compra.
+                  </span>
+                </h2>
                 <div className="mt-8 grid gap-4 md:grid-cols-3">
-                  <a href="/kodacare" className="group min-h-[270px] overflow-hidden rounded-[30px] bg-[#e11900] p-7 text-white transition-transform duration-300 hover:-translate-y-1 sm:p-8">
-                    <ShieldCheck className="h-8 w-8" /><h3 className="mt-14 text-3xl font-semibold tracking-[-.05em]">KodaCare.</h3><p className="mt-3 max-w-xs text-sm text-white/78">Cobertura vinculada ao seu KodaBot, acompanhamento e assistência em um só lugar.</p><span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold">Conhecer <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
+                  <a
+                    href="/kodacare"
+                    className="group min-h-[270px] overflow-hidden rounded-[30px] bg-[#e11900] p-7 text-white transition-transform duration-300 hover:-translate-y-1 sm:p-8"
+                  >
+                    <ShieldCheck className="h-8 w-8" />
+                    <h3 className="mt-14 text-3xl font-semibold tracking-[-.05em]">KodaCare.</h3>
+                    <p className="mt-3 max-w-xs text-sm text-white/78">
+                      Cobertura vinculada ao seu KodaBot, acompanhamento e assistência em um só
+                      lugar.
+                    </p>
+                    <span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold">
+                      Conhecer{" "}
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </span>
                   </a>
-                  <a href="/conta/pedidos" className="group min-h-[270px] rounded-[30px] bg-[#f5f5f7] p-7 transition-transform duration-300 hover:-translate-y-1 sm:p-8">
-                    <Package className="h-8 w-8 text-[#0071e3]" /><h3 className="mt-14 text-3xl font-semibold tracking-[-.05em]">Do pedido à sua mesa.</h3><p className="mt-3 max-w-xs text-sm text-[#6e6e73]">Acompanhe pagamento, preparação, envio, entrega e o histórico completo pela Conta Koda.</p><span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-[#0066cc]">Meus pedidos <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
+                  <a
+                    href="/conta/pedidos"
+                    className="group min-h-[270px] rounded-[30px] bg-[#f5f5f7] p-7 transition-transform duration-300 hover:-translate-y-1 sm:p-8"
+                  >
+                    <Package className="h-8 w-8 text-[#0071e3]" />
+                    <h3 className="mt-14 text-3xl font-semibold tracking-[-.05em]">
+                      Do pedido à sua mesa.
+                    </h3>
+                    <p className="mt-3 max-w-xs text-sm text-[#6e6e73]">
+                      Acompanhe pagamento, preparação, envio, entrega e o histórico completo pela
+                      Conta Koda.
+                    </p>
+                    <span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-[#0066cc]">
+                      Meus pedidos{" "}
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </span>
                   </a>
-                  <a href="/suporte/reparo" className="group min-h-[270px] rounded-[30px] bg-[#111113] p-7 text-white transition-transform duration-300 hover:-translate-y-1 sm:p-8">
-                    <HeartHandshake className="h-8 w-8 text-white" /><h3 className="mt-14 text-3xl font-semibold tracking-[-.05em]">Suporte que conhece seu produto.</h3><p className="mt-3 max-w-xs text-sm text-white/60">Diagnóstico, reparo e histórico vinculados ao seu dispositivo, sem começar do zero.</p><span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold">Obter suporte <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></span>
+                  <a
+                    href="/suporte/reparo"
+                    className="group min-h-[270px] rounded-[30px] bg-[#111113] p-7 text-white transition-transform duration-300 hover:-translate-y-1 sm:p-8"
+                  >
+                    <HeartHandshake className="h-8 w-8 text-white" />
+                    <h3 className="mt-14 text-3xl font-semibold tracking-[-.05em]">
+                      Suporte que conhece seu produto.
+                    </h3>
+                    <p className="mt-3 max-w-xs text-sm text-white/60">
+                      Diagnóstico, reparo e histórico vinculados ao seu dispositivo, sem começar do
+                      zero.
+                    </p>
+                    <span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold">
+                      Obter suporte{" "}
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </span>
                   </a>
                 </div>
               </div>
             </section>
 
-            <section className="bg-[#f5f5f7] py-20">
+            <section id="catalogo" className="bg-[#f5f5f7] py-20">
               <div className="mx-auto max-w-[1200px] px-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div><p className="text-sm font-semibold text-[#0071e3]">Catálogo Koda</p><h2 className="mt-2 text-4xl font-semibold tracking-[-.055em] sm:text-5xl">{selectedCategory ? categories.find((c) => c.id === selectedCategory)?.name : "Todos os produtos"}.</h2></div>
-                  {selectedCategory && <button type="button" onClick={() => setSelectedCategory(null)} className="text-sm font-semibold text-[#0066cc]">Ver todos ›</button>}
+                  <div>
+                    <p className="text-sm font-semibold text-[#0071e3]">Catálogo Koda</p>
+                    <h2 className="mt-2 text-4xl font-semibold tracking-[-.055em] sm:text-5xl">
+                      Todos os produtos.
+                    </h2>
+                  </div>
                 </div>
-                {visibleProducts.length ? (
+                {products.length ? (
                   <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {visibleProducts.map((product) => (
-                      <article key={product.slug} className="overflow-hidden rounded-[28px] bg-white">
+                    {products.map((product) => (
+                      <article
+                        key={product.slug}
+                        className="overflow-hidden rounded-[28px] bg-white"
+                      >
                         <ProductVisual product={product} compact />
                         <div className="p-6">
-                          <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-semibold text-[#0071e3]">{product.category || "Koda"}</p><h3 className="mt-1 text-xl font-semibold tracking-[-.04em]">{product.name}</h3></div><span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${product.in_stock ? "bg-[#34c759]" : "bg-[#ff9f0a]"}`} aria-label={product.in_stock ? "Disponível" : "Indisponível"} /></div>
-                          <p className="mt-3 line-clamp-2 min-h-10 text-xs leading-relaxed text-[#6e6e73]">{product.short_description || product.description || "Produto Koda."}</p>
-                          <div className="mt-6 flex items-center justify-between gap-4"><p className="font-semibold">{money(product.unit_amount_cents, product.currency)}</p><BuyLink product={product} small /></div>
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-[11px] font-semibold text-[#0071e3]">
+                                {product.category || "Koda"}
+                              </p>
+                              <h3 className="mt-1 text-xl font-semibold tracking-[-.04em]">
+                                {product.name}
+                              </h3>
+                            </div>
+                            <span
+                              className={`mt-1 h-2 w-2 shrink-0 rounded-full ${product.in_stock ? "bg-[#34c759]" : "bg-[#ff9f0a]"}`}
+                              aria-label={product.in_stock ? "Disponível" : "Indisponível"}
+                            />
+                          </div>
+                          <p className="mt-3 line-clamp-2 min-h-10 text-xs leading-relaxed text-[#6e6e73]">
+                            {product.short_description || product.description || "Produto Koda."}
+                          </p>
+                          <div className="mt-6 flex items-center justify-between gap-4">
+                            <p className="font-semibold">
+                              {money(product.unit_amount_cents, product.currency)}
+                            </p>
+                            <BuyLink product={product} small />
+                          </div>
                         </div>
                       </article>
                     ))}
                   </div>
                 ) : (
-                  <div className="mt-8 rounded-[28px] bg-white p-12 text-center"><Package className="mx-auto h-8 w-8 text-[#86868b]" /><p className="mt-4 text-sm text-[#6e6e73]">Ainda não há produtos publicados nesta categoria.</p></div>
+                  <div className="mt-8 rounded-[28px] bg-white p-12 text-center">
+                    <Package className="mx-auto h-8 w-8 text-[#86868b]" />
+                    <p className="mt-4 text-sm text-[#6e6e73]">
+                      Ainda não há produtos publicados nesta categoria.
+                    </p>
+                  </div>
                 )}
               </div>
             </section>
