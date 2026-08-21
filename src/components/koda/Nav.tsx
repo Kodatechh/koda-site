@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Menu, Search, ShoppingBag, X } from "lucide-react";
+import { ChevronDown, Menu, Search, ShoppingBag, UserRound, X } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
 import { SearchOverlay } from "@/components/koda/SearchOverlay";
@@ -22,7 +22,6 @@ const navItems: NavItem[] = [
           { label: "KodaBot", href: "/kodabot" },
           { label: "KodaBot Pro", href: "/kodabot-pro" },
           { label: "Comparar modelos", href: "/comparar" },
-          { label: "Koda Trade In", href: "/trade-in" },
         ],
       },
       {
@@ -30,7 +29,6 @@ const navItems: NavItem[] = [
         items: [
           { label: "Seus pedidos", href: "/conta/pedidos" },
           { label: "Meus KodaBots", href: "/conta" },
-          { label: "Koda Trade In", href: "/trade-in" },
           { label: "Suporte", href: "/suporte" },
           { label: "Reparos", href: "/suporte/reparo" },
         ],
@@ -267,12 +265,20 @@ export function Nav() {
               <Search className="h-[15px] w-[15px]" strokeWidth={1.8} />
             </button>
             <a
-              href={user ? "/conta" : "/conta/entrar"}
-              aria-label={user ? "Conta Koda e pedidos" : "Entrar na Conta Koda"}
+              href="/loja"
+              aria-label="Loja Koda"
               onClick={closeNavigation}
               className="grid h-11 w-10 place-items-center outline-none transition-opacity hover:opacity-55 focus-visible:ring-2 focus-visible:ring-[#0071e3]/35"
             >
               <ShoppingBag className="h-[15px] w-[15px]" strokeWidth={1.8} />
+            </a>
+            <a
+              href={user ? "/conta" : "/conta/entrar"}
+              aria-label={user ? "Minha Conta" : "Entrar na Conta Koda"}
+              onClick={closeNavigation}
+              className="grid h-11 w-10 place-items-center outline-none transition-opacity hover:opacity-55 focus-visible:ring-2 focus-visible:ring-[#0071e3]/35"
+            >
+              <UserRound className="h-[16px] w-[16px]" strokeWidth={1.8} />
             </a>
             <button
               type="button"

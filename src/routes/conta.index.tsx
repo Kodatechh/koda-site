@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  CalendarDays,
   CheckCircle2,
   Cloud,
   Gauge,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
+import { AccountSidebar } from "@/components/koda/AccountSidebar";
 import { supabase } from "@/integrations/supabase/client";
 import { productNames, type ProductId } from "@/lib/koda-data";
 
@@ -39,15 +39,6 @@ type DeviceSummary = {
   kodaos_version: string | null;
   activated_at: string | null;
 };
-type TradeInSummary = {
-  id: string;
-  serial_number: string;
-  source_model: string;
-  credit_cents: number;
-  status: string;
-  created_at: string;
-};
-
 function formatDate(value: string | null) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(
@@ -59,10 +50,11 @@ function Account() {
   const { user, loading, signOut } = useAuth();
   const [devices, setDevices] = useState<DeviceSummary[]>([]);
   const [cases, setCases] = useState<SupportCaseSummary[]>([]);
-  const [tradeIns, setTradeIns] = useState<TradeInSummary[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [profileName, setProfileName] = useState("");
   const [editingName, setEditingName] = useState(false);
+  const [deviceAction, setDeviceAction] = useState<string | null>(null);
+  const [deviceMessage, setDeviceMessage] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!user) {
@@ -87,18 +79,11 @@ function Account() {
         .eq("owner_user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(6),
-      supabase
-        .from("trade_in_requests")
-        .select("id,serial_number,source_model,credit_cents,status,created_at")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(4),
-    ]).then(([devicesResult, profileResult, casesResult, tradeInResult]) => {
+    ]).then(([devicesResult, profileResult, casesResult]) => {
       if (!devicesResult.error) setDevices((devicesResult.data ?? []) as DeviceSummary[]);
       if (!profileResult.error)
         setProfileName(profileResult.data?.full_name ?? user.user_metadata?.["full_name"] ?? "");
       if (!casesResult.error) setCases((casesResult.data ?? []) as SupportCaseSummary[]);
-      if (!tradeInResult.error) setTradeIns((tradeInResult.data ?? []) as TradeInSummary[]);
       setLoadingDevices(false);
     });
   }, [user]);
@@ -114,6 +99,58 @@ function Account() {
       .update({ full_name: profileName.trim() || null })
       .eq("user_id", user.id);
     setEditingName(false);
+  }
+
+  async function resetDevice(device: DeviceSummary) {
+    if (
+      !window.confirm(
+        `Redefinir ${device.serial_number}? O KodaBot apagará os dados locais quando receber o comando.`,
+      )
+    )
+      return;
+    setDeviceAction(device.id);
+    const { error } = await supabase.rpc("request_device_command", {
+      _device_id: device.id,
+      _command: "factory_reset_request",
+      _payload: { source: "customer_account" },
+    });
+    setDeviceMessage((current) => ({
+      ...current,
+      [device.id]: error
+        ? "Não foi possível solicitar a redefinição."
+        : "Redefinição solicitada. O comando será executado quando o KodaBot estiver online.",
+    }));
+    setDeviceAction(null);
+  }
+
+  async function removeDevice(device: DeviceSummary) {
+    if (
+      !window.confirm(
+        `Remover ${device.serial_number} desta conta? Os dados serão apagados, mas a garantia de fábrica e o histórico do produto serão preservados.`,
+      )
+    )
+      return;
+    setDeviceAction(device.id);
+    const transfer = await supabase.rpc("request_device_transfer", { _device_id: device.id });
+    if (transfer.error || !transfer.data) {
+      setDeviceMessage((current) => ({
+        ...current,
+        [device.id]: "Não foi possível remover este KodaBot.",
+      }));
+      setDeviceAction(null);
+      return;
+    }
+    const completion = await supabase.rpc("complete_device_transfer_reset", {
+      _transfer_id: transfer.data,
+    });
+    if (!completion.error) setDevices((current) => current.filter((item) => item.id !== device.id));
+    setDeviceMessage((current) => ({
+      ...current,
+      [device.id]: completion.error
+        ? "Não foi possível concluir a remoção."
+        : "KodaBot removido da sua conta.",
+    }));
+    setDeviceAction(null);
   }
 
   if (loading)
@@ -153,320 +190,244 @@ function Account() {
     );
 
   return (
-    <main className="mx-auto max-w-6xl px-5 py-12 sm:py-16">
-      <section className="rounded-[32px] bg-white p-7 sm:p-10">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-[#0071e3]">Conta KodaCloud</p>
-            <h1 className="mt-2 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
-              Olá{firstName ? `, ${firstName}` : ""}.
-            </h1>
-            <p className="mt-2 text-sm text-[#6e6e73]">{user.email}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={async () => {
-                await signOut();
-                window.location.href = "/";
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-black/15 px-5 py-2.5 text-xs font-semibold"
-            >
-              <LogOut className="h-3.5 w-3.5" /> Sair
-            </button>
-          </div>
-        </div>
-        <div className="mt-8 border-t border-black/10 pt-6">
-          {!editingName ? (
-            <button
-              onClick={() => setEditingName(true)}
-              className="text-xs font-semibold text-[#0066cc] hover:underline"
-            >
-              Editar nome da conta
-            </button>
-          ) : (
-            <div className="flex max-w-md gap-2">
-              <input
-                value={profileName}
-                onChange={(e) => setProfileName(e.target.value)}
-                className="h-10 flex-1 rounded-xl border border-black/15 px-3 text-sm outline-none focus:border-[#0071e3]"
-              />
-              <button
-                onClick={saveName}
-                className="rounded-full bg-[#0071e3] px-4 text-xs font-semibold text-white"
-              >
-                Salvar
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="mt-4 rounded-[32px] bg-white p-7 sm:p-10">
-        <div className="flex items-end justify-between gap-5">
-          <div>
-            <p className="text-sm font-semibold text-[#6e6e73]">Koda Trade In</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
-              Troque e economize.
-            </h2>
-          </div>
-          <a href="/trade-in" className="text-xs font-semibold text-[#0066cc]">
-            Nova avaliação
-          </a>
-        </div>
-        {tradeIns.length ? (
-          <div className="mt-7 divide-y divide-black/10 border-y border-black/10">
-            {tradeIns.map((item) => (
-              <div
-                key={item.id}
-                className="grid gap-2 py-4 sm:grid-cols-[1fr_auto] sm:items-center"
-              >
-                <div>
-                  <p className="text-sm font-semibold">
-                    {productNames[item.source_model as ProductId] ?? item.source_model} ·{" "}
-                    {item.serial_number}
-                  </p>
-                  <p className="mt-1 text-xs text-[#86868b]">
-                    Crédito de R$ {(item.credit_cents / 100).toFixed(2).replace(".", ",")}
-                  </p>
-                </div>
-                <span className="text-xs font-semibold text-[#6e6e73]">
-                  {tradeInStatus(item.status)}
-                </span>
+    <main className="mx-auto max-w-7xl px-5 py-12 sm:py-16">
+      <div className="grid gap-8 lg:grid-cols-[210px_minmax(0,1fr)]">
+        <AccountSidebar />
+        <div className="min-w-0">
+          <section className="rounded-[32px] bg-white p-7 sm:p-10">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-[#0071e3]">Conta KodaCloud</p>
+                <h1 className="mt-2 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
+                  Olá{firstName ? `, ${firstName}` : ""}.
+                </h1>
+                <p className="mt-2 text-sm text-[#6e6e73]">{user.email}</p>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="mt-7 rounded-2xl bg-[#f5f5f7] p-6 text-sm text-[#6e6e73]">
-            Você ainda não iniciou um Trade In.
-          </div>
-        )}
-      </section>
-
-      <section className="mt-4 rounded-[32px] bg-white p-7 sm:p-10">
-        <div className="flex items-end justify-between gap-5">
-          <div>
-            <p className="text-sm font-semibold text-[#6e6e73]">Meu KodaBot</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
-              Meus dispositivos.
-            </h2>
-          </div>
-          <Package className="h-8 w-8 text-[#0071e3]" />
-        </div>
-        {loadingDevices ? (
-          <p className="py-14 text-center text-sm text-[#6e6e73]">Carregando seus KodaBots…</p>
-        ) : devices.length === 0 ? (
-          <div className="mt-8 rounded-[26px] bg-[#f5f5f7] p-7 text-center sm:p-10">
-            <Cloud className="mx-auto h-8 w-8 text-[#0071e3]" />
-            <h3 className="mt-5 text-2xl font-semibold">Nenhum KodaBot ativado nesta conta.</h3>
-            <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-[#6e6e73]">
-              Quando um KodaBot novo for ativado durante o primeiro setup com esta Conta KodaCloud,
-              ele aparecerá automaticamente aqui.
-            </p>
-            <a
-              href="/suporte/configurar"
-              className="mt-6 inline-flex text-sm font-semibold text-[#0066cc] hover:underline"
-            >
-              Como configurar ›
-            </a>
-          </div>
-        ) : (
-          <div className="mt-8 grid gap-4 lg:grid-cols-2">
-            {devices.map((device) => {
-              const modelName = productNames[device.model as ProductId] ?? device.model;
-              const warrantyActive = device.warranty_end
-                ? new Date(`${device.warranty_end}T23:59:59`) >= new Date()
-                : null;
-              return (
-                <article key={device.id} className="rounded-[26px] bg-[#f5f5f7] p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#86868b]">
-                        {device.status === "activated" ? "Ativado" : device.status}
-                      </p>
-                      <h3 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
-                        {modelName}
-                      </h3>
-                      <p className="mt-1 font-mono text-xs text-[#6e6e73]">
-                        {device.serial_number}
-                      </p>
-                    </div>
-                    <CheckCircle2 className="h-6 w-6 text-[#34c759]" />
-                  </div>
-                  <dl className="mt-6 space-y-3 text-sm">
-                    <div className="flex justify-between gap-4">
-                      <dt className="text-[#6e6e73]">KODA OS</dt>
-                      <dd className="font-medium">{device.kodaos_version ?? "—"}</dd>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <dt className="text-[#6e6e73]">Data de compra</dt>
-                      <dd className="font-medium">{formatDate(device.purchase_date)}</dd>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <dt className="text-[#6e6e73]">Garantia até</dt>
-                      <dd className="font-medium">{formatDate(device.warranty_end)}</dd>
-                    </div>
-                    {warrantyActive !== null && (
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-[#6e6e73]">Cobertura</dt>
-                        <dd
-                          className={
-                            warrantyActive
-                              ? "font-semibold text-green-700"
-                              : "font-semibold text-[#6e6e73]"
-                          }
-                        >
-                          {warrantyActive ? "Dentro do período" : "Período expirado"}
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                  <div className="mt-6 flex flex-wrap gap-4 border-t border-black/10 pt-5 text-xs font-semibold text-[#0066cc]">
-                    <a
-                      href={`/conta/dispositivo/${device.id}`}
-                      className="inline-flex items-center gap-1"
-                    >
-                      <Gauge className="h-3.5 w-3.5" /> Gerenciar
-                    </a>
-                    <a
-                      href={`/reparos/solicitar?device=${device.id}`}
-                      className="inline-flex items-center gap-1"
-                    >
-                      <Wrench className="h-3.5 w-3.5" /> Reparo
-                    </a>
-                    <a href="/suporte/garantia" className="inline-flex items-center gap-1">
-                      <ShieldCheck className="h-3.5 w-3.5" /> Garantia
-                    </a>
-                    <a href="/suporte/manuais" className="inline-flex items-center gap-1">
-                      <Settings2 className="h-3.5 w-3.5" /> Manuais
-                    </a>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      <section className="mt-4 rounded-[32px] bg-white p-7 sm:p-10">
-        <div className="flex items-end justify-between gap-5">
-          <div>
-            <p className="text-sm font-semibold text-[#6e6e73]">Suporte</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
-              Atendimentos recentes.
-            </h2>
-          </div>
-          <a
-            href="/suporte/contato"
-            className="text-xs font-semibold text-[#0066cc] hover:underline"
-          >
-            Novo atendimento
-          </a>
-        </div>
-        {cases.length ? (
-          <div className="mt-7 divide-y divide-black/10 border-y border-black/10">
-            {cases.map((item) => (
-              <a
-                key={item.id}
-                href={`/conta/atendimentos/${item.id}`}
-                className="grid gap-2 py-4 sm:grid-cols-[1fr_auto] sm:items-center"
-              >
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.14em] text-[#86868b]">
-                    {item.category}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold">{item.subject}</p>
-                  <p className="mt-1 text-xs text-[#86868b]">
-                    {new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(
-                      new Date(item.created_at),
-                    )}
-                  </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={async () => {
+                    await signOut();
+                    window.location.href = "/";
+                  }}
+                  className="inline-flex items-center gap-2 rounded-full border border-black/15 px-5 py-2.5 text-xs font-semibold"
+                >
+                  <LogOut className="h-3.5 w-3.5" /> Sair
+                </button>
+              </div>
+            </div>
+            <div className="mt-8 border-t border-black/10 pt-6">
+              {!editingName ? (
+                <button
+                  onClick={() => setEditingName(true)}
+                  className="text-xs font-semibold text-[#0066cc] hover:underline"
+                >
+                  Editar nome da conta
+                </button>
+              ) : (
+                <div className="flex max-w-md gap-2">
+                  <input
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    className="h-10 flex-1 rounded-xl border border-black/15 px-3 text-sm outline-none focus:border-[#0071e3]"
+                  />
+                  <button
+                    onClick={saveName}
+                    className="rounded-full bg-[#0071e3] px-4 text-xs font-semibold text-white"
+                  >
+                    Salvar
+                  </button>
                 </div>
-                <span className="text-xs font-semibold text-[#0066cc]">
-                  {item.status === "open"
-                    ? "Aberto"
-                    : item.status === "in_progress"
-                      ? "Em atendimento"
-                      : item.status === "waiting_customer"
-                        ? "Aguardando você"
-                        : item.status === "resolved"
-                          ? "Resolvido"
-                          : "Fechado"}{" "}
-                  ›
-                </span>
+              )}
+            </div>
+          </section>
+
+          <section
+            id="meus-kodabots"
+            className="mt-4 scroll-mt-20 rounded-[32px] bg-white p-7 sm:p-10"
+          >
+            <div className="flex items-end justify-between gap-5">
+              <div>
+                <p className="text-sm font-semibold text-[#6e6e73]">Meu KodaBot</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+                  Meus dispositivos.
+                </h2>
+              </div>
+              <Package className="h-8 w-8 text-[#0071e3]" />
+            </div>
+            {loadingDevices ? (
+              <p className="py-14 text-center text-sm text-[#6e6e73]">Carregando seus KodaBots…</p>
+            ) : devices.length === 0 ? (
+              <div className="mt-8 rounded-[26px] bg-[#f5f5f7] p-7 text-center sm:p-10">
+                <Cloud className="mx-auto h-8 w-8 text-[#0071e3]" />
+                <h3 className="mt-5 text-2xl font-semibold">Nenhum KodaBot ativado nesta conta.</h3>
+                <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-[#6e6e73]">
+                  Quando um KodaBot novo for ativado durante o primeiro setup com esta Conta
+                  KodaCloud, ele aparecerá automaticamente aqui.
+                </p>
+                <a
+                  href="/suporte/configurar"
+                  className="mt-6 inline-flex text-sm font-semibold text-[#0066cc] hover:underline"
+                >
+                  Como configurar ›
+                </a>
+              </div>
+            ) : (
+              <div className="mt-8 grid gap-4 lg:grid-cols-2">
+                {devices.map((device) => {
+                  const modelName = productNames[device.model as ProductId] ?? device.model;
+                  const warrantyActive = device.warranty_end
+                    ? new Date(`${device.warranty_end}T23:59:59`) >= new Date()
+                    : null;
+                  return (
+                    <article key={device.id} className="rounded-[26px] bg-[#f5f5f7] p-6">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#86868b]">
+                            {device.status === "activated" ? "Ativado" : device.status}
+                          </p>
+                          <h3 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                            {modelName}
+                          </h3>
+                          <p className="mt-1 font-mono text-xs text-[#6e6e73]">
+                            {device.serial_number}
+                          </p>
+                        </div>
+                        <CheckCircle2 className="h-6 w-6 text-[#34c759]" />
+                      </div>
+                      <dl className="mt-6 space-y-3 text-sm">
+                        <div className="flex justify-between gap-4">
+                          <dt className="text-[#6e6e73]">KODA OS</dt>
+                          <dd className="font-medium">{device.kodaos_version ?? "—"}</dd>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <dt className="text-[#6e6e73]">Data de compra</dt>
+                          <dd className="font-medium">{formatDate(device.purchase_date)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <dt className="text-[#6e6e73]">Garantia até</dt>
+                          <dd className="font-medium">{formatDate(device.warranty_end)}</dd>
+                        </div>
+                        {warrantyActive !== null && (
+                          <div className="flex justify-between gap-4">
+                            <dt className="text-[#6e6e73]">Cobertura</dt>
+                            <dd
+                              className={
+                                warrantyActive
+                                  ? "font-semibold text-green-700"
+                                  : "font-semibold text-[#6e6e73]"
+                              }
+                            >
+                              {warrantyActive ? "Dentro do período" : "Período expirado"}
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
+                      <div className="mt-6 flex flex-wrap gap-4 border-t border-black/10 pt-5 text-xs font-semibold text-[#0066cc]">
+                        <a
+                          href={`/conta/dispositivo/${device.id}`}
+                          className="inline-flex items-center gap-1"
+                        >
+                          <Gauge className="h-3.5 w-3.5" /> Gerenciar
+                        </a>
+                        <a
+                          href={`/reparos/solicitar?device=${device.id}`}
+                          className="inline-flex items-center gap-1"
+                        >
+                          <Wrench className="h-3.5 w-3.5" /> Reparo
+                        </a>
+                        <a href="/suporte/garantia" className="inline-flex items-center gap-1">
+                          <ShieldCheck className="h-3.5 w-3.5" /> Garantia
+                        </a>
+                        <a href="/suporte/manuais" className="inline-flex items-center gap-1">
+                          <Settings2 className="h-3.5 w-3.5" /> Manuais
+                        </a>
+                        <button
+                          disabled={deviceAction === device.id}
+                          onClick={() => resetDevice(device)}
+                          className="text-[#0066cc] disabled:opacity-50"
+                        >
+                          Redefinir KodaBot
+                        </button>
+                        <button
+                          disabled={deviceAction === device.id}
+                          onClick={() => removeDevice(device)}
+                          className="text-[#b42318] disabled:opacity-50"
+                        >
+                          Remover da conta
+                        </button>
+                      </div>
+                      {deviceMessage[device.id] && (
+                        <p className="mt-4 text-xs leading-relaxed text-[#6e6e73]">
+                          {deviceMessage[device.id]}
+                        </p>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section
+            id="atendimentos"
+            className="mt-4 scroll-mt-20 rounded-[32px] bg-white p-7 sm:p-10"
+          >
+            <div className="flex items-end justify-between gap-5">
+              <div>
+                <p className="text-sm font-semibold text-[#6e6e73]">Suporte</p>
+                <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+                  Atendimentos recentes.
+                </h2>
+              </div>
+              <a
+                href="/suporte/contato"
+                className="text-xs font-semibold text-[#0066cc] hover:underline"
+              >
+                Novo atendimento
               </a>
-            ))}
-          </div>
-        ) : (
-          <div className="mt-7 rounded-2xl bg-[#f5f5f7] p-6 text-sm text-[#6e6e73]">
-            Nenhum atendimento registrado nesta conta.
-          </div>
-        )}
-      </section>
-
-      <nav
-        aria-label="Áreas da Conta Koda"
-        className="mt-4 grid gap-3 rounded-[30px] bg-white p-5 sm:grid-cols-4"
-      >
-        <a href="/conta/pedidos" className="rounded-2xl bg-[#f5f5f7] p-4 text-sm font-semibold">
-          Pedidos
-        </a>
-        <a href="/conta/reparos" className="rounded-2xl bg-[#f5f5f7] p-4 text-sm font-semibold">
-          Reparos
-        </a>
-        <a
-          href="/conta/notificacoes"
-          className="rounded-2xl bg-[#f5f5f7] p-4 text-sm font-semibold"
-        >
-          Notificações
-        </a>
-        <a
-          href="/conta/configuracoes"
-          className="rounded-2xl bg-[#f5f5f7] p-4 text-sm font-semibold"
-        >
-          Configurações
-        </a>
-      </nav>
-
-      <section className="mt-4 grid gap-4 md:grid-cols-2">
-        <a
-          href="/suporte/garantia"
-          className="rounded-[30px] bg-white p-7 transition-transform hover:-translate-y-1"
-        >
-          <ShieldCheck className="h-7 w-7 text-[#0071e3]" />
-          <h2 className="mt-10 text-2xl font-semibold">Garantia e cobertura</h2>
-          <p className="mt-2 text-sm text-[#6e6e73]">
-            Consulte a cobertura vinculada ao seu dispositivo.
-          </p>
-        </a>
-        <a
-          href="/kodaos/updates"
-          className="rounded-[30px] bg-white p-7 transition-transform hover:-translate-y-1"
-        >
-          <CalendarDays className="h-7 w-7 text-[#0071e3]" />
-          <h2 className="mt-10 text-2xl font-semibold">Atualizações do KODA OS</h2>
-          <p className="mt-2 text-sm text-[#6e6e73]">
-            Veja versões, novidades e melhorias do sistema.
-          </p>
-        </a>
-      </section>
+            </div>
+            {cases.length ? (
+              <div className="mt-7 divide-y divide-black/10 border-y border-black/10">
+                {cases.map((item) => (
+                  <a
+                    key={item.id}
+                    href={`/conta/atendimentos/${item.id}`}
+                    className="grid gap-2 py-4 sm:grid-cols-[1fr_auto] sm:items-center"
+                  >
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-[#86868b]">
+                        {item.category}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold">{item.subject}</p>
+                      <p className="mt-1 text-xs text-[#86868b]">
+                        {new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(
+                          new Date(item.created_at),
+                        )}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-[#0066cc]">
+                      {item.status === "open"
+                        ? "Aberto"
+                        : item.status === "in_progress"
+                          ? "Em atendimento"
+                          : item.status === "waiting_customer"
+                            ? "Aguardando você"
+                            : item.status === "resolved"
+                              ? "Resolvido"
+                              : "Fechado"}{" "}
+                      ›
+                    </span>
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-7 rounded-2xl bg-[#f5f5f7] p-6 text-sm text-[#6e6e73]">
+                Nenhum atendimento registrado nesta conta.
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
     </main>
   );
-}
-
-function tradeInStatus(status: string) {
-  return status === "estimated"
-    ? "Avaliação criada"
-    : status === "reserved"
-      ? "Crédito reservado"
-      : status === "awaiting_shipment"
-        ? "Aguardando postagem"
-        : status === "in_transit"
-          ? "Em trânsito"
-          : status === "received" || status === "inspecting"
-            ? "Em inspeção"
-            : status === "approved" || status === "completed"
-              ? "Aprovado"
-              : status === "rejected"
-                ? "Não aprovado"
-                : "Cancelado";
 }

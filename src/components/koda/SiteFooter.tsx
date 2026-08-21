@@ -6,7 +6,6 @@ const groups = [
       ["KodaBot", "/kodabot"],
       ["KodaBot Pro", "/kodabot-pro"],
       ["Comparar modelos", "/comparar"],
-      ["Koda Trade In", "/trade-in"],
       ["KodaCare", "/kodacare"],
     ],
   },

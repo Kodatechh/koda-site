@@ -153,6 +153,11 @@ export type Database = {
           repair_discount_percent: number;
           cleaning_and_inspection_included: boolean;
           cancelled_at: string | null;
+          subscriber_user_id: string | null;
+          binding_scope: "device" | "account_device";
+          binding_active: boolean;
+          binding_suspended_at: string | null;
+          binding_suspension_reason: string | null;
           created_at: string;
         };
         Insert: {
@@ -170,11 +175,21 @@ export type Database = {
           repair_discount_percent?: number;
           cleaning_and_inspection_included?: boolean;
           cancelled_at?: string | null;
+          subscriber_user_id?: string | null;
+          binding_scope?: "device" | "account_device";
+          binding_active?: boolean;
+          binding_suspended_at?: string | null;
+          binding_suspension_reason?: string | null;
           created_at?: string;
         };
         Update: {
           status?: Database["public"]["Enums"]["koda_coverage_status"];
           cancelled_at?: string | null;
+          subscriber_user_id?: string | null;
+          binding_scope?: "device" | "account_device";
+          binding_active?: boolean;
+          binding_suspended_at?: string | null;
+          binding_suspension_reason?: string | null;
         };
         Relationships: [];
       };
@@ -313,9 +328,12 @@ export type Database = {
           source_model: "kodabot-i" | "kodabot-i-pro";
           serial_number: string;
           credit_cents: number;
+          estimated_credit_cents: number;
+          final_credit_cents: number | null;
           powers_on: boolean;
           enclosure_intact: boolean;
           screen_intact: boolean;
+          speaker_works: boolean | null;
           account_unlinked: boolean;
           status: string;
           purchase_order_id: string | null;
@@ -324,6 +342,11 @@ export type Database = {
           received_at: string | null;
           inspected_at: string | null;
           inspection_notes: string | null;
+          terms_accepted_at: string | null;
+          customer_decision_at: string | null;
+          coupon_code: string | null;
+          return_tracking_code: string | null;
+          return_shipping_payer: "customer" | "koda";
           created_at: string;
           updated_at: string;
         };
@@ -334,9 +357,13 @@ export type Database = {
           source_model: "kodabot-i" | "kodabot-i-pro";
           serial_number: string;
           credit_cents: number;
+          estimated_credit_cents: number;
+          final_credit_cents?: number | null;
           powers_on: boolean;
           enclosure_intact: boolean;
           screen_intact: boolean;
+          speaker_works?: boolean | null;
+          terms_accepted_at: string;
           account_unlinked?: boolean;
           status?: string;
         };
@@ -347,6 +374,10 @@ export type Database = {
           received_at?: string | null;
           inspected_at?: string | null;
           inspection_notes?: string | null;
+          final_credit_cents?: number | null;
+          coupon_code?: string | null;
+          customer_decision_at?: string | null;
+          return_tracking_code?: string | null;
         };
         Relationships: [];
       };
@@ -434,6 +465,10 @@ export type Database = {
         Args: { _role: Database["public"]["Enums"]["app_role"]; _user_id: string };
         Returns: boolean;
       };
+      respond_trade_in_offer: {
+        Args: { _request_id: string; _accept: boolean };
+        Returns: { status: string; coupon_code: string | null; credit_cents: number }[];
+      };
       factory_list_devices: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -491,6 +526,14 @@ export type Database = {
       request_device_command: {
         Args: { _device_id: string; _command: string; _payload?: Json };
         Returns: string;
+      };
+      request_device_transfer: {
+        Args: { _device_id: string };
+        Returns: string;
+      };
+      complete_device_transfer_reset: {
+        Args: { _transfer_id: string };
+        Returns: undefined;
       };
       koda_factory_register_device: {
         Args: {

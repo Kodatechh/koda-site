@@ -153,7 +153,7 @@ Deno.serve(async (req: Request) => {
     shippingAddress?: unknown;
     shippingQuoteToken?: string;
     shippingServiceId?: string;
-    tradeInRequestId?: string;
+    couponCode?: string;
   };
 
   try {
@@ -168,7 +168,7 @@ Deno.serve(async (req: Request) => {
   const deviceId = cleanText(input.deviceId, 80);
   const customerTaxId = digits(input.customerTaxId);
   const shippingQuoteToken = cleanText(input.shippingQuoteToken, 6000);
-  const tradeInRequestId = cleanText(input.tradeInRequestId, 80);
+  const couponCode = cleanText(input.couponCode, 80).toUpperCase();
 
   if (!productSlug || quantity < 1 || quantity > 20) return json({ error: "invalid_order" }, 400);
   if (checkoutReference && !/^[A-Za-z0-9_-]{16,100}$/.test(checkoutReference)) {
@@ -208,24 +208,27 @@ Deno.serve(async (req: Request) => {
     source_model: string;
     serial_number: string;
   } | null = null;
-  if (tradeInRequestId) {
+  if (couponCode) {
     if (quantity !== 1 || !["kodabot-i", "kodabot-i-pro"].includes(product.slug))
       return json({ error: "trade_in_not_available_for_product" }, 409);
     const { data: request, error: requestError } = await admin
       .from("trade_in_requests")
-      .select("id,user_id,credit_cents,source_model,serial_number,status,device_id")
-      .eq("id", tradeInRequestId)
+      .select(
+        "id,user_id,final_credit_cents,coupon_code,source_model,serial_number,status,device_id",
+      )
+      .eq("coupon_code", couponCode)
       .maybeSingle();
     if (requestError) return json({ error: "trade_in_lookup_failed" }, 500);
-    if (!request || request.user_id !== user.id || request.status !== "estimated")
+    if (
+      !request ||
+      request.user_id !== user.id ||
+      request.status !== "accepted" ||
+      !request.final_credit_cents
+    )
       return json({ error: "trade_in_not_available" }, 409);
-    const expectedCredit =
-      request.source_model === "kodabot-i"
-        ? 5990
-        : request.source_model === "kodabot-i-pro"
-          ? 7990
-          : 0;
-    if (!expectedCredit || request.credit_cents !== expectedCredit)
+    const maximumCredit = request.source_model === "kodabot-i" ? 5990 : 7990;
+    const expectedCredit = Number(request.final_credit_cents);
+    if (expectedCredit < 500 || expectedCredit > maximumCredit)
       return json({ error: "trade_in_invalid_credit" }, 409);
     const { data: ownedDevice } = await admin
       .from("devices")
@@ -371,6 +374,7 @@ Deno.serve(async (req: Request) => {
       subtotal_cents: subtotalCents,
       shipping_cents: shippingCents,
       discount_cents: discountCents,
+      coupon_code: tradeIn?.id ? couponCode : null,
       total_cents: totalCents,
       trade_in_request_id: tradeIn?.id ?? null,
       customer_name: shippingAddress?.recipient ?? profile?.full_name ?? null,
@@ -429,11 +433,11 @@ Deno.serve(async (req: Request) => {
     const { error: reserveError } = await admin
       .from("trade_in_requests")
       .update({
-        status: "reserved",
+        status: "completed",
         purchase_order_id: order.id,
       })
       .eq("id", tradeIn.id)
-      .eq("status", "estimated");
+      .eq("status", "accepted");
     if (reserveError) {
       await admin.from("orders").delete().eq("id", order.id);
       return json({ error: "trade_in_reservation_failed" }, 409);

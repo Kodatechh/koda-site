@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   QrCode,
+  Recycle,
   ShieldCheck,
   Truck,
 } from "lucide-react";
@@ -116,7 +117,8 @@ type TradeInRequest = {
   id: string;
   source_model: "kodabot-i" | "kodabot-i-pro";
   serial_number: string;
-  credit_cents: number;
+  final_credit_cents: number;
+  coupon_code: string;
   status: string;
 };
 
@@ -240,6 +242,7 @@ function Field({
   className = "",
   maxLength,
   inputMode,
+  placeholder,
 }: {
   label: string;
   value: string;
@@ -248,6 +251,7 @@ function Field({
   className?: string;
   maxLength?: number;
   inputMode?: "text" | "numeric" | "tel";
+  placeholder?: string;
 }) {
   return (
     <label className={`block ${className}`}>
@@ -258,6 +262,7 @@ function Field({
         disabled={disabled}
         maxLength={maxLength}
         inputMode={inputMode}
+        placeholder={placeholder}
         className="h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none transition focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/10 disabled:bg-[#f5f5f7] disabled:text-[#86868b]"
       />
     </label>
@@ -282,10 +287,10 @@ function CheckoutPage() {
   const [copied, setCopied] = useState(false);
   const [checkoutReference] = useState(createCheckoutReference);
   const [customerTaxId, setCustomerTaxId] = useState("");
-  const [tradeInRequestId] = useState(() =>
+  const [couponCode, setCouponCode] = useState(() =>
     typeof window === "undefined"
       ? ""
-      : (new URLSearchParams(window.location.search).get("tradeIn") ?? ""),
+      : (new URLSearchParams(window.location.search).get("coupon") ?? ""),
   );
   const [tradeIn, setTradeIn] = useState<TradeInRequest | null>(null);
 
@@ -362,18 +367,18 @@ function CheckoutPage() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!user || !tradeInRequestId) {
+    if (!user || !couponCode.trim()) {
       setTradeIn(null);
       return;
     }
     db.from("trade_in_requests")
-      .select("id,source_model,serial_number,credit_cents,status")
-      .eq("id", tradeInRequestId)
+      .select("id,source_model,serial_number,final_credit_cents,coupon_code,status")
+      .eq("coupon_code", couponCode.trim().toUpperCase())
       .eq("user_id", user.id)
-      .eq("status", "estimated")
+      .eq("status", "accepted")
       .maybeSingle()
       .then(({ data }: { data: TradeInRequest | null }) => setTradeIn(data));
-  }, [db, tradeInRequestId, user?.id]);
+  }, [couponCode, db, user?.id]);
 
   useEffect(() => {
     const requiresOwnedDevice = Boolean(
@@ -483,7 +488,7 @@ function CheckoutPage() {
     return unit == null ? null : unit * quantity;
   }, [catalog?.product.unit_amount_cents, quantity]);
 
-  const tradeInCreditCents = tradeIn?.credit_cents ?? 0;
+  const tradeInCreditCents = tradeIn?.final_credit_cents ?? 0;
   const totalCents =
     subtotalCents == null
       ? null
@@ -505,7 +510,7 @@ function CheckoutPage() {
       quantity,
       checkoutReference,
       customerTaxId: customerTaxId.replace(/\D/g, ""),
-      ...(tradeIn?.id ? { tradeInRequestId: tradeIn.id } : {}),
+      ...(tradeIn?.coupon_code ? { couponCode: tradeIn.coupon_code } : {}),
       ...(deviceRequired && selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
       ...(shippingRequired
         ? { shippingAddress: address as unknown as Record<string, string> }
@@ -520,7 +525,7 @@ function CheckoutPage() {
       quantity,
       checkoutReference,
       customerTaxId,
-      tradeIn?.id,
+      tradeIn?.coupon_code,
       deviceRequired,
       selectedDeviceId,
       shippingRequired,
@@ -690,9 +695,13 @@ function CheckoutPage() {
             <div className="space-y-5">
               <section className="overflow-hidden rounded-[38px] bg-white">
                 {catalog.product.image_url && (
-                  <div className="grid h-64 place-items-center bg-[#f5f5f7] p-6">
+                  <div className="grid h-64 place-items-center bg-white p-6">
                     <img
-                      src={catalog.product.image_url}
+                      src={
+                        catalog.product.slug === "kodabot-i"
+                          ? "/kodabot-checkout-transparent-v1.png"
+                          : catalog.product.image_url
+                      }
                       alt={catalog.product.name}
                       className="h-full w-full object-contain"
                     />
@@ -750,6 +759,31 @@ function CheckoutPage() {
                   </div>
                 </div>
               </section>
+
+              {["kodabot-i", "kodabot-i-pro"].includes(catalog.product.slug) && (
+                <section className="rounded-[38px] bg-white p-7 sm:p-10">
+                  <div className="flex items-start gap-4">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#eaf7ee]">
+                      <Recycle className="h-5 w-5 text-[#248a3d]" />
+                    </span>
+                    <div>
+                      <h2 className="text-xl font-semibold tracking-[-.03em]">
+                        Tem um KodaBot para trocar?
+                      </h2>
+                      <p className="mt-2 text-sm leading-relaxed text-[#6e6e73]">
+                        Envie gratuitamente para análise. Aceitamos aparelhos com avarias e, após a
+                        inspeção, você decide se aceita o crédito para esta compra.
+                      </p>
+                      <a
+                        href="/trade-in"
+                        className="mt-4 inline-flex text-sm font-semibold text-[#0066cc]"
+                      >
+                        Ver estimativa e solicitar análise ›
+                      </a>
+                    </div>
+                  </div>
+                </section>
+              )}
 
               {deviceRequired && (
                 <section className="rounded-[38px] bg-white p-7 sm:p-10">
@@ -978,7 +1012,9 @@ function CheckoutPage() {
                 {tradeIn && (
                   <div className="flex justify-between gap-4 text-[#1f7a3f]">
                     <span>Koda Trade In</span>
-                    <span>− {formatMoney(tradeIn.credit_cents, catalog.product.currency)}</span>
+                    <span>
+                      − {formatMoney(tradeIn.final_credit_cents, catalog.product.currency)}
+                    </span>
                   </div>
                 )}
                 {selectedDevice && (
@@ -999,6 +1035,25 @@ function CheckoutPage() {
                   </strong>
                 </div>
               </div>
+              {["kodabot-i", "kodabot-i-pro"].includes(catalog.product.slug) && (
+                <div className="mt-6 rounded-2xl bg-[#f5f5f7] p-4">
+                  <Field
+                    label="Cupom da avaliação"
+                    value={couponCode}
+                    onChange={(value) => setCouponCode(value.toUpperCase())}
+                    disabled={paymentLocked}
+                    placeholder="KODA-TI-XXXXXXXXXX"
+                  />
+                  <p className="mt-2 text-[10px] leading-relaxed text-[#86868b]">
+                    O cupom é liberado somente depois da análise e da sua aceitação da oferta.
+                  </p>
+                  {couponCode && !tradeIn && (
+                    <p className="mt-2 text-xs font-semibold text-[#bf4800]">
+                      Cupom ainda não liberado ou inválido para esta conta.
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="mt-6 rounded-2xl bg-[#f5f5f7] p-4">
                 <Field
                   label="CPF ou CNPJ para nota fiscal"
