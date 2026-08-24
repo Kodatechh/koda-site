@@ -397,12 +397,15 @@ function GuidedPurchase() {
               <p className="text-sm text-[#86868b]">5 de 5</p>
               <h2 className="mt-2 text-4xl font-semibold tracking-[-.05em]">Seu KodaBot.</h2>
               <div className="mt-8 grid gap-7 md:grid-cols-[220px_1fr]">
-                <div className="grid h-64 place-items-center rounded-[28px] bg-[#f5f5f7] p-5">
-                  <img
-                    src="/kodabot-checkout-transparent-v1.png"
-                    alt="KodaBot"
-                    className="h-full w-full object-contain"
-                  />
+                <div className="h-64 rounded-[28px] bg-[#f5f5f7] p-5">
+                  <div className="relative isolate h-full w-full overflow-hidden">
+                    <img
+                      src="/kodabot-checkout-transparent-v1.png"
+                      alt="KodaBot"
+                      className="absolute inset-0 m-auto block max-h-full max-w-full object-contain"
+                      style={{ width: "auto", height: "100%" }}
+                    />
+                  </div>
                 </div>
                 <div>
                   <div className="space-y-4 border-b border-black/10 pb-6 text-sm">

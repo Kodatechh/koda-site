@@ -733,16 +733,19 @@ function CheckoutPage() {
             <div className="space-y-5">
               <section className="overflow-hidden rounded-[38px] bg-white">
                 {catalog.product.image_url && (
-                  <div className="grid h-64 place-items-center bg-white p-6">
-                    <img
-                      src={
-                        catalog.product.slug === "kodabot-i"
-                          ? "/kodabot-checkout-transparent-v1.png"
-                          : catalog.product.image_url
-                      }
-                      alt={catalog.product.name}
-                      className="h-full w-full object-contain"
-                    />
+                  <div className="h-64 bg-white p-6">
+                    <div className="relative isolate h-full w-full overflow-hidden">
+                      <img
+                        src={
+                          catalog.product.slug === "kodabot-i"
+                            ? "/kodabot-checkout-transparent-v1.png"
+                            : catalog.product.image_url
+                        }
+                        alt={catalog.product.name}
+                        className="absolute inset-0 m-auto block max-h-full max-w-full object-contain"
+                        style={{ width: "auto", height: "100%" }}
+                      />
+                    </div>
                   </div>
                 )}
                 <div className="p-7 sm:p-10">
