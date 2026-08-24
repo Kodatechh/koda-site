@@ -509,19 +509,30 @@ function ChoiceCard({
           <Check className="h-4 w-4" />
         </span>
       )}
-      <div className="grid h-44 place-items-center">
-        {image ? <img src={image} alt="" className="h-full w-full object-contain" /> : icon}
+      <div className="relative isolate flex h-44 items-center justify-center overflow-hidden rounded-[22px]">
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            className="absolute inset-0 m-auto block max-h-full max-w-full object-contain"
+            style={{ width: "auto", height: "100%" }}
+          />
+        ) : (
+          icon
+        )}
       </div>
-      <p className={`mt-5 text-xs font-semibold ${dark ? "text-[#2997ff]" : "text-[#0071e3]"}`}>
-        {eyebrow}
-      </p>
-      <h3 className="mt-2 text-3xl font-semibold tracking-[-.05em]">{title}</h3>
-      <p
-        className={`mt-3 min-h-10 text-xs leading-relaxed ${dark ? "text-white/60" : "text-[#6e6e73]"}`}
-      >
-        {description}
-      </p>
-      <p className="mt-6 text-sm font-semibold">{price}</p>
+      <div className="relative z-10">
+        <p className={`mt-5 text-xs font-semibold ${dark ? "text-[#2997ff]" : "text-[#0071e3]"}`}>
+          {eyebrow}
+        </p>
+        <h3 className="mt-2 text-3xl font-semibold tracking-[-.05em]">{title}</h3>
+        <p
+          className={`mt-3 min-h-10 text-xs leading-relaxed ${dark ? "text-white/60" : "text-[#6e6e73]"}`}
+        >
+          {description}
+        </p>
+        <p className="mt-6 text-sm font-semibold">{price}</p>
+      </div>
     </button>
   );
 }
