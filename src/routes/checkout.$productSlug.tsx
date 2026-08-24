@@ -62,6 +62,9 @@ type CreatedOrder = {
   discount_cents?: number;
   total_cents?: number;
   fulfillment_status?: string;
+  sales_mode?: "standard" | "preorder";
+  release_at?: string | null;
+  estimated_ship_start_at?: string | null;
 };
 
 type PixPayment = {
@@ -300,13 +303,25 @@ function CheckoutPage() {
       : (new URLSearchParams(window.location.search).get("coupon") ?? ""),
   );
   const [tradeIn, setTradeIn] = useState<TradeInRequest | null>(null);
-  const [includePowerAdapter, setIncludePowerAdapter] = useState(false);
+  const [includePowerAdapter, setIncludePowerAdapter] = useState(() =>
+    typeof window === "undefined"
+      ? false
+      : new URLSearchParams(window.location.search).get("adapter") === "1",
+  );
 
   const [devices, setDevices] = useState<KodaDevice[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState("");
 
-  const [address, setAddress] = useState<Address>(emptyAddress);
+  const [address, setAddress] = useState<Address>(() => ({
+    ...emptyAddress,
+    postalCode:
+      typeof window === "undefined"
+        ? ""
+        : (new URLSearchParams(window.location.search).get("cep") ?? "")
+            .replace(/\D/g, "")
+            .slice(0, 8),
+  }));
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [shippingProvider, setShippingProvider] = useState<string | null>(null);
@@ -512,6 +527,11 @@ function CheckoutPage() {
     order && ["paid", "processing", "shipped", "delivered"].includes(order.status),
   );
 
+  useEffect(() => {
+    if (!paid || !order?.id) return;
+    window.location.replace(`/pedido-confirmado/${order.id}`);
+  }, [order?.id, paid]);
+
   const orderRequest = useMemo(
     () => ({
       productSlug: catalog?.product.slug ?? productSlug,
@@ -649,14 +669,20 @@ function CheckoutPage() {
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eaf8ee] text-[#248a3d]">
               <CheckCircle2 className="h-9 w-9" />
             </div>
-            <p className="mt-7 text-sm font-semibold text-[#248a3d]">Pagamento confirmado</p>
+            <p className="mt-7 text-sm font-semibold text-[#248a3d]">
+              {order.sales_mode === "preorder" ? "Pré-venda confirmada" : "Pagamento confirmado"}
+            </p>
             <h1 className="mx-auto mt-2 max-w-xl text-5xl font-semibold tracking-[-.06em] sm:text-6xl">
-              Tudo certo com seu pedido.
+              {order.sales_mode === "preorder"
+                ? "Sua unidade está reservada."
+                : "Tudo certo com seu pedido."}
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-[#6e6e73]">
               {catalog?.product.product_type === "coverage"
                 ? "O KodaCare+ pertence à sua Conta Koda e já está aplicado ao KodaBot escolhido."
-                : "A Koda recebeu a confirmação do pagamento. Preparação, envio e entrega aparecem na sua Conta Koda."}
+                : order.sales_mode === "preorder"
+                  ? "A Koda recebeu a confirmação do pagamento. O lançamento e o início dos envios estão previstos para 17 de outubro de 2026."
+                  : "A Koda recebeu a confirmação do pagamento. Preparação, envio e entrega aparecem na sua Conta Koda."}
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
               <a

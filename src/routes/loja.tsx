@@ -2,30 +2,19 @@ import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ArrowRight,
-  Bot,
-  Cable,
-  ChevronLeft,
   ChevronRight,
-  CircleHelp,
   Headphones,
-  HeartHandshake,
   LoaderCircle,
   Package,
-  UserRound,
-  Wrench,
-  type LucideIcon,
+  Recycle,
+  ShieldCheck,
+  Sparkles,
+  Truck,
 } from "lucide-react";
 
 import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
-
-type StoreMedia = {
-  id: string;
-  url: string;
-  alt_text: string | null;
-  is_primary: boolean;
-};
 
 type StoreProduct = {
   slug: string;
@@ -33,41 +22,27 @@ type StoreProduct = {
   short_description: string | null;
   description: string | null;
   category: string | null;
-  category_id: string | null;
   product_type: "physical" | "digital" | "service" | "coverage" | "subscription";
   image_url: string | null;
-  media: StoreMedia[];
-  featured: boolean;
   available: boolean;
   currency: string;
   unit_amount_cents: number | null;
-  compare_at_cents: number | null;
   in_stock: boolean;
-  requires_shipping: boolean;
-  requires_device: boolean;
   sales_mode?: "preorder" | "standard" | "waitlist";
   waitlist_enabled?: boolean;
   preorder_price_cents?: number | null;
   regular_price_cents?: number | null;
-  launch_at?: string | null;
 };
 
-type StoreCategory = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-};
-
-type CatalogListResponse = { products: StoreProduct[]; categories: StoreCategory[] };
+type CatalogListResponse = { products: StoreProduct[] };
 
 export const Route = createFileRoute("/loja")({
   head: () => ({
     meta: [
-      { title: "Loja Koda — Produtos e acessórios" },
+      { title: "Loja Koda — KodaBot e acessórios" },
       {
         name: "description",
-        content: "Compre produtos e acessórios diretamente da Koda.",
+        content: "Compre o KodaBot, acessórios e encontre ajuda para escolher.",
       },
     ],
   }),
@@ -79,437 +54,295 @@ function money(cents: number | null, currency = "BRL") {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(cents / 100);
 }
 
-function storePrice(product: StoreProduct) {
-  const waitlist = product.waitlist_enabled || product.sales_mode === "waitlist";
-  if (waitlist && product.preorder_price_cents != null) {
-    return {
-      label: "Pré-venda futura",
-      amount: money(product.preorder_price_cents, product.currency),
-      note:
-        product.regular_price_cents != null
-          ? `Após o lançamento: ${money(product.regular_price_cents, product.currency)}`
-          : null,
-    };
-  }
-  return {
-    label: product.sales_mode === "preorder" ? "Preço de pré-venda" : "A partir de",
-    amount: money(product.unit_amount_cents, product.currency),
-    note: null,
-  };
-}
-
-function visualTone(product: StoreProduct) {
-  if (product.slug.includes("pro")) return "bg-[#0b0b0d] text-white";
-  if (product.slug.startsWith("kodabot"))
-    return "bg-[linear-gradient(145deg,#f9fbff,#e8eef8)] text-[#111216]";
-  return "bg-[linear-gradient(145deg,#fafafa,#e9e9ed)] text-[#1d1d1f]";
-}
-
-function ProductVisual({ product, compact = false }: { product: StoreProduct; compact?: boolean }) {
-  const isKodaBot = product.slug === "kodabot-i";
-
-  return (
-    <div
-      className={`relative grid overflow-hidden ${compact ? "h-48" : "h-[310px] sm:h-[360px]"} ${visualTone(product)}`}
-    >
-      {isKodaBot ? (
-        <img
-          src="/kodabot-checkout-transparent-v1.png"
-          alt="KodaBot"
-          className="h-full w-full object-contain p-5"
-          loading="lazy"
-        />
-      ) : product.image_url ? (
-        <img
-          src={product.image_url}
-          alt={product.name}
-          className="h-full w-full object-contain p-5"
-          loading="lazy"
-        />
-      ) : (
-        <div className="grid place-items-center p-8 text-center">
-          <div>
-            <div
-              className={`mx-auto grid ${compact ? "h-14 w-14 text-2xl" : "h-20 w-20 text-4xl"} place-items-center rounded-[28%] bg-current/10 font-semibold tracking-[-.08em]`}
-            >
-              K
-            </div>
-            <p
-              className={`${compact ? "mt-5 text-xl" : "mt-7 text-3xl"} font-semibold tracking-[-.05em]`}
-            >
-              {product.name}
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BuyLink({ product, small = false }: { product: StoreProduct; small?: boolean }) {
-  const waitlist = product.waitlist_enabled || product.sales_mode === "waitlist";
-  return (
-    <a
-      href={waitlist ? "/kodabot-pro#lista-de-espera" : `/checkout/${product.slug}`}
-      className={`inline-flex items-center justify-center rounded-full bg-[#0071e3] font-semibold text-white transition-colors hover:bg-[#0077ed] ${small ? "px-4 py-2 text-xs" : "px-5 py-2.5 text-sm"} ${product.available || waitlist ? "" : "pointer-events-none opacity-40"}`}
-    >
-      {waitlist ? "Avise-me" : product.available ? "Comprar" : "Indisponível"}
-    </a>
-  );
-}
-
-type Department = {
-  label: string;
-  href: string;
-  image?: string;
-  icon?: LucideIcon;
-  accent?: string;
-};
-
-function KodaBotSymbol({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 72 72"
-      aria-hidden="true"
-      className={className}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M25 12h22c7.2 0 13 5.8 13 13v27c0 7.2-5.8 13-13 13H25c-7.2 0-13-5.8-13-13V25c0-7.2 5.8-13 13-13Z"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
-      <path
-        d="M21 12V7m30 5V7M12 31H7m5 17H7m53-17h5m-5 17h5"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <rect x="22" y="23" width="28" height="30" rx="4" stroke="currentColor" strokeWidth="2.6" />
-      <path d="M28 31h16M28 37h11" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
-      <circle cx="29" cy="45" r="2" fill="currentColor" />
-      <circle cx="36" cy="45" r="2" fill="currentColor" />
-      <circle cx="43" cy="45" r="2" fill="currentColor" />
-    </svg>
-  );
-}
-
-const departments: Department[] = [
-  { label: "KodaBot", href: "/kodabot" },
-  { label: "KodaBot Pro", href: "/kodabot-pro", icon: Bot },
-  { label: "Acessórios", href: "#catalogo", icon: Cable },
-  { label: "Pedidos", href: "/conta/pedidos", icon: Package },
-  { label: "Conta Koda", href: "/conta", icon: UserRound },
-  { label: "Reparos", href: "/reparos/solicitar", icon: Wrench },
-  { label: "Suporte", href: "/suporte", icon: Headphones },
-];
-
 function StorePage() {
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      const { data, error: invokeError } = await supabase.functions.invoke<CatalogListResponse>(
-        "koda-pay-catalog",
-        {
-          body: { list: true },
-        },
-      );
-      if (!alive) return;
-      if (invokeError || !data) {
-        setError("Não foi possível carregar a loja agora.");
-        setProducts([]);
-      } else {
+    supabase.functions
+      .invoke<CatalogListResponse>("koda-pay-catalog", { body: { list: true } })
+      .then(({ data, error: invokeError }) => {
+        if (!alive) return;
+        setError(Boolean(invokeError || !data));
         setProducts(
-          (data.products ?? []).filter((product) => !product.slug.startsWith("kodacare")),
+          (data?.products ?? []).filter((product) => !product.slug.startsWith("kodacare")),
         );
-      }
-      setLoading(false);
-    }
-    void load();
+        setLoading(false);
+      });
     return () => {
       alive = false;
     };
   }, []);
 
-  const featured = useMemo(() => {
-    const explicit = products.filter((product) => product.featured);
-    return explicit.length ? explicit : products.slice(0, 6);
-  }, [products]);
+  const kodaBot = useMemo(
+    () => products.find((product) => product.slug === "kodabot-i") ?? null,
+    [products],
+  );
+  const pro = useMemo(
+    () => products.find((product) => product.slug === "kodabot-i-pro") ?? null,
+    [products],
+  );
+  const accessories = useMemo(
+    () => products.filter((product) => !product.slug.startsWith("kodabot-i")),
+    [products],
+  );
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
       <Nav />
-      <main className="overflow-hidden">
-        <section className="border-b border-black/[.04] bg-white">
-          <div className="mx-auto flex min-h-[58px] max-w-[1200px] items-center justify-between gap-4 px-5 py-3 text-center text-xs sm:text-sm">
-            <button
-              type="button"
-              aria-label="Oferta anterior"
-              className="hidden text-[#6e6e73] sm:block"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <p className="mx-auto">
-              KodaBot em pré-venda por R$ 99,90 até 16/10. Envios a partir de 17/10.{" "}
-              <a href="/checkout/kodabot-i" className="text-[#0066cc] hover:underline">
-                Comprar <CircleHelp className="inline h-4 w-4" />
-              </a>
-            </p>
-            <button
-              type="button"
-              aria-label="Próxima oferta"
-              className="hidden text-[#6e6e73] sm:block"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+      <main>
+        <section className="bg-white px-5 py-3 text-center text-xs sm:text-sm">
+          Pré-venda do KodaBot por R$ 99,90 até 16/10. Envios a partir de 17/10.{" "}
+          <a href="/comprar" className="font-semibold text-[#0066cc]">
+            Comprar ›
+          </a>
         </section>
 
-        <section className="bg-[#f5f5f7] px-5 pb-6 pt-14 sm:pb-8 sm:pt-20">
-          <div className="mx-auto grid max-w-[1200px] gap-10 lg:grid-cols-[1fr_320px] lg:items-center">
-            <div>
-              <h1 className="max-w-[880px] text-5xl font-semibold leading-[.98] tracking-[-.065em] sm:text-7xl lg:text-[76px]">
-                Loja.{" "}
-                <span className="text-[#6e6e73]">O melhor jeito de comprar tudo da Koda.</span>
-              </h1>
-            </div>
-            <div className="space-y-5 text-sm lg:justify-self-end">
-              <a href="/suporte" className="group flex items-center gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm">
-                  <HeartHandshake className="h-4 w-4" />
-                </span>
-                <span>
-                  <strong className="block text-xs">Precisa de ajuda para comprar?</strong>
-                  <span className="text-xs text-[#0066cc]">
-                    Fale com a Koda <ChevronRight className="inline h-3 w-3" />
-                  </span>
-                </span>
-              </a>
-              <a href="/conta" className="group flex items-center gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-white shadow-sm">
-                  <UserRound className="h-4 w-4" />
-                </span>
-                <span>
-                  <strong className="block text-xs">Continue de onde parou.</strong>
-                  <span className="text-xs text-[#0066cc]">
-                    Acesse sua Conta Koda <ChevronRight className="inline h-3 w-3" />
-                  </span>
-                </span>
-              </a>
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-[#f5f5f7] pb-16 pt-8 sm:pb-20">
-          <div className="no-scrollbar mx-auto flex max-w-[1320px] gap-7 overflow-x-auto px-5 pb-3 sm:gap-10">
-            {departments.map((department) => {
-              const Icon = department.icon;
-              return (
+        <section className="px-5 pb-12 pt-16 sm:pb-16 sm:pt-24">
+          <div className="mx-auto max-w-[1180px]">
+            <div className="grid gap-10 lg:grid-cols-[1fr_360px] lg:items-end">
+              <div>
+                <p className="text-sm font-semibold text-[#0071e3]">Loja Koda</p>
+                <h1 className="mt-3 max-w-[850px] text-6xl font-semibold leading-[.94] tracking-[-.075em] sm:text-8xl">
+                  Tudo para começar bem com seu Koda.
+                </h1>
+              </div>
+              <div className="space-y-3">
                 <a
-                  key={department.label}
-                  href={department.href}
-                  className="group w-[116px] shrink-0 text-center"
+                  href="/comprar"
+                  className="group flex items-center gap-4 rounded-[24px] bg-white p-5 shadow-sm"
                 >
-                  <span className="grid h-[112px] place-items-center transition-transform duration-300 group-hover:-translate-y-1.5">
-                    {department.label === "KodaBot" ? (
-                      <KodaBotSymbol className="h-[72px] w-[72px] text-[#1d1d1f]" />
-                    ) : department.image ? (
-                      <img
-                        src={department.image}
-                        alt=""
-                        className="h-[108px] w-[118px] max-w-none object-contain mix-blend-multiply"
-                      />
-                    ) : Icon ? (
-                      <Icon
-                        className={`h-16 w-16 ${department.accent || "text-[#1d1d1f]"}`}
-                        strokeWidth={1.05}
-                      />
-                    ) : null}
+                  <span className="grid h-11 w-11 place-items-center rounded-full bg-[#eef6ff] text-[#0071e3]">
+                    <Sparkles className="h-5 w-5" />
                   </span>
-                  <span className="mt-2 block text-sm font-semibold">{department.label}</span>
+                  <span className="min-w-0 flex-1">
+                    <strong className="block text-sm">Não sabe por onde começar?</strong>
+                    <span className="mt-1 block text-xs text-[#0066cc]">Use a compra guiada</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-[#86868b]" />
                 </a>
-              );
-            })}
+                <a
+                  href="/conta/pedidos"
+                  className="group flex items-center gap-4 rounded-[24px] bg-white p-5 shadow-sm"
+                >
+                  <span className="grid h-11 w-11 place-items-center rounded-full bg-[#f5f5f7]">
+                    <Package className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <strong className="block text-sm">Já comprou?</strong>
+                    <span className="mt-1 block text-xs text-[#0066cc]">
+                      Acompanhe sua pré-venda
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-[#86868b]" />
+                </a>
+              </div>
+            </div>
+
+            <div className="mt-12 flex gap-3 overflow-x-auto pb-2">
+              <QuickLink href="#kodabot" label="KodaBot" />
+              <QuickLink href="#acessorios" label="Acessórios" />
+              <QuickLink href="/comparar" label="Comparar" />
+              <QuickLink href="/comprar" label="Compra guiada" />
+              <QuickLink href="/trade-in" label="Trade In" />
+              <QuickLink href="/suporte" label="Suporte" />
+            </div>
           </div>
         </section>
 
         {loading ? (
-          <section className="grid min-h-[500px] place-items-center bg-white">
+          <section className="grid min-h-[540px] place-items-center bg-white">
             <div className="text-center text-sm text-[#6e6e73]">
               <LoaderCircle className="mx-auto h-7 w-7 animate-spin text-[#0071e3]" />
-              <p className="mt-3">Preparando a Loja Koda…</p>
+              <p className="mt-3">Preparando a loja…</p>
             </div>
           </section>
         ) : error ? (
-          <section className="mx-auto max-w-[1200px] px-5 py-20">
-            <div className="rounded-[32px] bg-white p-12 text-center">
-              <Package className="mx-auto h-9 w-9 text-[#86868b]" />
-              <h2 className="mt-5 text-3xl font-semibold tracking-[-.04em]">
-                A loja está temporariamente indisponível.
-              </h2>
-              <p className="mt-3 text-sm text-[#6e6e73]">{error}</p>
+          <section className="mx-auto max-w-[1180px] px-5 pb-24">
+            <div className="rounded-[36px] bg-white p-12 text-center">
+              <h2 className="text-3xl font-semibold">A loja está temporariamente indisponível.</h2>
+              <p className="mt-3 text-sm text-[#6e6e73]">Tente novamente em alguns instantes.</p>
             </div>
           </section>
         ) : (
           <>
-            {featured.length > 0 && (
-              <section className="bg-[#f5f5f7] pb-20">
-                <div className="mx-auto max-w-[1200px] px-5">
-                  <h2 className="text-3xl font-semibold tracking-[-.05em] sm:text-4xl">
-                    Novidades. <span className="text-[#6e6e73]">Veja o que está em destaque.</span>
-                  </h2>
-                </div>
-                <div className="no-scrollbar mx-auto mt-7 flex max-w-[1280px] gap-5 overflow-x-auto px-5 pb-6">
-                  {featured.map((product) => {
-                    const price = storePrice(product);
-                    return (
-                      <article
-                        key={product.slug}
-                        className="w-[330px] shrink-0 overflow-hidden rounded-[32px] bg-white shadow-[0_12px_35px_rgba(0,0,0,.07)] transition-transform duration-300 hover:-translate-y-1 sm:w-[390px]"
+            {kodaBot && (
+              <section id="kodabot" className="px-3 pb-3">
+                <article className="mx-auto grid min-h-[720px] max-w-[1400px] overflow-hidden rounded-[44px] bg-white lg:grid-cols-[.92fr_1.08fr]">
+                  <div className="flex flex-col justify-center p-8 sm:p-14 lg:p-20">
+                    <p className="text-sm font-semibold text-[#0071e3]">Pré-venda</p>
+                    <h2 className="mt-3 text-6xl font-semibold tracking-[-.07em] sm:text-7xl">
+                      KodaBot
+                    </h2>
+                    <p className="mt-4 max-w-lg text-2xl font-semibold tracking-[-.035em] text-[#6e6e73]">
+                      Simples, útil e bonito para o seu dia.
+                    </p>
+                    <p className="mt-7 max-w-lg text-sm leading-relaxed text-[#6e6e73]">
+                      Tela touch, KODA OS e informações rápidas. Cabo Micro USB incluído; adaptador
+                      de tomada disponível como acessório.
+                    </p>
+                    <p className="mt-8 text-3xl font-semibold tracking-[-.04em]">
+                      {money(kodaBot.unit_amount_cents, kodaBot.currency)}
+                    </p>
+                    <p className="mt-1 text-xs text-[#86868b]">
+                      Envios a partir de 17 de outubro de 2026.
+                    </p>
+                    <div className="mt-8 flex flex-wrap gap-3">
+                      <a
+                        href="/comprar"
+                        className="rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white"
                       >
-                        <ProductVisual product={product} />
-                        <div className="p-7 sm:p-8">
-                          <p className="text-[11px] font-semibold uppercase tracking-[.09em] text-[#0071e3]">
-                            {product.category || "Koda"}
-                          </p>
-                          <h3 className="mt-2 text-3xl font-semibold tracking-[-.05em]">
-                            {product.name}
-                          </h3>
-                          <p className="mt-3 min-h-10 text-sm leading-relaxed text-[#6e6e73]">
-                            {product.short_description ||
-                              product.description ||
-                              "Feito para funcionar de forma simples no ecossistema Koda."}
-                          </p>
-                          <div className="mt-7 flex items-end justify-between gap-4">
-                            <div>
-                              <p className="text-[11px] text-[#86868b]">{price.label}</p>
-                              <p className="mt-1 text-lg font-semibold">{price.amount}</p>
-                              {price.note ? (
-                                <p className="mt-1 text-[11px] text-[#86868b]">{price.note}</p>
-                              ) : null}
-                            </div>
-                            <BuyLink product={product} />
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
+                        Comprar com ajuda
+                      </a>
+                      <a
+                        href="/checkout/kodabot-i"
+                        className="rounded-full border border-[#0071e3] px-6 py-3 text-sm font-semibold text-[#0066cc]"
+                      >
+                        Comprar direto
+                      </a>
+                    </div>
+                    <a
+                      href="/kodabot"
+                      className="mt-7 inline-flex items-center gap-1 text-sm font-semibold text-[#0066cc]"
+                    >
+                      Conhecer todos os detalhes <ChevronRight className="h-4 w-4" />
+                    </a>
+                  </div>
+                  <div className="relative grid min-h-[460px] place-items-center bg-[radial-gradient(circle_at_center,#e9f2ff_0%,#f8faff_48%,#fff_75%)] p-8">
+                    <img
+                      src="/kodabot-checkout-transparent-v1.png"
+                      alt="KodaBot"
+                      className="h-full max-h-[690px] w-full object-contain drop-shadow-[0_35px_35px_rgba(24,43,74,.15)]"
+                    />
+                  </div>
+                </article>
               </section>
             )}
 
-            <section className="bg-white py-20">
-              <div className="mx-auto max-w-[1200px] px-5">
-                <h2 className="text-3xl font-semibold tracking-[-.05em] sm:text-4xl">
-                  Mais da Koda.{" "}
-                  <span className="text-[#6e6e73]">
-                    Tudo conectado ao que vem depois da compra.
-                  </span>
+            <section className="px-3 pb-3">
+              <div className="mx-auto grid max-w-[1400px] gap-3 lg:grid-cols-2">
+                {pro && (
+                  <article className="relative min-h-[570px] overflow-hidden rounded-[44px] bg-[#0b0c0e] p-8 text-white sm:p-12">
+                    <p className="text-sm font-semibold text-[#2997ff]">Em desenvolvimento</p>
+                    <h2 className="mt-3 text-5xl font-semibold tracking-[-.06em] sm:text-6xl">
+                      KodaBot Pro
+                    </h2>
+                    <p className="mt-4 max-w-md text-lg text-white/55">
+                      Voz, áudio e inteligência Koda.
+                    </p>
+                    <p className="mt-7 text-sm font-semibold">
+                      Pré-venda futura: {money(pro.preorder_price_cents ?? 12990, pro.currency)}
+                    </p>
+                    <p className="mt-2 text-xs text-white/45">
+                      Após o lançamento: {money(pro.regular_price_cents ?? 19990, pro.currency)}
+                    </p>
+                    <a
+                      href="/kodabot-pro#lista-de-espera"
+                      className="mt-7 inline-flex rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold"
+                    >
+                      Entrar na lista
+                    </a>
+                    <div className="absolute inset-x-10 bottom-10 flex h-40 items-center justify-center gap-2 rounded-[36px] border border-white/10 bg-white/[.035]">
+                      {[40, 84, 122, 74, 142, 92, 52].map((height, index) => (
+                        <span
+                          key={index}
+                          className="w-3 rounded-full bg-[#4d86ff]"
+                          style={{ height }}
+                        />
+                      ))}
+                    </div>
+                  </article>
+                )}
+
+                <article className="relative min-h-[570px] overflow-hidden rounded-[44px] bg-[#edf8f0] p-8 sm:p-12">
+                  <Recycle className="h-8 w-8 text-[#248a3d]" />
+                  <p className="mt-8 text-sm font-semibold text-[#248a3d]">Koda Trade In</p>
+                  <h2 className="mt-3 text-5xl font-semibold tracking-[-.06em]">
+                    Troque. Economize. Recicle.
+                  </h2>
+                  <p className="mt-5 max-w-md text-sm leading-relaxed text-[#58715f]">
+                    Integre seu aparelho antigo à compra. O envio para análise é gratuito e você só
+                    usa o crédito depois de aceitar a oferta.
+                  </p>
+                  <a
+                    href="/comprar"
+                    className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[#176b37]"
+                  >
+                    Começar na compra guiada <ArrowRight className="h-4 w-4" />
+                  </a>
+                  <div className="absolute bottom-10 left-8 right-8 rounded-[28px] bg-white/80 p-6 backdrop-blur sm:left-12 sm:right-12">
+                    <p className="text-xs text-[#6e6e73]">Crédito estimado</p>
+                    <p className="mt-2 text-2xl font-semibold">Até R$ 79,90</p>
+                    <p className="mt-2 text-xs text-[#6e6e73]">
+                      Também aceitamos aparelhos com danos.
+                    </p>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section id="acessorios" className="px-5 py-24 sm:py-32">
+              <div className="mx-auto max-w-[1180px]">
+                <p className="text-sm font-semibold text-[#0071e3]">Acessórios</p>
+                <h2 className="mt-2 text-5xl font-semibold tracking-[-.06em] sm:text-6xl">
+                  Complete seu KodaBot.
                 </h2>
-                <div className="mt-8 grid gap-4 md:grid-cols-2">
-                  <a
-                    href="/conta/pedidos"
-                    className="group min-h-[270px] rounded-[30px] bg-[#f5f5f7] p-7 transition-transform duration-300 hover:-translate-y-1 sm:p-8"
-                  >
-                    <Package className="h-8 w-8 text-[#0071e3]" />
-                    <h3 className="mt-14 text-3xl font-semibold tracking-[-.05em]">
-                      Do pedido à sua mesa.
-                    </h3>
-                    <p className="mt-3 max-w-xs text-sm text-[#6e6e73]">
-                      Acompanhe pagamento, preparação, envio, entrega e o histórico completo pela
-                      Conta Koda.
-                    </p>
-                    <span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-[#0066cc]">
-                      Meus pedidos{" "}
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </span>
-                  </a>
-                  <a
-                    href="/suporte/reparo"
-                    className="group min-h-[270px] rounded-[30px] bg-[#111113] p-7 text-white transition-transform duration-300 hover:-translate-y-1 sm:p-8"
-                  >
-                    <HeartHandshake className="h-8 w-8 text-white" />
-                    <h3 className="mt-14 text-3xl font-semibold tracking-[-.05em]">
-                      Suporte que conhece seu produto.
-                    </h3>
-                    <p className="mt-3 max-w-xs text-sm text-white/60">
-                      Diagnóstico, reparo e histórico vinculados ao seu dispositivo, sem começar do
-                      zero.
-                    </p>
-                    <span className="mt-6 inline-flex items-center gap-1 text-sm font-semibold">
-                      Obter suporte{" "}
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                    </span>
-                  </a>
+                <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {accessories.map((product) => (
+                    <article key={product.slug} className="overflow-hidden rounded-[34px] bg-white">
+                      <div className="grid h-72 place-items-center bg-[#fafafa] p-8">
+                        <img
+                          src={product.image_url ?? "/koda-adaptador-usb-2a.webp"}
+                          alt={product.name}
+                          className="h-full w-full object-contain mix-blend-multiply"
+                        />
+                      </div>
+                      <div className="p-7">
+                        <p className="text-xs font-semibold text-[#0071e3]">Acessório Koda</p>
+                        <h3 className="mt-2 text-2xl font-semibold tracking-[-.04em]">
+                          {product.name}
+                        </h3>
+                        <p className="mt-3 min-h-10 text-xs leading-relaxed text-[#6e6e73]">
+                          {product.short_description ?? product.description}
+                        </p>
+                        <div className="mt-7 flex items-center justify-between gap-4">
+                          <strong>{money(product.unit_amount_cents, product.currency)}</strong>
+                          <a
+                            href={`/checkout/${product.slug}`}
+                            className="rounded-full bg-[#0071e3] px-5 py-2.5 text-xs font-semibold text-white"
+                          >
+                            Comprar
+                          </a>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
                 </div>
               </div>
             </section>
 
-            <section id="catalogo" className="bg-[#f5f5f7] py-20">
-              <div className="mx-auto max-w-[1200px] px-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-[#0071e3]">Catálogo Koda</p>
-                    <h2 className="mt-2 text-4xl font-semibold tracking-[-.055em] sm:text-5xl">
-                      Todos os produtos.
-                    </h2>
-                  </div>
-                </div>
-                {products.length ? (
-                  <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {products.map((product) => {
-                      const price = storePrice(product);
-                      return (
-                        <article
-                          key={product.slug}
-                          className="overflow-hidden rounded-[28px] bg-white"
-                        >
-                          <ProductVisual product={product} compact />
-                          <div className="p-6">
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <p className="text-[11px] font-semibold text-[#0071e3]">
-                                  {product.category || "Koda"}
-                                </p>
-                                <h3 className="mt-1 text-xl font-semibold tracking-[-.04em]">
-                                  {product.name}
-                                </h3>
-                              </div>
-                              <span
-                                className={`mt-1 h-2 w-2 shrink-0 rounded-full ${product.in_stock ? "bg-[#34c759]" : "bg-[#ff9f0a]"}`}
-                                aria-label={product.in_stock ? "Disponível" : "Indisponível"}
-                              />
-                            </div>
-                            <p className="mt-3 line-clamp-2 min-h-10 text-xs leading-relaxed text-[#6e6e73]">
-                              {product.short_description || product.description || "Produto Koda."}
-                            </p>
-                            <div className="mt-6 flex items-center justify-between gap-4">
-                              <div>
-                                <p className="text-[10px] text-[#86868b]">{price.label}</p>
-                                <p className="font-semibold">{price.amount}</p>
-                              </div>
-                              <BuyLink product={product} small />
-                            </div>
-                          </div>
-                        </article>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="mt-8 rounded-[28px] bg-white p-12 text-center">
-                    <Package className="mx-auto h-8 w-8 text-[#86868b]" />
-                    <p className="mt-4 text-sm text-[#6e6e73]">
-                      Ainda não há produtos publicados nesta categoria.
-                    </p>
-                  </div>
-                )}
+            <section className="bg-white px-5 py-20">
+              <div className="mx-auto grid max-w-[1180px] gap-4 sm:grid-cols-3">
+                <Service
+                  icon={Truck}
+                  title="Entrega calculada"
+                  text="Compare o frete para seu CEP antes de pagar."
+                  href="/comprar"
+                />
+                <Service
+                  icon={ShieldCheck}
+                  title="KodaCare+"
+                  text="Cobertura vinculada à conta depois da ativação."
+                  href="/kodacare"
+                />
+                <Service
+                  icon={Headphones}
+                  title="Ajuda de verdade"
+                  text="Suporte, pedidos e reparos em um só lugar."
+                  href="/suporte"
+                />
               </div>
             </section>
           </>
@@ -517,5 +350,39 @@ function StorePage() {
       </main>
       <SiteFooter />
     </div>
+  );
+}
+
+function QuickLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      className="shrink-0 rounded-full bg-white px-5 py-2.5 text-xs font-semibold shadow-sm"
+    >
+      {label}
+    </a>
+  );
+}
+
+function Service({
+  icon: Icon,
+  title,
+  text,
+  href,
+}: {
+  icon: typeof Truck;
+  title: string;
+  text: string;
+  href: string;
+}) {
+  return (
+    <a href={href} className="group rounded-[30px] bg-[#f5f5f7] p-7">
+      <Icon className="h-7 w-7 text-[#0071e3]" />
+      <h3 className="mt-10 text-xl font-semibold tracking-[-.035em]">{title}</h3>
+      <p className="mt-2 text-xs leading-relaxed text-[#6e6e73]">{text}</p>
+      <span className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-[#0066cc]">
+        Saiba mais <ChevronRight className="h-3.5 w-3.5 transition group-hover:translate-x-1" />
+      </span>
+    </a>
   );
 }

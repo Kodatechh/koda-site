@@ -28,18 +28,26 @@ Deno.serve(async (req: Request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const resendApiKey = Deno.env.get("RESEND_API_KEY")?.trim() ?? "";
   const emailFrom = Deno.env.get("KODA_EMAIL_FROM")?.trim() ?? "";
-  const siteUrl = (Deno.env.get("KODA_SITE_URL")?.trim() || "https://koda-site-six.vercel.app").replace(/\/$/, "");
+  const siteUrl = (
+    Deno.env.get("KODA_SITE_URL")?.trim() || "https://koda-site-six.vercel.app"
+  ).replace(/\/$/, "");
   const authorization = req.headers.get("Authorization") ?? "";
 
   if (!supabaseUrl || !serviceRoleKey) return json({ error: "server_configuration_error" }, 500);
   if (authorization !== `Bearer ${serviceRoleKey}`) return json({ error: "unauthorized" }, 401);
 
   let input: { orderId?: string } = {};
-  try { input = await req.json(); } catch { return json({ error: "invalid_json" }, 400); }
+  try {
+    input = await req.json();
+  } catch {
+    return json({ error: "invalid_json" }, 400);
+  }
   const orderId = typeof input.orderId === "string" ? input.orderId.trim() : "";
   if (!/^[0-9a-f-]{36}$/i.test(orderId)) return json({ error: "invalid_order_id" }, 400);
 
-  const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
   const { data: alreadySent } = await admin
     .from("order_events")
     .select("id")
@@ -50,11 +58,14 @@ Deno.serve(async (req: Request) => {
 
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select("id,order_number,status,currency,subtotal_cents,shipping_cents,discount_cents,total_cents,customer_name,customer_email,shipping_service,shipping_deadline_days,shipping_address,paid_at")
+    .select(
+      "id,order_number,status,currency,subtotal_cents,shipping_cents,discount_cents,total_cents,customer_name,customer_email,shipping_service,shipping_deadline_days,shipping_address,paid_at,sales_mode,release_at,estimated_ship_start_at",
+    )
     .eq("id", orderId)
     .maybeSingle();
   if (orderError || !order) return json({ error: "order_not_found" }, 404);
-  if (!order.paid_at || !["paid", "processing", "shipped", "delivered"].includes(order.status)) return json({ ok: true, skipped: "order_not_paid" });
+  if (!order.paid_at || !["paid", "processing", "shipped", "delivered"].includes(order.status))
+    return json({ ok: true, skipped: "order_not_paid" });
   if (!order.customer_email) return json({ ok: true, skipped: "customer_email_missing" });
 
   if (!resendApiKey || !emailFrom) {
@@ -69,20 +80,40 @@ Deno.serve(async (req: Request) => {
   if (itemsError || !items?.length) return json({ error: "order_items_missing" }, 409);
 
   const displayNumber = `KD-${String(order.order_number).padStart(6, "0")}`;
-  const address = order.shipping_address && typeof order.shipping_address === "object" ? order.shipping_address as Record<string, unknown> : {};
-  const itemRows = items.map((item: any) => `
+  const address =
+    order.shipping_address && typeof order.shipping_address === "object"
+      ? (order.shipping_address as Record<string, unknown>)
+      : {};
+  const itemRows = items
+    .map(
+      (item: any) => `
     <tr>
       <td style="padding:14px 0;border-bottom:1px solid #ececec;color:#1d1d1f;font-size:14px">${esc(item.quantity)}× ${esc(item.product_name)}</td>
       <td style="padding:14px 0;border-bottom:1px solid #ececec;color:#1d1d1f;font-size:14px;text-align:right;font-weight:600">${esc(money(Number(item.total_amount_cents), order.currency))}</td>
-    </tr>`).join("");
+    </tr>`,
+    )
+    .join("");
 
-  const shippingBlock = Number(order.shipping_cents) > 0 || order.shipping_service ? `
+  const shippingBlock =
+    Number(order.shipping_cents) > 0 || order.shipping_service
+      ? `
     <div style="margin-top:24px;padding:20px;border-radius:18px;background:#f5f5f7">
       <div style="font-size:12px;color:#86868b;margin-bottom:7px">Entrega</div>
       <div style="font-size:14px;font-weight:600;color:#1d1d1f">${esc(order.shipping_service || "Entrega Koda")}</div>
       ${order.shipping_deadline_days != null ? `<div style="margin-top:5px;font-size:12px;color:#6e6e73">Prazo estimado: até ${esc(order.shipping_deadline_days)} dias úteis após a postagem.</div>` : ""}
       ${address.street ? `<div style="margin-top:10px;font-size:12px;line-height:1.55;color:#6e6e73">${esc(address.street)}, ${esc(address.number)}${address.complement ? ` · ${esc(address.complement)}` : ""}<br>${esc(address.neighborhood)} · ${esc(address.city)} - ${esc(address.state)} · CEP ${esc(address.postal_code)}</div>` : ""}
-    </div>` : "";
+    </div>`
+      : "";
+
+  const preorderBlock =
+    order.sales_mode === "preorder"
+      ? `
+    <div style="margin-top:24px;padding:20px;border-radius:18px;background:#eef6ff">
+      <div style="font-size:12px;color:#0066cc;font-weight:700">Pré-venda confirmada</div>
+      <div style="margin-top:7px;font-size:15px;font-weight:700;color:#1d1d1f">Sua unidade está reservada.</div>
+      <div style="margin-top:6px;font-size:12px;line-height:1.55;color:#6e6e73">Lançamento e início dos envios previstos para 17 de outubro de 2026. O prazo da transportadora começa a contar depois da postagem.</div>
+    </div>`
+      : "";
 
   const html = `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -91,8 +122,8 @@ Deno.serve(async (req: Request) => {
     <div style="padding:0 6px 24px;font-size:25px;font-weight:750;letter-spacing:-1px">Koda</div>
     <div style="background:#fff;border-radius:28px;padding:34px 30px">
       <div style="display:inline-block;padding:7px 11px;border-radius:999px;background:#eaf8ee;color:#248a3d;font-size:12px;font-weight:700">Pagamento confirmado</div>
-      <h1 style="margin:20px 0 8px;font-size:34px;line-height:1.08;letter-spacing:-1.4px">Seu pedido está confirmado.</h1>
-      <p style="margin:0;color:#6e6e73;font-size:15px;line-height:1.6">${order.customer_name ? `${esc(order.customer_name)}, recebemos seu pagamento.` : "Recebemos seu pagamento."} A partir de agora você pode acompanhar cada etapa pela Conta Koda.</p>
+      <h1 style="margin:20px 0 8px;font-size:34px;line-height:1.08;letter-spacing:-1.4px">${order.sales_mode === "preorder" ? "Sua pré-venda está confirmada." : "Seu pedido está confirmado."}</h1>
+      <p style="margin:0;color:#6e6e73;font-size:15px;line-height:1.6">${order.customer_name ? `${esc(order.customer_name)}, recebemos seu pagamento.` : "Recebemos seu pagamento."} ${order.sales_mode === "preorder" ? "Sua unidade foi reservada e você poderá acompanhar a preparação até o envio." : "A partir de agora você pode acompanhar cada etapa pela Conta Koda."}</p>
       <div style="margin-top:26px;padding:18px 20px;border-radius:18px;background:#f5f5f7">
         <div style="font-size:12px;color:#86868b">Pedido</div>
         <div style="margin-top:3px;font-size:20px;font-weight:700">${displayNumber}</div>
@@ -103,6 +134,7 @@ Deno.serve(async (req: Request) => {
         ${Number(order.discount_cents) > 0 ? `<tr><td style="padding-top:8px;color:#6e6e73;font-size:13px">Desconto</td><td style="padding-top:8px;text-align:right;font-size:13px">− ${esc(money(Number(order.discount_cents), order.currency))}</td></tr>` : ""}
         <tr><td style="padding-top:15px;font-size:16px;font-weight:700">Total</td><td style="padding-top:15px;text-align:right;font-size:19px;font-weight:750">${esc(money(Number(order.total_cents), order.currency))}</td></tr>
       </table>
+      ${preorderBlock}
       ${shippingBlock}
       <div style="margin-top:28px"><a href="${siteUrl}/conta/pedidos/${order.id}" style="display:inline-block;background:#0071e3;color:white;text-decoration:none;padding:13px 20px;border-radius:999px;font-size:14px;font-weight:700">Acompanhar pedido</a></div>
       <p style="margin:28px 0 0;color:#86868b;font-size:11px;line-height:1.6">Este e-mail confirma o pedido e o pagamento. A documentação fiscal, quando aplicável e autorizada, é enviada separadamente.</p>
@@ -122,7 +154,10 @@ Deno.serve(async (req: Request) => {
     body: JSON.stringify({
       from: emailFrom,
       to: [order.customer_email],
-      subject: `${displayNumber} confirmado — Koda`,
+      subject:
+        order.sales_mode === "preorder"
+          ? `Pré-venda ${displayNumber} confirmada — Koda`
+          : `Pedido ${displayNumber} confirmado — Koda`,
       html,
     }),
   });
@@ -145,7 +180,10 @@ Deno.serve(async (req: Request) => {
     status: "paid",
     title: "Confirmação enviada por e-mail",
     body: `Enviamos a confirmação do pedido para ${order.customer_email}.`,
-    metadata: { provider: "resend", provider_email_id: typeof emailBody?.id === "string" ? emailBody.id : null },
+    metadata: {
+      provider: "resend",
+      provider_email_id: typeof emailBody?.id === "string" ? emailBody.id : null,
+    },
   });
 
   return json({ ok: true });

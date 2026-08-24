@@ -127,10 +127,11 @@ export function ProductQuiz({ open, onClose }: { open: boolean; onClose: () => v
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <a
-                  href={result === "i" ? "/kodabot" : "/kodabot-pro"}
+                  href={result === "i" ? "/comprar" : "/kodabot-pro#lista-de-espera"}
                   className="inline-flex items-center gap-2 rounded-full bg-[#0071e3] px-6 py-3 text-sm font-semibold text-white"
                 >
-                  Conhecer <Check className="h-4 w-4" />
+                  {result === "i" ? "Montar compra" : "Entrar na lista"}{" "}
+                  <Check className="h-4 w-4" />
                 </a>
                 <button
                   onClick={reset}

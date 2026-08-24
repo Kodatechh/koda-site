@@ -50,6 +50,9 @@ type Order = {
   created_at: string;
   paid_at: string | null;
   fulfilled_at: string | null;
+  sales_mode: "standard" | "preorder";
+  release_at: string | null;
+  estimated_ship_start_at: string | null;
   order_items: OrderItem[];
 };
 
@@ -120,7 +123,7 @@ function OrderDetailPage() {
         db
           .from("orders")
           .select(
-            "id,order_number,status,currency,subtotal_cents,shipping_cents,discount_cents,total_cents,shipping_service,shipping_deadline_days,shipping_address,tracking_code,tracking_url,fulfillment_status,created_at,paid_at,fulfilled_at,order_items(id,product_name,quantity,unit_amount_cents,total_amount_cents)",
+            "id,order_number,status,currency,subtotal_cents,shipping_cents,discount_cents,total_cents,shipping_service,shipping_deadline_days,shipping_address,tracking_code,tracking_url,fulfillment_status,created_at,paid_at,fulfilled_at,sales_mode,release_at,estimated_ship_start_at,order_items(id,product_name,quantity,unit_amount_cents,total_amount_cents)",
           )
           .eq("id", orderId)
           .eq("user_id", userId)
@@ -166,6 +169,34 @@ function OrderDetailPage() {
     const preparing = ["processing", "shipped", "delivered"].includes(order.status);
     const shipped = ["shipped", "delivered"].includes(order.status) || Boolean(order.tracking_code);
     const delivered = order.status === "delivered";
+    if (order.sales_mode === "preorder") {
+      return [
+        {
+          label: "Reserva",
+          detail: paid ? "Sua unidade está reservada" : "Conclua o pagamento para reservar",
+          done: paid,
+          icon: ReceiptText,
+        },
+        {
+          label: "Lançamento",
+          detail: "17 de outubro de 2026",
+          done: preparing || shipped || delivered,
+          icon: Clock3,
+        },
+        {
+          label: "Preparação",
+          detail: preparing ? "Seu KodaBot entrou em preparação" : "Começa após o lançamento",
+          done: preparing,
+          icon: Package,
+        },
+        {
+          label: "Envio",
+          detail: shipped ? "Postado para entrega" : "O rastreio aparecerá aqui",
+          done: shipped,
+          icon: Truck,
+        },
+      ];
+    }
     return [
       {
         label: "Pagamento",
@@ -238,6 +269,7 @@ function OrderDetailPage() {
   const displayNumber = `KD-${String(order.order_number).padStart(6, "0")}`;
   const address = order.shipping_address ?? {};
   const cancelled = ["cancelled", "payment_failed", "refunded"].includes(order.status);
+  const preorder = order.sales_mode === "preorder";
 
   return (
     <Main>
@@ -266,6 +298,27 @@ function OrderDetailPage() {
           </p>
         </div>
       </header>
+
+      {preorder && !cancelled && (
+        <section className="mt-8 rounded-[28px] bg-[#eef6ff] p-6 sm:flex sm:items-center sm:justify-between sm:gap-8">
+          <div>
+            <p className="text-sm font-semibold text-[#0066cc]">Pré-venda KodaBot</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-[-.04em]">
+              Sua unidade está na fila de lançamento.
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-[#6e6e73]">
+              Lançamento e início dos envios previstos para 17 de outubro de 2026. O prazo da
+              transportadora começa após a postagem.
+            </p>
+          </div>
+          <a
+            href="/suporte/contato"
+            className="mt-5 inline-flex shrink-0 text-sm font-semibold text-[#0066cc] sm:mt-0"
+          >
+            Falar com a Koda ›
+          </a>
+        </section>
+      )}
 
       {!cancelled && (
         <section className="mt-9 rounded-[32px] bg-white p-6 sm:p-8">

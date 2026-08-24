@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AtivarRouteImport } from './routes/ativar'
 import { Route as CompararRouteImport } from './routes/comparar'
+import { Route as ComprarRouteImport } from './routes/comprar'
 import { Route as ContaRouteImport } from './routes/conta'
 import { Route as ContratosRouteImport } from './routes/contratos'
 import { Route as FabricaRouteImport } from './routes/fabrica'
@@ -52,6 +53,7 @@ import { Route as KodabotTechSpecsRouteImport } from './routes/kodabot.tech-spec
 import { Route as KodaosIndexRouteImport } from './routes/kodaos.index'
 import { Route as KodaosChangelogRouteImport } from './routes/kodaos.changelog'
 import { Route as KodaosUpdatesRouteImport } from './routes/kodaos.updates'
+import { Route as PedidoConfirmadoOrderIdRouteImport } from './routes/pedido-confirmado.$orderId'
 import { Route as ReparosSolicitarRouteImport } from './routes/reparos.solicitar'
 import { Route as SuporteIndexRouteImport } from './routes/suporte.index'
 import { Route as SuporteConfigurarRouteImport } from './routes/suporte.configurar'
@@ -87,6 +89,11 @@ const AtivarRoute = AtivarRouteImport.update({
 const CompararRoute = CompararRouteImport.update({
   id: '/comparar',
   path: '/comparar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ComprarRoute = ComprarRouteImport.update({
+  id: '/comprar',
+  path: '/comprar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContaRoute = ContaRouteImport.update({
@@ -284,6 +291,11 @@ const KodaosUpdatesRoute = KodaosUpdatesRouteImport.update({
   path: '/updates',
   getParentRoute: () => KodaosRoute,
 } as any)
+const PedidoConfirmadoOrderIdRoute = PedidoConfirmadoOrderIdRouteImport.update({
+  id: '/pedido-confirmado/$orderId',
+  path: '/pedido-confirmado/$orderId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReparosSolicitarRoute = ReparosSolicitarRouteImport.update({
   id: '/reparos/solicitar',
   path: '/reparos/solicitar',
@@ -372,6 +384,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/ativar': typeof AtivarRoute
   '/comparar': typeof CompararRoute
+  '/comprar': typeof ComprarRoute
   '/conta': typeof ContaRouteWithChildren
   '/contratos': typeof ContratosRoute
   '/fabrica': typeof FabricaRoute
@@ -406,6 +419,7 @@ export interface FileRoutesByFullPath {
   '/kodabot/tech-specs': typeof KodabotTechSpecsRoute
   '/kodaos/changelog': typeof KodaosChangelogRoute
   '/kodaos/updates': typeof KodaosUpdatesRoute
+  '/pedido-confirmado/$orderId': typeof PedidoConfirmadoOrderIdRoute
   '/reparos/solicitar': typeof ReparosSolicitarRoute
   '/suporte/configurar': typeof SuporteConfigurarRoute
   '/suporte/contato': typeof SuporteContatoRoute
@@ -432,6 +446,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ativar': typeof AtivarRoute
   '/comparar': typeof CompararRoute
+  '/comprar': typeof ComprarRoute
   '/contratos': typeof ContratosRoute
   '/fabrica': typeof FabricaRoute
   '/financeiro-interno': typeof FinanceiroInternoRoute
@@ -461,6 +476,7 @@ export interface FileRoutesByTo {
   '/kodabot/tech-specs': typeof KodabotTechSpecsRoute
   '/kodaos/changelog': typeof KodaosChangelogRoute
   '/kodaos/updates': typeof KodaosUpdatesRoute
+  '/pedido-confirmado/$orderId': typeof PedidoConfirmadoOrderIdRoute
   '/reparos/solicitar': typeof ReparosSolicitarRoute
   '/suporte/configurar': typeof SuporteConfigurarRoute
   '/suporte/contato': typeof SuporteContatoRoute
@@ -489,6 +505,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/ativar': typeof AtivarRoute
   '/comparar': typeof CompararRoute
+  '/comprar': typeof ComprarRoute
   '/conta': typeof ContaRouteWithChildren
   '/contratos': typeof ContratosRoute
   '/fabrica': typeof FabricaRoute
@@ -523,6 +540,7 @@ export interface FileRoutesById {
   '/kodabot/tech-specs': typeof KodabotTechSpecsRoute
   '/kodaos/changelog': typeof KodaosChangelogRoute
   '/kodaos/updates': typeof KodaosUpdatesRoute
+  '/pedido-confirmado/$orderId': typeof PedidoConfirmadoOrderIdRoute
   '/reparos/solicitar': typeof ReparosSolicitarRoute
   '/suporte/configurar': typeof SuporteConfigurarRoute
   '/suporte/contato': typeof SuporteContatoRoute
@@ -552,6 +570,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ativar'
     | '/comparar'
+    | '/comprar'
     | '/conta'
     | '/contratos'
     | '/fabrica'
@@ -586,6 +605,7 @@ export interface FileRouteTypes {
     | '/kodabot/tech-specs'
     | '/kodaos/changelog'
     | '/kodaos/updates'
+    | '/pedido-confirmado/$orderId'
     | '/reparos/solicitar'
     | '/suporte/configurar'
     | '/suporte/contato'
@@ -612,6 +632,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ativar'
     | '/comparar'
+    | '/comprar'
     | '/contratos'
     | '/fabrica'
     | '/financeiro-interno'
@@ -641,6 +662,7 @@ export interface FileRouteTypes {
     | '/kodabot/tech-specs'
     | '/kodaos/changelog'
     | '/kodaos/updates'
+    | '/pedido-confirmado/$orderId'
     | '/reparos/solicitar'
     | '/suporte/configurar'
     | '/suporte/contato'
@@ -668,6 +690,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/ativar'
     | '/comparar'
+    | '/comprar'
     | '/conta'
     | '/contratos'
     | '/fabrica'
@@ -702,6 +725,7 @@ export interface FileRouteTypes {
     | '/kodabot/tech-specs'
     | '/kodaos/changelog'
     | '/kodaos/updates'
+    | '/pedido-confirmado/$orderId'
     | '/reparos/solicitar'
     | '/suporte/configurar'
     | '/suporte/contato'
@@ -730,6 +754,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AtivarRoute: typeof AtivarRoute
   CompararRoute: typeof CompararRoute
+  ComprarRoute: typeof ComprarRoute
   ContaRoute: typeof ContaRouteWithChildren
   ContratosRoute: typeof ContratosRoute
   FabricaRoute: typeof FabricaRoute
@@ -747,6 +772,7 @@ export interface RootRouteChildren {
   TradeInRoute: typeof TradeInRoute
   CheckoutProductSlugRoute: typeof CheckoutProductSlugRoute
   KodabotIComprarRoute: typeof KodabotIComprarRoute
+  PedidoConfirmadoOrderIdRoute: typeof PedidoConfirmadoOrderIdRoute
   ReparosSolicitarRoute: typeof ReparosSolicitarRoute
   CheckoutReparoRepairIdRoute: typeof CheckoutReparoRepairIdRoute
 }
@@ -779,6 +805,13 @@ declare module '@tanstack/react-router' {
       path: '/comparar'
       fullPath: '/comparar'
       preLoaderRoute: typeof CompararRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/comprar': {
+      id: '/comprar'
+      path: '/comprar'
+      fullPath: '/comprar'
+      preLoaderRoute: typeof ComprarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/conta': {
@@ -1054,6 +1087,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KodaosUpdatesRouteImport
       parentRoute: typeof KodaosRoute
     }
+    '/pedido-confirmado/$orderId': {
+      id: '/pedido-confirmado/$orderId'
+      path: '/pedido-confirmado/$orderId'
+      fullPath: '/pedido-confirmado/$orderId'
+      preLoaderRoute: typeof PedidoConfirmadoOrderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reparos/solicitar': {
       id: '/reparos/solicitar'
       path: '/reparos/solicitar'
@@ -1319,6 +1359,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AtivarRoute: AtivarRoute,
   CompararRoute: CompararRoute,
+  ComprarRoute: ComprarRoute,
   ContaRoute: ContaRouteWithChildren,
   ContratosRoute: ContratosRoute,
   FabricaRoute: FabricaRoute,
@@ -1336,6 +1377,7 @@ const rootRouteChildren: RootRouteChildren = {
   TradeInRoute: TradeInRoute,
   CheckoutProductSlugRoute: CheckoutProductSlugRoute,
   KodabotIComprarRoute: KodabotIComprarRoute,
+  PedidoConfirmadoOrderIdRoute: PedidoConfirmadoOrderIdRoute,
   ReparosSolicitarRoute: ReparosSolicitarRoute,
   CheckoutReparoRepairIdRoute: CheckoutReparoRepairIdRoute,
 }

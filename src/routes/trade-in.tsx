@@ -176,8 +176,12 @@ function TradeInPage() {
             : item,
         ),
       );
-      if (accept && result.coupon_code)
-        window.location.href = `/checkout/kodabot-i?coupon=${encodeURIComponent(result.coupon_code)}`;
+      if (accept && result.coupon_code) {
+        const guided = new URLSearchParams(window.location.search).get("returnTo") === "comprar";
+        window.location.href = guided
+          ? `/comprar?coupon=${encodeURIComponent(result.coupon_code)}`
+          : `/checkout/kodabot-i?coupon=${encodeURIComponent(result.coupon_code)}`;
+      }
     }
     setSubmitting(false);
   }

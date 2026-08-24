@@ -18,6 +18,7 @@ const navItems: NavItem[] = [
         title: "Comprar",
         emphasis: true,
         items: [
+          { label: "Compra guiada", href: "/comprar" },
           { label: "Acessórios", href: "/loja" },
           { label: "KodaBot", href: "/kodabot" },
           { label: "KodaBot Pro", href: "/kodabot-pro" },
@@ -67,7 +68,7 @@ const navItems: NavItem[] = [
       {
         title: "Comprar",
         items: [
-          { label: "Comprar KodaBot", href: "/checkout/kodabot-i" },
+          { label: "Comprar KodaBot", href: "/comprar" },
           { label: "Ver acessórios", href: "/loja" },
         ],
       },

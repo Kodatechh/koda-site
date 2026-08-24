@@ -70,6 +70,16 @@ function effectiveUnitAmount(product: {
   return product.regular_price_cents ?? product.unit_amount_cents;
 }
 
+function preorderSnapshot(product: { launch_at: string | null }) {
+  const launchAt = product.launch_at ? Date.parse(product.launch_at) : null;
+  const preorder = launchAt != null && Number.isFinite(launchAt) && Date.now() < launchAt;
+  return {
+    sales_mode: preorder ? "preorder" : "standard",
+    release_at: preorder ? product.launch_at : null,
+    estimated_ship_start_at: preorder ? "2026-10-17" : null,
+  } as const;
+}
+
 function normalizeAddress(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
@@ -136,7 +146,7 @@ function displayOrder(order: Record<string, unknown>) {
 }
 
 const orderSelect =
-  "id,order_number,status,order_type,context_type,context_id,currency,subtotal_cents,shipping_cents,discount_cents,total_cents,shipping_provider,shipping_service,shipping_deadline_days,fulfillment_status,created_at";
+  "id,order_number,status,order_type,context_type,context_id,currency,subtotal_cents,shipping_cents,discount_cents,total_cents,shipping_provider,shipping_service,shipping_deadline_days,fulfillment_status,sales_mode,release_at,estimated_ship_start_at,created_at";
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -215,6 +225,7 @@ Deno.serve(async (req: Request) => {
   const mainUnitAmount = product ? effectiveUnitAmount(product) : null;
   if (!product || !product.active || !product.purchase_enabled || mainUnitAmount == null)
     return json({ error: "product_unavailable" }, 409);
+  const preorder = preorderSnapshot(product);
   if (product.track_stock && (product.stock_quantity ?? 0) < quantity)
     return json({ error: "insufficient_stock" }, 409);
 
@@ -458,6 +469,9 @@ Deno.serve(async (req: Request) => {
       shipping_quote_id: shippingQuoteId,
       shipping_quoted_at: shippingQuotedAt,
       fulfillment_status: "pending",
+      sales_mode: preorder.sales_mode,
+      release_at: preorder.release_at,
+      estimated_ship_start_at: preorder.estimated_ship_start_at,
     })
     .select(orderSelect)
     .single();
@@ -527,14 +541,17 @@ Deno.serve(async (req: Request) => {
 
   await admin.from("order_events").insert({
     order_id: order.id,
-    event_type: "order_created",
+    event_type: preorder.sales_mode === "preorder" ? "preorder_created" : "order_created",
     status: "draft",
-    title: "Pedido recebido",
-    body: product.requires_shipping
-      ? `Pedido criado com ${shippingService ?? "entrega selecionada"}; pronto para pagamento.`
-      : product.product_type === "coverage"
-        ? "Pedido de cobertura criado e vinculado ao KodaBot selecionado."
-        : "Seu pedido foi criado e está pronto para a etapa de pagamento.",
+    title: preorder.sales_mode === "preorder" ? "Pré-venda recebida" : "Pedido recebido",
+    body:
+      preorder.sales_mode === "preorder"
+        ? "Sua unidade foi reservada. O lançamento e o início dos envios estão previstos para 17 de outubro de 2026."
+        : product.requires_shipping
+          ? `Pedido criado com ${shippingService ?? "entrega selecionada"}; pronto para pagamento.`
+          : product.product_type === "coverage"
+            ? "Pedido de cobertura criado e vinculado ao KodaBot selecionado."
+            : "Seu pedido foi criado e está pronto para a etapa de pagamento.",
     actor_user_id: user.id,
     metadata: {
       product_type: product.product_type,
@@ -547,6 +564,9 @@ Deno.serve(async (req: Request) => {
       trade_in_request_id: tradeIn?.id ?? null,
       trade_in_credit_cents: discountCents,
       add_ons: addOns.map((item) => ({ slug: item.slug, quantity: item.quantity })),
+      sales_mode: preorder.sales_mode,
+      release_at: preorder.release_at,
+      estimated_ship_start_at: preorder.estimated_ship_start_at,
     },
   });
 
