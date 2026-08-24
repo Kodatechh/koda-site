@@ -47,6 +47,8 @@ type StoreProduct = {
   requires_device: boolean;
   sales_mode?: "preorder" | "standard" | "waitlist";
   waitlist_enabled?: boolean;
+  preorder_price_cents?: number | null;
+  regular_price_cents?: number | null;
   launch_at?: string | null;
 };
 
@@ -75,6 +77,25 @@ export const Route = createFileRoute("/loja")({
 function money(cents: number | null, currency = "BRL") {
   if (cents == null) return "Preço em breve";
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(cents / 100);
+}
+
+function storePrice(product: StoreProduct) {
+  const waitlist = product.waitlist_enabled || product.sales_mode === "waitlist";
+  if (waitlist && product.preorder_price_cents != null) {
+    return {
+      label: "Pré-venda futura",
+      amount: money(product.preorder_price_cents, product.currency),
+      note:
+        product.regular_price_cents != null
+          ? `Após o lançamento: ${money(product.regular_price_cents, product.currency)}`
+          : null,
+    };
+  }
+  return {
+    label: product.sales_mode === "preorder" ? "Preço de pré-venda" : "A partir de",
+    amount: money(product.unit_amount_cents, product.currency),
+    note: null,
+  };
 }
 
 function visualTone(product: StoreProduct) {
@@ -346,36 +367,40 @@ function StorePage() {
                   </h2>
                 </div>
                 <div className="no-scrollbar mx-auto mt-7 flex max-w-[1280px] gap-5 overflow-x-auto px-5 pb-6">
-                  {featured.map((product) => (
-                    <article
-                      key={product.slug}
-                      className="w-[330px] shrink-0 overflow-hidden rounded-[32px] bg-white shadow-[0_12px_35px_rgba(0,0,0,.07)] transition-transform duration-300 hover:-translate-y-1 sm:w-[390px]"
-                    >
-                      <ProductVisual product={product} />
-                      <div className="p-7 sm:p-8">
-                        <p className="text-[11px] font-semibold uppercase tracking-[.09em] text-[#0071e3]">
-                          {product.category || "Koda"}
-                        </p>
-                        <h3 className="mt-2 text-3xl font-semibold tracking-[-.05em]">
-                          {product.name}
-                        </h3>
-                        <p className="mt-3 min-h-10 text-sm leading-relaxed text-[#6e6e73]">
-                          {product.short_description ||
-                            product.description ||
-                            "Feito para funcionar de forma simples no ecossistema Koda."}
-                        </p>
-                        <div className="mt-7 flex items-end justify-between gap-4">
-                          <div>
-                            <p className="text-[11px] text-[#86868b]">A partir de</p>
-                            <p className="mt-1 text-lg font-semibold">
-                              {money(product.unit_amount_cents, product.currency)}
-                            </p>
+                  {featured.map((product) => {
+                    const price = storePrice(product);
+                    return (
+                      <article
+                        key={product.slug}
+                        className="w-[330px] shrink-0 overflow-hidden rounded-[32px] bg-white shadow-[0_12px_35px_rgba(0,0,0,.07)] transition-transform duration-300 hover:-translate-y-1 sm:w-[390px]"
+                      >
+                        <ProductVisual product={product} />
+                        <div className="p-7 sm:p-8">
+                          <p className="text-[11px] font-semibold uppercase tracking-[.09em] text-[#0071e3]">
+                            {product.category || "Koda"}
+                          </p>
+                          <h3 className="mt-2 text-3xl font-semibold tracking-[-.05em]">
+                            {product.name}
+                          </h3>
+                          <p className="mt-3 min-h-10 text-sm leading-relaxed text-[#6e6e73]">
+                            {product.short_description ||
+                              product.description ||
+                              "Feito para funcionar de forma simples no ecossistema Koda."}
+                          </p>
+                          <div className="mt-7 flex items-end justify-between gap-4">
+                            <div>
+                              <p className="text-[11px] text-[#86868b]">{price.label}</p>
+                              <p className="mt-1 text-lg font-semibold">{price.amount}</p>
+                              {price.note ? (
+                                <p className="mt-1 text-[11px] text-[#86868b]">{price.note}</p>
+                              ) : null}
+                            </div>
+                            <BuyLink product={product} />
                           </div>
-                          <BuyLink product={product} />
                         </div>
-                      </div>
-                    </article>
-                  ))}
+                      </article>
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -439,39 +464,43 @@ function StorePage() {
                 </div>
                 {products.length ? (
                   <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {products.map((product) => (
-                      <article
-                        key={product.slug}
-                        className="overflow-hidden rounded-[28px] bg-white"
-                      >
-                        <ProductVisual product={product} compact />
-                        <div className="p-6">
-                          <div className="flex items-start justify-between gap-4">
-                            <div>
-                              <p className="text-[11px] font-semibold text-[#0071e3]">
-                                {product.category || "Koda"}
-                              </p>
-                              <h3 className="mt-1 text-xl font-semibold tracking-[-.04em]">
-                                {product.name}
-                              </h3>
+                    {products.map((product) => {
+                      const price = storePrice(product);
+                      return (
+                        <article
+                          key={product.slug}
+                          className="overflow-hidden rounded-[28px] bg-white"
+                        >
+                          <ProductVisual product={product} compact />
+                          <div className="p-6">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-[11px] font-semibold text-[#0071e3]">
+                                  {product.category || "Koda"}
+                                </p>
+                                <h3 className="mt-1 text-xl font-semibold tracking-[-.04em]">
+                                  {product.name}
+                                </h3>
+                              </div>
+                              <span
+                                className={`mt-1 h-2 w-2 shrink-0 rounded-full ${product.in_stock ? "bg-[#34c759]" : "bg-[#ff9f0a]"}`}
+                                aria-label={product.in_stock ? "Disponível" : "Indisponível"}
+                              />
                             </div>
-                            <span
-                              className={`mt-1 h-2 w-2 shrink-0 rounded-full ${product.in_stock ? "bg-[#34c759]" : "bg-[#ff9f0a]"}`}
-                              aria-label={product.in_stock ? "Disponível" : "Indisponível"}
-                            />
-                          </div>
-                          <p className="mt-3 line-clamp-2 min-h-10 text-xs leading-relaxed text-[#6e6e73]">
-                            {product.short_description || product.description || "Produto Koda."}
-                          </p>
-                          <div className="mt-6 flex items-center justify-between gap-4">
-                            <p className="font-semibold">
-                              {money(product.unit_amount_cents, product.currency)}
+                            <p className="mt-3 line-clamp-2 min-h-10 text-xs leading-relaxed text-[#6e6e73]">
+                              {product.short_description || product.description || "Produto Koda."}
                             </p>
-                            <BuyLink product={product} small />
+                            <div className="mt-6 flex items-center justify-between gap-4">
+                              <div>
+                                <p className="text-[10px] text-[#86868b]">{price.label}</p>
+                                <p className="font-semibold">{price.amount}</p>
+                              </div>
+                              <BuyLink product={product} small />
+                            </div>
                           </div>
-                        </div>
-                      </article>
-                    ))}
+                        </article>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="mt-8 rounded-[28px] bg-white p-12 text-center">
