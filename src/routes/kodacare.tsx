@@ -32,6 +32,10 @@ const faqs = [
     "Todo reparo é coberto?",
     "Não. A cobertura depende do plano, da vigência e da avaliação técnica do dano.",
   ],
+  [
+    "O KodaCare+ passa para outra pessoa?",
+    "Não. O plano pertence à conta que o contratou. Se o KodaBot for redefinido ou desvinculado, a cobertura fica suspensa e só volta quando a mesma conta reativar o mesmo aparelho.",
+  ],
 ] as const;
 
 function KodaCarePage() {
@@ -48,8 +52,8 @@ function KodaCarePage() {
                 Proteção para seguir em frente.
               </h1>
               <p className="mt-7 max-w-xl text-lg leading-relaxed text-[#6e6e73] sm:text-xl">
-                Mais tempo de garantia e cuidado adicional para o seu KodaBot, em uma experiência
-                simples do início ao reparo.
+                Um ou dois anos de garantia estendida e proteção contra danos acidentais, vinculados
+                à sua Conta Koda.
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-5">
                 <a
@@ -91,10 +95,10 @@ function KodaCarePage() {
               </h2>
               <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[#6e6e73]">
                 Compare o tempo de cobertura e os benefícios. Para contratar, você precisa ter um
-                KodaBot ativado e vinculado à sua Conta Koda.
+                KodaBot ativado. O plano pertence à sua conta e não é transferido com o aparelho.
               </p>
             </div>
-            <div className="grid gap-5 lg:grid-cols-3">
+            <div className="grid gap-5 lg:grid-cols-2">
               {kodaCarePlans.map((plan, index) => (
                 <article
                   key={plan.id}

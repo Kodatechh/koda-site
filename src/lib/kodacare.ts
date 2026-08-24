@@ -23,20 +23,10 @@ export type CoverageStatus = {
 
 export const kodaCarePlans = [
   {
-    id: "kodacare" as const,
-    name: "KodaCare",
-    duration: "+6 meses de garantia",
-    price: 29.9,
-    accidental: false,
-    accidentalUses: 0,
-    cleaning: false,
-    benefits: ["Mais 6 meses de garantia de fábrica"],
-  },
-  {
     id: "kodacare_plus_1y" as const,
     name: "KodaCare+ — 1 ano",
     duration: "1 ano de cobertura",
-    price: 19.9,
+    price: 29.9,
     accidental: true,
     accidentalUses: 3,
     cleaning: true,
@@ -52,7 +42,7 @@ export const kodaCarePlans = [
     id: "kodacare_plus_2y" as const,
     name: "KodaCare+ — 2 anos",
     duration: "2 anos de cobertura",
-    price: 39.9,
+    price: 49.9,
     accidental: true,
     accidentalUses: 3,
     cleaning: true,

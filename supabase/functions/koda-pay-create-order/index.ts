@@ -57,6 +57,19 @@ function validTaxId(value: string) {
   return value.length === 11 ? validCpf(value) : value.length === 14 ? validCnpj(value) : false;
 }
 
+function effectiveUnitAmount(product: {
+  unit_amount_cents: number | null;
+  preorder_price_cents: number | null;
+  regular_price_cents: number | null;
+  launch_at: string | null;
+}) {
+  const launchAt = product.launch_at ? Date.parse(product.launch_at) : null;
+  if (launchAt != null && Number.isFinite(launchAt) && Date.now() < launchAt) {
+    return product.preorder_price_cents ?? product.unit_amount_cents;
+  }
+  return product.regular_price_cents ?? product.unit_amount_cents;
+}
+
 function normalizeAddress(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const input = value as Record<string, unknown>;
@@ -154,6 +167,7 @@ Deno.serve(async (req: Request) => {
     shippingQuoteToken?: string;
     shippingServiceId?: string;
     couponCode?: string;
+    addOns?: Array<{ slug?: string; quantity?: number }>;
   };
 
   try {
@@ -169,6 +183,7 @@ Deno.serve(async (req: Request) => {
   const customerTaxId = digits(input.customerTaxId);
   const shippingQuoteToken = cleanText(input.shippingQuoteToken, 6000);
   const couponCode = cleanText(input.couponCode, 80).toUpperCase();
+  const requestedAddOns = Array.isArray(input.addOns) ? input.addOns.slice(0, 4) : [];
 
   if (!productSlug || quantity < 1 || quantity > 20) return json({ error: "invalid_order" }, 400);
   if (checkoutReference && !/^[A-Za-z0-9_-]{16,100}$/.test(checkoutReference)) {
@@ -191,16 +206,68 @@ Deno.serve(async (req: Request) => {
   const { data: product, error: productError } = await admin
     .from("commerce_products")
     .select(
-      "id,slug,name,active,currency,unit_amount_cents,track_stock,stock_quantity,product_type,requires_shipping,requires_device,shipping_mode,flat_shipping_cents",
+      "id,slug,name,active,currency,unit_amount_cents,track_stock,stock_quantity,product_type,requires_shipping,requires_device,shipping_mode,flat_shipping_cents,purchase_enabled,preorder_price_cents,regular_price_cents,launch_at",
     )
     .eq("slug", productSlug)
     .maybeSingle();
 
   if (productError) return json({ error: "catalog_error" }, 500);
-  if (!product || !product.active || product.unit_amount_cents == null)
+  const mainUnitAmount = product ? effectiveUnitAmount(product) : null;
+  if (!product || !product.active || !product.purchase_enabled || mainUnitAmount == null)
     return json({ error: "product_unavailable" }, 409);
   if (product.track_stock && (product.stock_quantity ?? 0) < quantity)
     return json({ error: "insufficient_stock" }, 409);
+
+  const addOns: Array<{
+    id: string;
+    slug: string;
+    name: string;
+    quantity: number;
+    unit_amount_cents: number;
+    total_amount_cents: number;
+    product_type: string;
+  }> = [];
+  if (requestedAddOns.length) {
+    if (product.slug !== "kodabot-i") return json({ error: "add_on_not_available" }, 409);
+    for (const raw of requestedAddOns) {
+      const slug = cleanText(raw?.slug, 120);
+      const addOnQuantity = Number.isInteger(raw?.quantity) ? Number(raw.quantity) : 1;
+      if (slug !== "adaptador-energia-usb-2a" || addOnQuantity < 1 || addOnQuantity > quantity) {
+        return json({ error: "invalid_add_on" }, 400);
+      }
+      if (addOns.some((item) => item.slug === slug)) return json({ error: "invalid_add_on" }, 400);
+      const { data: addOn, error: addOnError } = await admin
+        .from("commerce_products")
+        .select(
+          "id,slug,name,active,currency,bundle_unit_amount_cents,unit_amount_cents,track_stock,stock_quantity,product_type,purchase_enabled",
+        )
+        .eq("slug", slug)
+        .maybeSingle();
+      if (addOnError) return json({ error: "catalog_error" }, 500);
+      const addOnUnit = addOn?.bundle_unit_amount_cents ?? null;
+      if (
+        !addOn ||
+        !addOn.active ||
+        !addOn.purchase_enabled ||
+        addOn.currency !== product.currency ||
+        addOnUnit == null
+      ) {
+        return json({ error: "add_on_not_available" }, 409);
+      }
+      if (addOn.track_stock && (addOn.stock_quantity ?? 0) < addOnQuantity) {
+        return json({ error: "insufficient_stock" }, 409);
+      }
+      addOns.push({
+        id: addOn.id,
+        slug: addOn.slug,
+        name: addOn.name,
+        quantity: addOnQuantity,
+        unit_amount_cents: Number(addOnUnit),
+        total_amount_cents: Number(addOnUnit) * addOnQuantity,
+        product_type: addOn.product_type,
+      });
+    }
+  }
 
   let tradeIn: {
     id: string;
@@ -351,7 +418,9 @@ Deno.serve(async (req: Request) => {
     shippingQuotedAt = new Date(issuedAt).toISOString();
   }
 
-  const subtotalCents = Number(product.unit_amount_cents) * quantity;
+  const mainSubtotalCents = Number(mainUnitAmount) * quantity;
+  const addOnSubtotalCents = addOns.reduce((total, item) => total + item.total_amount_cents, 0);
+  const subtotalCents = mainSubtotalCents + addOnSubtotalCents;
   const discountCents = tradeIn?.credit_cents ?? 0;
   const totalCents = Math.max(0, subtotalCents + shippingCents - discountCents);
   const orderType = product.product_type === "coverage" ? "coverage" : "commerce";
@@ -384,7 +453,6 @@ Deno.serve(async (req: Request) => {
       checkout_reference: checkoutReference || null,
       shipping_provider: shippingProvider,
       shipping_service: shippingService,
-      trade_in_request_id: tradeIn?.id ?? null,
       trade_in_source_model: tradeIn?.source_model ?? null,
       shipping_deadline_days: shippingDeadlineDays,
       shipping_quote_id: shippingQuoteId,
@@ -407,22 +475,35 @@ Deno.serve(async (req: Request) => {
     return json({ error: "order_create_failed" }, 500);
   }
 
-  const { error: itemError } = await admin.from("order_items").insert({
-    order_id: order.id,
-    product_id: product.id,
-    product_slug: product.slug,
-    product_name: product.name,
-    unit_amount_cents: product.unit_amount_cents,
-    quantity,
-    total_amount_cents: subtotalCents,
-    device_id: validatedDeviceId,
-    metadata: {
-      product_type: product.product_type,
-      shipping_quote_id: shippingQuoteId,
-      shipping_provider: shippingProvider,
-      shipping_service: shippingService,
+  const { error: itemError } = await admin.from("order_items").insert([
+    {
+      order_id: order.id,
+      product_id: product.id,
+      product_slug: product.slug,
+      product_name: product.name,
+      unit_amount_cents: mainUnitAmount,
+      quantity,
+      total_amount_cents: mainSubtotalCents,
+      device_id: validatedDeviceId,
+      metadata: {
+        product_type: product.product_type,
+        shipping_quote_id: shippingQuoteId,
+        shipping_provider: shippingProvider,
+        shipping_service: shippingService,
+      },
     },
-  });
+    ...addOns.map((item) => ({
+      order_id: order.id,
+      product_id: item.id,
+      product_slug: item.slug,
+      product_name: item.name,
+      unit_amount_cents: item.unit_amount_cents,
+      quantity: item.quantity,
+      total_amount_cents: item.total_amount_cents,
+      device_id: null,
+      metadata: { product_type: item.product_type, bundle_with: product.slug },
+    })),
+  ]);
 
   if (itemError) {
     await admin.from("orders").delete().eq("id", order.id);
@@ -465,6 +546,7 @@ Deno.serve(async (req: Request) => {
       shipping_quote_id: shippingQuoteId,
       trade_in_request_id: tradeIn?.id ?? null,
       trade_in_credit_cents: discountCents,
+      add_ons: addOns.map((item) => ({ slug: item.slug, quantity: item.quantity })),
     },
   });
 

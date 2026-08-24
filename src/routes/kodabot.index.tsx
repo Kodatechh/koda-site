@@ -13,6 +13,8 @@ import {
   Wifi,
 } from "lucide-react";
 
+import { formatReleasePrice, getKodaBotOffer } from "@/lib/koda-release";
+
 export const Route = createFileRoute("/kodabot/")({
   head: () => ({
     meta: [
@@ -78,6 +80,7 @@ const features = [
 ] as const;
 
 function KodaBot() {
+  const offer = getKodaBotOffer();
   const [activeFeature, setActiveFeature] = useState(0);
 
   const moveFeature = (direction: number) => {
@@ -123,7 +126,9 @@ function KodaBot() {
       <main>
         <section className="overflow-hidden bg-white pt-16 text-center sm:pt-24">
           <div className="mx-auto max-w-6xl px-5">
-            <p className="text-sm font-semibold text-[#0071e3]">Pré-venda · R$ 99,90</p>
+            <p className="text-sm font-semibold text-[#0071e3]">
+              {offer.label} · {formatReleasePrice(offer.priceCents)}
+            </p>
             <h1 className="mt-3 text-6xl font-semibold tracking-[-0.055em] sm:text-8xl">KodaBot</h1>
             <p className="mx-auto mt-5 max-w-3xl text-3xl font-semibold tracking-[-0.04em] text-[#6e6e73] sm:text-5xl">
               Simples, útil e bonito para o seu dia.
@@ -131,6 +136,10 @@ function KodaBot() {
             <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-[#6e6e73] sm:text-xl">
               Um assistente de mesa compacto para deixar tarefas, alertas, hora e informações úteis
               exatamente onde você precisa delas.
+            </p>
+            <p className="mx-auto mt-4 max-w-2xl text-sm text-[#86868b]">
+              Cabo Micro USB incluído. Adaptador de tomada vendido separadamente.
+              {offer.preorder ? " Envios a partir de 17 de outubro de 2026." : ""}
             </p>
           </div>
 
@@ -328,10 +337,11 @@ function KodaBot() {
 
         <section id="disponibilidade" className="bg-white py-28 text-center sm:py-36">
           <div className="mx-auto max-w-3xl px-5">
-            <p className="text-sm font-semibold text-[#0071e3]">Pré-venda disponível</p>
+            <p className="text-sm font-semibold text-[#0071e3]">{offer.label}</p>
             <h2 className="mt-4 text-5xl font-semibold tracking-[-0.05em] sm:text-7xl">KodaBot</h2>
             <p className="mx-auto mt-6 max-w-2xl text-xl leading-relaxed text-[#6e6e73]">
-              Garanta seu KodaBot por R$ 99,90 e escolha a proteção KodaCare ideal para ele.
+              {offer.preorder ? "Garanta" : "Compre"} seu KodaBot por{" "}
+              {formatReleasePrice(offer.priceCents)} e escolha a proteção KodaCare+ ideal para ele.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-5">
               <a

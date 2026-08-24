@@ -1,8 +1,10 @@
 # Contratos Koda — rascunho para validação
 
-**Versão:** 0.1 — 21 de agosto de 2026
+**Versão:** 0.2 — 24 de agosto de 2026
 **Status:** RASCUNHO. Não publicar nem apresentar como documento jurídico vigente.
-**Pendências obrigatórias:** razão social, CNPJ, endereço, e-mail jurídico, contato do encarregado de dados, prazos operacionais, tabela definitiva do KodaCare, garantia contratual e revisão por advogado brasileiro.
+**Modelo informado pelo responsável:** operação por pessoa física, sem CNPJ e sem razão social. O CPF e o endereço residencial não deverão ser inseridos no repositório público. Antes do início das vendas, é obrigatória a definição, com assessoria jurídica, de uma forma legal e segura de apresentar a identificação e o endereço do fornecedor exigidos para comércio eletrônico.
+
+**Demais pendências:** nome civil do fornecedor, e-mail jurídico, canal de privacidade, prazos operacionais, tabela definitiva do KodaCare, garantia contratual e revisão por advogado brasileiro.
 
 Este pacote organiza os documentos que o site precisa disponibilizar antes da operação comercial definitiva. As cláusulas preservam os direitos previstos no Código de Defesa do Consumidor e não afastam garantias legais.
 
@@ -10,7 +12,7 @@ Este pacote organiza os documentos que o site precisa disponibilizar antes da op
 
 ### 1.1 Partes e aceite
 
-Estes Termos regulam o uso do site, da Conta Koda, do KodaCloud e das funcionalidades vinculadas aos dispositivos Koda. O fornecedor é **[RAZÃO SOCIAL]**, CNPJ **[CNPJ]**, com sede em **[ENDEREÇO]**, contato **[E-MAIL]**. Ao criar uma conta ou utilizar uma funcionalidade autenticada, o usuário declara ter capacidade legal e aceitar estes Termos.
+Estes Termos regulam o uso do site, da Conta Koda, do KodaCloud e das funcionalidades vinculadas aos dispositivos Koda. O fornecedor é uma pessoa física identificada como **[NOME CIVIL DO FORNECEDOR]**, operando sob a marca Koda, contato **[E-MAIL]**. CPF e endereço deverão ser mantidos fora do repositório público e inseridos somente pelo mecanismo seguro definido após revisão jurídica. Ao criar uma conta ou utilizar uma funcionalidade autenticada, o usuário declara ter capacidade legal e aceitar estes Termos.
 
 ### 1.2 Conta e segurança
 
@@ -40,7 +42,11 @@ A página de cada produto deve informar características essenciais, preço tota
 
 ### 2.2 Pré-venda
 
-Produtos em pré-venda terão previsão de envio indicada antes do pagamento. A previsão poderá ser atualizada por motivo justificável, com comunicação ao cliente e opção de manter o pedido ou cancelar com restituição integral. A pré-venda não autoriza substituição unilateral por produto diferente.
+O KodaBot será oferecido em pré-venda por R$ 99,90 até 16 de outubro de 2026. O lançamento está previsto para 17 de outubro de 2026, quando o preço regular programado passa a R$ 129,90 e os envios começam. A data de início dos envios não equivale a promessa de entrega a todos os clientes no mesmo dia; o prazo individual e o frete serão exibidos no checkout.
+
+Qualquer alteração relevante da previsão será comunicada ao cliente, que poderá manter o pedido ou cancelar com restituição integral. A pré-venda não autoriza substituição unilateral por produto diferente.
+
+O KodaBot Pro não está à venda e não possui data de lançamento definida. O valor de R$ 129,90 informado para ele é uma estimativa já definida para futura pré-venda; o preço previsto após seu lançamento é R$ 199,90. A inscrição na lista de espera é gratuita, não reserva unidade e não cria obrigação de compra.
 
 ### 2.3 Pagamento e prevenção à fraude
 
@@ -58,23 +64,19 @@ Nas contratações realizadas fora do estabelecimento comercial, o consumidor po
 
 Vícios, defeitos e divergências serão tratados de acordo com o Código de Defesa do Consumidor. Nenhuma cláusula deste documento reduz a garantia legal ou limita indevidamente a responsabilidade do fornecedor.
 
-## 3. Termos do KodaCare
+## 3. Termos do KodaCare+
 
 ### 3.1 Elegibilidade
 
-O KodaCare é oferecido somente para KodaBot elegível e vinculado à Conta Koda. A tela de contratação deve mostrar plano, preço, duração, eventos cobertos, limites, franquias/coparticipações, exclusões e procedimento de atendimento.
+O KodaCare+ é oferecido somente para KodaBot elegível e vinculado à Conta Koda. A contratação deve ocorrer durante a compra ou em até 30 dias. A tela deve mostrar plano, preço, duração, eventos cobertos, limites, franquias/coparticipações, exclusões e procedimento de atendimento.
 
 ### 3.2 Cobertura
 
 A cobertura contratual será exatamente a descrita no resumo apresentado antes do pagamento e no certificado emitido após a contratação. Danos preexistentes, adulteração de serial, fraude, perda intencional e hipóteses expressamente destacadas poderão ser excluídos, sem prejuízo da garantia legal.
 
-#### 3.2.1 KodaCare — extensão de 6 meses
+#### 3.2.1 KodaCare+ — 12 ou 24 meses com danos acidentais
 
-O plano de extensão por 6 meses é vinculado ao número de série do KodaBot elegível. A cobertura acompanha o aparelho durante sua vigência, inclusive após uma transferência regular de titularidade, observadas as exclusões e condições apresentadas antes da compra. Esse plano não inclui quedas ou danos acidentais, salvo se o resumo pré-contratual disser expressamente o contrário.
-
-#### 3.2.2 KodaCare+ — 12 meses com danos acidentais
-
-O KodaCare+ de 12 meses é pessoal e vinculado simultaneamente à Conta Koda que o contratou e ao KodaBot indicado no certificado. Ele não é transferido com a venda, doação ou cessão do aparelho.
+O KodaCare+ de 12 meses custa R$ 29,90 e o de 24 meses custa R$ 49,90. Ambos são pessoais e vinculados simultaneamente à Conta Koda que contratou o plano e ao KodaBot indicado no certificado. Eles não são transferidos com a venda, doação ou cessão do aparelho.
 
 Quando o KodaBot for redefinido ou removido da conta contratante, o KodaCare+ ficará suspenso para aquele aparelho, sem alterar a garantia legal ou a garantia de fábrica vinculada ao produto. Se o mesmo titular reativar o mesmo KodaBot na mesma Conta Koda durante a vigência original, a cobertura será retomada pelo período restante, sem reinício ou prorrogação do prazo. Se o aparelho for ativado por outra conta, o novo titular não receberá o KodaCare+ do contratante anterior.
 
@@ -148,7 +150,7 @@ Atualizações podem corrigir segurança, estabilidade e recursos. Mudanças rel
 
 ### 7.1 Controlador e contato
 
-Controlador: **[RAZÃO SOCIAL/CNPJ/ENDEREÇO]**. Encarregado ou canal de privacidade: **[NOME OU CANAL E CONTATO]**.
+Controlador: **[NOME CIVIL DA PESSOA FÍSICA RESPONSÁVEL]**. CPF e endereço: **[INSERÇÃO SEGURA PENDENTE DE REVISÃO JURÍDICA]**. Encarregado ou canal de privacidade: **[NOME OU CANAL E CONTATO]**.
 
 ### 7.2 Dados e finalidades
 
@@ -176,7 +178,7 @@ A garantia legal permanece integralmente aplicável. Qualquer garantia contratua
 
 ## Pontos que precisam da sua decisão
 
-1. Razão social, CNPJ, endereço e contatos oficiais.
+1. Nome civil do fornecedor pessoa física, forma segura de disponibilização do CPF e endereço exigidos legalmente e contatos oficiais.
 2. Prazo de validade do cupom da avaliação.
 3. Prazo máximo para postagem, inspeção, aceite e devolução.
 4. Como o frete de devolução será calculado e cobrado.

@@ -10,6 +10,7 @@ import {
   QrCode,
   Recycle,
   ShieldCheck,
+  Cable,
   Truck,
 } from "lucide-react";
 
@@ -33,6 +34,10 @@ type CatalogProduct = {
   in_stock: boolean;
   requires_shipping: boolean;
   requires_device: boolean;
+  sales_mode?: "preorder" | "standard" | "waitlist";
+  launch_at?: string | null;
+  purchase_enabled?: boolean;
+  waitlist_enabled?: boolean;
 };
 
 type KodaPayStatus = {
@@ -222,6 +227,8 @@ function friendlyError(code: string | null, fallback: string) {
       "A transportadora não respondeu corretamente. Tente calcular a entrega novamente.",
     shipping_service_invalid: "A opção de entrega expirou ou mudou. Calcule o frete novamente.",
     shipping_quote_required: "Calcule e escolha a entrega novamente.",
+    invalid_add_on: "Revise o acessório adicionado ao pedido.",
+    add_on_not_available: "O acessório escolhido não está disponível para esta compra.",
     insufficient_stock: "Não há estoque suficiente para esta quantidade.",
     product_unavailable: "Este produto não está disponível para compra agora.",
     trade_in_not_available: "Esta avaliação de Trade In não está mais disponível.",
@@ -293,6 +300,7 @@ function CheckoutPage() {
       : (new URLSearchParams(window.location.search).get("coupon") ?? ""),
   );
   const [tradeIn, setTradeIn] = useState<TradeInRequest | null>(null);
+  const [includePowerAdapter, setIncludePowerAdapter] = useState(false);
 
   const [devices, setDevices] = useState<KodaDevice[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
@@ -485,8 +493,8 @@ function CheckoutPage() {
 
   const subtotalCents = useMemo(() => {
     const unit = catalog?.product.unit_amount_cents;
-    return unit == null ? null : unit * quantity;
-  }, [catalog?.product.unit_amount_cents, quantity]);
+    return unit == null ? null : unit * quantity + (includePowerAdapter ? 1490 : 0);
+  }, [catalog?.product.unit_amount_cents, includePowerAdapter, quantity]);
 
   const tradeInCreditCents = tradeIn?.final_credit_cents ?? 0;
   const totalCents =
@@ -511,6 +519,9 @@ function CheckoutPage() {
       checkoutReference,
       customerTaxId: customerTaxId.replace(/\D/g, ""),
       ...(tradeIn?.coupon_code ? { couponCode: tradeIn.coupon_code } : {}),
+      ...(includePowerAdapter
+        ? { addOns: [{ slug: "adaptador-energia-usb-2a", quantity: 1 }] }
+        : {}),
       ...(deviceRequired && selectedDeviceId ? { deviceId: selectedDeviceId } : {}),
       ...(shippingRequired
         ? { shippingAddress: address as unknown as Record<string, string> }
@@ -526,6 +537,7 @@ function CheckoutPage() {
       checkoutReference,
       customerTaxId,
       tradeIn?.coupon_code,
+      includePowerAdapter,
       deviceRequired,
       selectedDeviceId,
       shippingRequired,
@@ -643,7 +655,7 @@ function CheckoutPage() {
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-[#6e6e73]">
               {catalog?.product.product_type === "coverage"
-                ? "O KodaCare será vinculado ao KodaBot escolhido automaticamente. Acompanhe a cobertura pela Conta Koda."
+                ? "O KodaCare+ pertence à sua Conta Koda e já está aplicado ao KodaBot escolhido."
                 : "A Koda recebeu a confirmação do pagamento. Preparação, envio e entrega aparecem na sua Conta Koda."}
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
@@ -711,7 +723,7 @@ function CheckoutPage() {
                   <p
                     className={`text-sm font-semibold ${catalog.product.product_type === "coverage" ? "text-[#e11900]" : "text-[#0071e3]"}`}
                   >
-                    Sua compra
+                    {catalog.product.sales_mode === "preorder" ? "Pré-venda" : "Sua compra"}
                   </p>
                   <h1 className="mt-2 text-4xl font-semibold tracking-[-.055em] sm:text-5xl">
                     {catalog.product.name}
@@ -721,6 +733,12 @@ function CheckoutPage() {
                       catalog.product.description ??
                       "Produto Koda."}
                   </p>
+                  {catalog.product.slug === "kodabot-i" && (
+                    <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs font-medium text-[#424245]">
+                      <span>✓ Cabo Micro USB incluído</span>
+                      <span>✓ Envios a partir de 17/10/2026</span>
+                    </div>
+                  )}
                   <div className="mt-9 border-t border-black/10 pt-7">
                     <div className="flex items-start justify-between gap-6">
                       <div>
@@ -760,6 +778,45 @@ function CheckoutPage() {
                 </div>
               </section>
 
+              {catalog.product.slug === "kodabot-i" && (
+                <section className="rounded-[38px] bg-white p-7 sm:p-10">
+                  <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+                    <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-[24px] bg-[#f5f5f7]">
+                      <img
+                        src="/koda-adaptador-usb-2a.webp"
+                        alt="Adaptador de energia USB para KodaBot"
+                        className="h-full w-full object-contain p-2"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 text-[#0071e3]">
+                        <Cable className="h-4 w-4" />
+                        <p className="text-xs font-semibold">Complete seu KodaBot</p>
+                      </div>
+                      <h2 className="mt-2 text-xl font-semibold tracking-[-.03em]">
+                        Adaptador de energia USB
+                      </h2>
+                      <p className="mt-1 text-sm text-[#6e6e73]">
+                        Bivolt · USB-A · 5 V / 2 A. O cabo já vem na caixa do KodaBot.
+                      </p>
+                      <p className="mt-3 text-sm font-semibold">
+                        R$ 14,90 <span className="font-normal text-[#86868b]">com o KodaBot</span>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={includePowerAdapter}
+                      disabled={paymentLocked}
+                      onClick={() => setIncludePowerAdapter((current) => !current)}
+                      className={`shrink-0 rounded-full px-5 py-2.5 text-sm font-semibold transition ${includePowerAdapter ? "bg-[#1d1d1f] text-white" : "bg-[#0071e3] text-white hover:bg-[#0077ed]"} disabled:opacity-45`}
+                    >
+                      {includePowerAdapter ? "Adicionado ✓" : "Adicionar"}
+                    </button>
+                  </div>
+                </section>
+              )}
+
               {["kodabot-i", "kodabot-i-pro"].includes(catalog.product.slug) && (
                 <section className="rounded-[38px] bg-white p-7 sm:p-10">
                   <div className="flex items-start gap-4">
@@ -796,7 +853,7 @@ function CheckoutPage() {
                         Escolha seu KodaBot
                       </h2>
                       <p className="mt-0.5 text-xs text-[#86868b]">
-                        Esta compra será vinculada diretamente ao dispositivo.
+                        O plano pertence à sua conta e será aplicado ao aparelho escolhido.
                       </p>
                     </div>
                   </div>
@@ -1175,7 +1232,16 @@ function CheckoutPage() {
               )}
               {!catalog.product.available && (
                 <div className="mt-5 rounded-2xl bg-[#fff4e5] p-4 text-xs text-[#7a4a00]">
-                  Este produto está indisponível no momento.
+                  {catalog.product.waitlist_enabled ? (
+                    <>
+                      Este produto ainda não está à venda.{" "}
+                      <a href="/kodabot-pro#lista-de-espera" className="font-semibold underline">
+                        Entre na lista de espera.
+                      </a>
+                    </>
+                  ) : (
+                    "Este produto está indisponível no momento."
+                  )}
                 </div>
               )}
               {error && (

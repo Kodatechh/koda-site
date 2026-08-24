@@ -47,11 +47,6 @@ const hrefs: Record<ProductId, string> = {
   "kodabot-i": "/kodabot",
   "kodabot-i-pro": "/kodabot-pro",
 };
-const checkoutHrefs: Record<ProductId, string> = {
-  "kodabot-i": "/checkout/kodabot-i",
-  "kodabot-i-pro": "/checkout/kodabot-i-pro",
-};
-
 function money(cents: number | null | undefined, currency = "BRL") {
   if (cents == null) return "Preço em breve";
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(cents / 100);
@@ -224,18 +219,20 @@ function Compare() {
                     {subtitles[id]}
                   </p>
                   <p className="mt-4 text-[13px] font-semibold">
-                    {product
-                      ? money(product.unit_amount_cents, product.currency)
-                      : id === "kodabot-i"
-                        ? "R$ 99,90"
-                        : "R$ 129,90"}
+                    {id === "kodabot-i-pro"
+                      ? "Pré-venda futura · R$ 129,90"
+                      : product
+                        ? `Pré-venda · ${money(product.unit_amount_cents, product.currency)}`
+                        : "Pré-venda · R$ 99,90"}
                   </p>
                   <div className="mt-5 flex flex-col items-center gap-3">
                     <a
-                      href={checkoutHrefs[id]}
-                      className={`rounded-full bg-[#0071e3] px-5 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#0077ed] ${product && !product.available ? "pointer-events-none opacity-35" : ""}`}
+                      href={
+                        id === "kodabot-i" ? "/checkout/kodabot-i" : "/kodabot-pro#lista-de-espera"
+                      }
+                      className="rounded-full bg-[#0071e3] px-5 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-[#0077ed]"
                     >
-                      Comprar
+                      {id === "kodabot-i" ? "Comprar" : "Avise-me"}
                     </a>
                     <a
                       href={hrefs[id]}

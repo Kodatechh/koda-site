@@ -6,6 +6,7 @@ import { Nav } from "@/components/koda/Nav";
 import { ProductPhotoSlot } from "@/components/koda/ProductPhotoSlot";
 import { ProductQuiz } from "@/components/koda/ProductQuiz";
 import { SiteFooter } from "@/components/koda/SiteFooter";
+import { formatReleasePrice, getKodaBotOffer } from "@/lib/koda-release";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const [quizOpen, setQuizOpen] = useState(false);
+  const offer = getKodaBotOffer();
 
   return (
     <div id="top" className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f]">
@@ -37,7 +39,9 @@ function Home() {
       <main className="space-y-3 pb-3">
         <section className="relative overflow-hidden bg-white text-center">
           <div className="mx-auto max-w-6xl px-5 pb-0 pt-14 sm:pt-20">
-            <p className="text-sm font-semibold text-[#0071e3]">Pré-venda por R$ 99,90</p>
+            <p className="text-sm font-semibold text-[#0071e3]">
+              {offer.label} por {formatReleasePrice(offer.priceCents)}
+            </p>
             <h1 className="mt-1 text-5xl font-semibold tracking-[-0.045em] sm:text-6xl">KodaBot</h1>
             <p className="mx-auto mt-3 max-w-xl text-xl font-medium tracking-[-0.02em] sm:text-2xl">
               Simples, útil e bonito para o seu dia.
@@ -53,6 +57,11 @@ function Home() {
                 Comprar
               </a>
             </div>
+            {offer.preorder && (
+              <p className="mt-4 text-xs text-[#6e6e73]">
+                Envios a partir de 17 de outubro de 2026.
+              </p>
+            )}
 
             <a
               href="/kodabot"

@@ -45,6 +45,9 @@ type StoreProduct = {
   in_stock: boolean;
   requires_shipping: boolean;
   requires_device: boolean;
+  sales_mode?: "preorder" | "standard" | "waitlist";
+  waitlist_enabled?: boolean;
+  launch_at?: string | null;
 };
 
 type StoreCategory = {
@@ -90,9 +93,9 @@ function ProductVisual({ product, compact = false }: { product: StoreProduct; co
     >
       {isKodaBot ? (
         <img
-          src="/kodabot-store-product-v1.png"
+          src="/kodabot-checkout-transparent-v1.png"
           alt="KodaBot"
-          className="h-full w-full object-contain p-3"
+          className="h-full w-full object-contain p-5"
           loading="lazy"
         />
       ) : product.image_url ? (
@@ -123,12 +126,13 @@ function ProductVisual({ product, compact = false }: { product: StoreProduct; co
 }
 
 function BuyLink({ product, small = false }: { product: StoreProduct; small?: boolean }) {
+  const waitlist = product.waitlist_enabled || product.sales_mode === "waitlist";
   return (
     <a
-      href={`/checkout/${product.slug}`}
-      className={`inline-flex items-center justify-center rounded-full bg-[#0071e3] font-semibold text-white transition-colors hover:bg-[#0077ed] ${small ? "px-4 py-2 text-xs" : "px-5 py-2.5 text-sm"} ${product.available ? "" : "pointer-events-none opacity-40"}`}
+      href={waitlist ? "/kodabot-pro#lista-de-espera" : `/checkout/${product.slug}`}
+      className={`inline-flex items-center justify-center rounded-full bg-[#0071e3] font-semibold text-white transition-colors hover:bg-[#0077ed] ${small ? "px-4 py-2 text-xs" : "px-5 py-2.5 text-sm"} ${product.available || waitlist ? "" : "pointer-events-none opacity-40"}`}
     >
-      {product.available ? "Comprar" : "Indisponível"}
+      {waitlist ? "Avise-me" : product.available ? "Comprar" : "Indisponível"}
     </a>
   );
 }
@@ -232,7 +236,7 @@ function StorePage() {
               <ChevronLeft className="h-5 w-5" />
             </button>
             <p className="mx-auto">
-              KodaBot em pré-venda por R$ 99,90. Entrega calculada pelo seu CEP.{" "}
+              KodaBot em pré-venda por R$ 99,90 até 16/10. Envios a partir de 17/10.{" "}
               <a href="/checkout/kodabot-i" className="text-[#0066cc] hover:underline">
                 Comprar <CircleHelp className="inline h-4 w-4" />
               </a>

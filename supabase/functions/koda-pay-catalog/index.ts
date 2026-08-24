@@ -22,6 +22,36 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+type ScheduledProduct = {
+  unit_amount_cents: number | null;
+  compare_at_cents: number | null;
+  preorder_price_cents: number | null;
+  regular_price_cents: number | null;
+  preorder_ends_at: string | null;
+  launch_at: string | null;
+  purchase_enabled: boolean;
+  waitlist_enabled: boolean;
+};
+
+function scheduledOffer(product: ScheduledProduct) {
+  const launchAt = product.launch_at ? Date.parse(product.launch_at) : null;
+  const beforeLaunch = launchAt != null && Number.isFinite(launchAt) && Date.now() < launchAt;
+  const unitAmount = beforeLaunch
+    ? (product.preorder_price_cents ?? product.unit_amount_cents)
+    : (product.regular_price_cents ?? product.unit_amount_cents);
+  return {
+    unit_amount_cents: unitAmount,
+    compare_at_cents: beforeLaunch
+      ? (product.regular_price_cents ?? product.compare_at_cents)
+      : null,
+    sales_mode: product.waitlist_enabled ? "waitlist" : beforeLaunch ? "preorder" : "standard",
+    launch_at: product.launch_at,
+    preorder_ends_at: product.preorder_ends_at,
+    purchase_enabled: product.purchase_enabled,
+    waitlist_enabled: product.waitlist_enabled,
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST" && req.method !== "GET")
@@ -61,33 +91,37 @@ Deno.serve(async (req: Request) => {
     const { data: products, error: listError } = await admin
       .from("commerce_products")
       .select(
-        "slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,published_at",
+        "slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,published_at,purchase_enabled,waitlist_enabled,preorder_price_cents,regular_price_cents,preorder_ends_at,launch_at,category,featured,sort_order",
       )
       .eq("active", true)
       .neq("product_type", "coverage")
       .not("published_at", "is", null)
+      .order("sort_order", { ascending: true })
       .order("published_at", { ascending: false });
 
     if (listError) return json({ error: "catalog_error" }, 500);
     return json({
-      products: (products ?? []).map((product, index) => ({
-        ...product,
-        requires_device: product.requires_device || product.product_type === "coverage",
-        available: Boolean(
-          product.unit_amount_cents != null &&
-          (!product.track_stock || (product.stock_quantity ?? 0) > 0),
-        ),
-        in_stock: !product.track_stock || (product.stock_quantity ?? 0) > 0,
-        category:
-          product.product_type === "coverage"
-            ? "KodaCare"
-            : product.product_type === "physical"
-              ? "KodaBot"
-              : "Serviços",
-        category_id: null,
-        media: [],
-        featured: index < 4,
-      })),
+      products: (products ?? []).map((product, index) => {
+        const offer = scheduledOffer(product);
+        const inStock = !product.track_stock || (product.stock_quantity ?? 0) > 0;
+        return {
+          ...product,
+          ...offer,
+          requires_device: product.requires_device || product.product_type === "coverage",
+          available: Boolean(offer.purchase_enabled && offer.unit_amount_cents != null && inStock),
+          in_stock: inStock,
+          category:
+            product.category ||
+            (product.product_type === "coverage"
+              ? "KodaCare"
+              : product.product_type === "physical"
+                ? "KodaBot"
+                : "Serviços"),
+          category_id: null,
+          media: [],
+          featured: product.featured || index < 4,
+        };
+      }),
       categories: [],
     });
   }
@@ -95,7 +129,7 @@ Deno.serve(async (req: Request) => {
   const { data: product, error } = await admin
     .from("commerce_products")
     .select(
-      "slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,shipping_mode,flat_shipping_cents,weight_grams,length_mm,width_mm,height_mm,published_at,fiscal_document_type,fiscal_config",
+      "slug,name,short_description,description,product_type,image_url,active,currency,unit_amount_cents,compare_at_cents,track_stock,stock_quantity,requires_shipping,requires_device,shipping_mode,flat_shipping_cents,weight_grams,length_mm,width_mm,height_mm,published_at,fiscal_document_type,fiscal_config,purchase_enabled,waitlist_enabled,preorder_price_cents,regular_price_cents,preorder_ends_at,launch_at",
     )
     .eq("slug", productSlug)
     .maybeSingle();
@@ -104,6 +138,7 @@ Deno.serve(async (req: Request) => {
   if (!product) return json({ error: "product_not_found" }, 404);
 
   const inStock = !product.track_stock || (product.stock_quantity ?? 0) > 0;
+  const offer = scheduledOffer(product);
   const mercadoPagoConfigured = Boolean(Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN")?.trim());
   const cardConfigured =
     mercadoPagoConfigured && Boolean(Deno.env.get("MERCADO_PAGO_PUBLIC_KEY")?.trim());
@@ -141,7 +176,8 @@ Deno.serve(async (req: Request) => {
   const fiscalEnforced = Deno.env.get("KODA_FISCAL_ENFORCE")?.trim().toLowerCase() === "true";
   const available = Boolean(
     product.active &&
-    product.unit_amount_cents != null &&
+    offer.purchase_enabled &&
+    offer.unit_amount_cents != null &&
     inStock &&
     shippingConfigured &&
     (!fiscalEnforced || fiscalReady),
@@ -157,12 +193,17 @@ Deno.serve(async (req: Request) => {
       image_url: product.image_url,
       available,
       currency: product.currency,
-      unit_amount_cents: product.unit_amount_cents,
-      compare_at_cents: product.compare_at_cents,
+      unit_amount_cents: offer.unit_amount_cents,
+      compare_at_cents: offer.compare_at_cents,
       in_stock: inStock,
       requires_shipping: product.requires_shipping,
       requires_device: product.requires_device || product.product_type === "coverage",
       shipping_mode: product.shipping_mode,
+      sales_mode: offer.sales_mode,
+      launch_at: offer.launch_at,
+      preorder_ends_at: offer.preorder_ends_at,
+      purchase_enabled: offer.purchase_enabled,
+      waitlist_enabled: offer.waitlist_enabled,
     },
     koda_pay: {
       provider: "mercado_pago",
