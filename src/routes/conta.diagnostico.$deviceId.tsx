@@ -20,6 +20,8 @@ function DeviceDiagnostics() {
   const [health, setHealth] = useState<any>(null);
   const [components, setComponents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [requesting, setRequesting] = useState(false);
+  const [requestMessage, setRequestMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -60,6 +62,29 @@ function DeviceDiagnostics() {
 
   const lastSeen = health?.last_seen_at ?? device?.last_seen_at;
   const connection = useMemo(() => friendlyLastSeen(lastSeen), [lastSeen]);
+
+  async function requestDiagnostic() {
+    if (requesting) return;
+    setRequesting(true);
+    setError(null);
+    setRequestMessage(null);
+    const { error: commandError } = await db.rpc("request_device_command", {
+      _device_id: deviceId,
+      _command: "run_diagnostics",
+      _payload: { requested_from: "owner_portal" },
+    });
+    if (commandError) {
+      setError(
+        "Não foi possível solicitar a verificação agora. Confira se o KodaBot está conectado e tente novamente.",
+      );
+    } else {
+      setRequestMessage(
+        "Verificação solicitada. Assim que o KodaBot responder, você receberá uma notificação.",
+      );
+      window.setTimeout(() => void load(), 2500);
+    }
+    setRequesting(false);
+  }
 
   if (authLoading || loading)
     return (
@@ -148,10 +173,11 @@ function DeviceDiagnostics() {
       </section>
       <div className="mt-7 flex flex-wrap gap-3">
         <button
-          onClick={load}
+          onClick={requestDiagnostic}
+          disabled={requesting}
           className="rounded-full bg-black px-6 py-3 text-sm font-semibold text-white"
         >
-          Verificar novamente
+          {requesting ? "Solicitando…" : "Executar novo diagnóstico"}
         </button>
         <a
           href={`/reparos/solicitar?device=${deviceId}`}
@@ -160,6 +186,11 @@ function DeviceDiagnostics() {
           Solicitar reparo
         </a>
       </div>
+      {requestMessage && (
+        <p role="status" className="mt-5 text-sm text-green-700">
+          {requestMessage}
+        </p>
+      )}
       {error && (
         <p role="alert" className="mt-5 text-sm text-red-600">
           {error}

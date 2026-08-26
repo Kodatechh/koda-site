@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Bell, CheckCheck } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
+import { AccountSidebar } from "@/components/koda/AccountSidebar";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/conta/notificacoes")({ component: Notifications });
@@ -61,56 +62,61 @@ function Notifications() {
     );
   return (
     <Page>
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-[#0071e3]">Conta Koda</p>
-          <h1 className="mt-2 text-5xl font-semibold tracking-[-.05em]">Notificações.</h1>
-        </div>
-        <button
-          disabled={busy || !items.some((i) => !i.read_at)}
-          onClick={all}
-          className="flex items-center gap-2 text-sm font-semibold text-[#0066cc] disabled:opacity-40"
-        >
-          <CheckCheck className="h-4 w-4" />
-          Marcar todas
-        </button>
-      </div>
-      <div className="mt-10 overflow-hidden rounded-[30px] bg-white">
-        {items.length ? (
-          items.map((item) => (
+      <div className="grid gap-8 lg:grid-cols-[210px_minmax(0,1fr)]">
+        <AccountSidebar />
+        <div className="min-w-0">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-[#0071e3]">Conta Koda</p>
+              <h1 className="mt-2 text-5xl font-semibold tracking-[-.05em]">Notificações.</h1>
+            </div>
             <button
-              key={item.id}
-              onClick={() => read(item.id, item.href)}
-              className={`block w-full border-b border-black/10 p-6 text-left last:border-0 ${item.read_at ? "opacity-65" : "bg-[#f5f9ff]"}`}
+              disabled={busy || !items.some((i) => !i.read_at)}
+              onClick={all}
+              className="flex items-center gap-2 text-sm font-semibold text-[#0066cc] disabled:opacity-40"
             >
-              <div className="flex gap-4">
-                <Bell className="mt-1 h-5 w-5 shrink-0 text-[#0071e3]" />
-                <div>
-                  <p className="font-semibold">{item.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-[#6e6e73]">{item.body}</p>
-                  <p className="mt-2 text-xs text-[#86868b]">
-                    {new Intl.DateTimeFormat("pt-BR", {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    }).format(new Date(item.created_at))}
-                  </p>
-                </div>
-              </div>
+              <CheckCheck className="h-4 w-4" />
+              Marcar todas
             </button>
-          ))
-        ) : (
-          <div className="p-12 text-center">
-            <Bell className="mx-auto h-8 w-8 text-[#86868b]" />
-            <h2 className="mt-4 text-2xl font-semibold">Tudo tranquilo por aqui.</h2>
-            <p className="mt-2 text-sm text-[#6e6e73]">
-              Atualizações importantes aparecerão nesta página.
-            </p>
           </div>
-        )}
+          <div className="mt-10 overflow-hidden rounded-[30px] bg-white">
+            {items.length ? (
+              items.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => read(item.id, item.href)}
+                  className={`block w-full border-b border-black/10 p-6 text-left last:border-0 ${item.read_at ? "opacity-65" : "bg-[#f5f9ff]"}`}
+                >
+                  <div className="flex gap-4">
+                    <Bell className="mt-1 h-5 w-5 shrink-0 text-[#0071e3]" />
+                    <div>
+                      <p className="font-semibold">{item.title}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-[#6e6e73]">{item.body}</p>
+                      <p className="mt-2 text-xs text-[#86868b]">
+                        {new Intl.DateTimeFormat("pt-BR", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }).format(new Date(item.created_at))}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="p-12 text-center">
+                <Bell className="mx-auto h-8 w-8 text-[#86868b]" />
+                <h2 className="mt-4 text-2xl font-semibold">Tudo tranquilo por aqui.</h2>
+                <p className="mt-2 text-sm text-[#6e6e73]">
+                  Atualizações importantes aparecerão nesta página.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </Page>
   );
 }
 function Page({ children }: { children: ReactNode }) {
-  return <main className="mx-auto min-h-[650px] max-w-5xl px-5 py-14">{children}</main>;
+  return <main className="mx-auto min-h-[650px] max-w-7xl px-5 py-14">{children}</main>;
 }

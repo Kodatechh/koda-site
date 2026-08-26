@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Activity,
   ArrowLeft,
+  CheckCircle2,
   ChevronRight,
   CircleHelp,
   CloudDownload,
@@ -31,15 +33,24 @@ type Device = {
   warranty_end: string | null;
   kodaos_version: string | null;
   activated_at: string | null;
+  manufactured_at: string | null;
   last_seen_at: string | null;
 };
 type Health = { online: boolean; last_seen_at: string | null };
+type TimelineEvent = {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  href?: string;
+};
 function DevicePage() {
   const { deviceId } = Route.useParams();
   const { user, loading } = useAuth();
   const [device, setDevice] = useState<Device | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [coverage, setCoverage] = useState<CoverageStatus | null>(null);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [presenceNow, setPresenceNow] = useState(Date.now());
   useEffect(() => {
@@ -48,11 +59,12 @@ function DevicePage() {
   }, []);
   useEffect(() => {
     if (!user) return;
+    const db = supabase as any;
     Promise.all([
       supabase
         .from("devices")
         .select(
-          "id,serial_number,model,status,purchase_date,warranty_start,warranty_end,kodaos_version,activated_at,last_seen_at",
+          "id,serial_number,model,status,purchase_date,warranty_start,warranty_end,kodaos_version,activated_at,manufactured_at,last_seen_at",
         )
         .eq("id", deviceId)
         .eq("owner_user_id", user.id)
@@ -63,11 +75,39 @@ function DevicePage() {
         .eq("device_id", deviceId)
         .maybeSingle(),
       supabase.rpc("get_device_kodacare_status", { _device_id: deviceId }),
-    ]).then(([deviceResult, healthResult, coverageResult]) => {
+      db
+        .from("device_events")
+        .select("id,event_type,details,created_at")
+        .eq("device_id", deviceId)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      db
+        .from("repair_requests")
+        .select("id,protocol,repair_events(id,event_type,title,details,created_at)")
+        .eq("device_id", deviceId)
+        .eq("user_id", user.id),
+    ]).then(([deviceResult, healthResult, coverageResult, eventResult, repairResult]) => {
       if (!deviceResult.error) setDevice(deviceResult.data as Device | null);
       if (!healthResult.error) setHealth(healthResult.data as Health | null);
       if (!coverageResult.error)
         setCoverage((coverageResult.data?.[0] as CoverageStatus | undefined) ?? null);
+      const deviceItems = (eventResult.data ?? [])
+        .map(toDeviceTimeline)
+        .filter(Boolean) as TimelineEvent[];
+      const repairItems = (repairResult.data ?? []).flatMap((repair: any) =>
+        (repair.repair_events ?? []).map((event: any) => ({
+          id: event.id,
+          title: event.title,
+          body: repairEventBody(event.details, repair.protocol),
+          created_at: event.created_at,
+          href: `/conta/reparos/${repair.id}`,
+        })),
+      );
+      setTimeline(
+        [...deviceItems, ...repairItems]
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 12),
+      );
       setLoaded(true);
     });
   }, [user, deviceId]);
@@ -210,6 +250,45 @@ function DevicePage() {
         </div>
       </section>
       <section className="border-t border-black/10 py-12 sm:grid sm:grid-cols-[220px_1fr] sm:gap-14">
+        <div>
+          <h2 className="text-sm font-semibold text-[#6e6e73]">Linha do tempo</h2>
+          <p className="mt-3 max-w-[190px] text-xs leading-relaxed text-[#86868b]">
+            Ativação, diagnósticos e serviços deste KodaBot em um só lugar.
+          </p>
+        </div>
+        <div className="mt-7 sm:mt-0">
+          {timeline.length ? (
+            <ol className="space-y-0">
+              {timeline.map((event, index) => (
+                <li key={event.id} className="relative flex gap-4 pb-7 last:pb-0">
+                  {index < timeline.length - 1 && (
+                    <span className="absolute left-[9px] top-5 h-[calc(100%-4px)] w-px bg-black/10" />
+                  )}
+                  <CheckCircle2 className="relative z-10 mt-0.5 h-5 w-5 shrink-0 bg-[#f5f5f7] text-[#34c759]" />
+                  <div className="min-w-0">
+                    {event.href ? (
+                      <a href={event.href} className="font-semibold text-[#0066cc] hover:underline">
+                        {event.title}
+                      </a>
+                    ) : (
+                      <p className="font-semibold">{event.title}</p>
+                    )}
+                    <p className="mt-1 text-sm leading-relaxed text-[#6e6e73]">{event.body}</p>
+                    <time className="mt-1 block text-xs text-[#86868b]">
+                      {formatDateTime(event.created_at)}
+                    </time>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-sm text-[#6e6e73]">
+              Os próximos eventos deste KodaBot aparecerão aqui.
+            </p>
+          )}
+        </div>
+      </section>
+      <section className="border-t border-black/10 py-12 sm:grid sm:grid-cols-[220px_1fr] sm:gap-14">
         <h2 className="text-sm font-semibold text-[#6e6e73]">Suporte e serviço</h2>
         <div className="mt-6 grid gap-3 sm:mt-0 sm:grid-cols-3">
           <ServiceLink href="/suporte/contato" icon={CircleHelp} title="Obter suporte" />
@@ -242,6 +321,52 @@ function DevicePage() {
         </dl>
       </section>
     </main>
+  );
+}
+
+function toDeviceTimeline(event: any): TimelineEvent | null {
+  const command = event.details?.command;
+  const labels: Record<string, [string, string]> = {
+    activated: ["KodaBot ativado", "Vinculado com segurança à sua Conta KodaCloud."],
+    activation_started: ["Ativação iniciada", "O KodaBot iniciou uma sessão segura de ativação."],
+    ownership_released: [
+      "Propriedade liberada",
+      "O vínculo anterior deste dispositivo foi removido.",
+    ],
+  };
+  if (event.event_type === "command_requested" && command === "run_diagnostics")
+    return {
+      id: event.id,
+      title: "Diagnóstico solicitado",
+      body: "Aguardando o KodaBot executar a verificação.",
+      created_at: event.created_at,
+    };
+  if (event.event_type === "command_completed" && command === "run_diagnostics")
+    return {
+      id: event.id,
+      title: "Diagnóstico concluído",
+      body:
+        event.details?.status === "failed"
+          ? "A verificação não foi concluída."
+          : "Os resultados mais recentes já estão disponíveis.",
+      created_at: event.created_at,
+    };
+  const label = labels[event.event_type];
+  return label
+    ? { id: event.id, title: label[0], body: label[1], created_at: event.created_at }
+    : null;
+}
+
+function repairEventBody(details: unknown, protocol: string) {
+  if (typeof details === "string" && details.trim()) return details;
+  if (details && typeof details === "object" && "message" in details)
+    return String((details as { message?: unknown }).message ?? `Reparo ${protocol} atualizado.`);
+  return `O reparo ${protocol} recebeu uma nova atualização.`;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" }).format(
+    new Date(value),
   );
 }
 

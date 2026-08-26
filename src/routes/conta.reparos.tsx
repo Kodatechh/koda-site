@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Wrench } from "lucide-react";
+import { AccountSidebar } from "@/components/koda/AccountSidebar";
 import { useAuth } from "@/components/koda/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/conta/reparos")({ component: Repairs });
@@ -19,7 +20,7 @@ const labels: Record<string, string> = {
   cancelled: "Cancelado",
 };
 function Repairs() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const db = supabase as any;
   const [items, setItems] = useState<any[]>([]);
   useEffect(() => {
@@ -32,51 +33,65 @@ function Repairs() {
         .order("created_at", { ascending: false })
         .then(({ data }: any) => setItems(data ?? []));
   }, [user]);
+  if (loading)
+    return (
+      <main className="grid min-h-[650px] place-items-center text-sm text-[#6e6e73]">
+        Carregando reparos…
+      </main>
+    );
   return (
-    <main className="mx-auto min-h-[650px] max-w-5xl px-5 py-14">
-      <div className="flex items-end justify-between">
-        <div>
-          <p className="text-sm font-semibold text-[#0071e3]">Conta Koda</p>
-          <h1 className="mt-2 text-5xl font-semibold tracking-[-.05em]">Reparos.</h1>
-        </div>
-        <a
-          href="/reparos/solicitar"
-          className="rounded-full bg-[#0071e3] px-5 py-2.5 text-sm font-semibold text-white"
-        >
-          Solicitar reparo
-        </a>
-      </div>
-      <div className="mt-10 space-y-4">
-        {items.map((r) => (
-          <a
-            key={r.id}
-            href={`/conta/reparos/${r.id}`}
-            className="block rounded-[28px] bg-white p-6 transition-transform hover:-translate-y-0.5"
-          >
-            <p className="font-mono text-xs text-[#86868b]">{r.protocol}</p>
-            <div className="mt-2 flex justify-between gap-4">
-              <h2 className="text-xl font-semibold">{labels[r.status] ?? r.status}</h2>
-              {r.final_price_cents != null && (
-                <strong>
-                  {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
-                    r.final_price_cents / 100,
-                  )}
-                </strong>
-              )}
+    <main className="mx-auto min-h-[650px] max-w-7xl px-5 py-14">
+      <div className="grid gap-8 lg:grid-cols-[210px_minmax(0,1fr)]">
+        <AccountSidebar />
+        <div className="min-w-0">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[#0071e3]">Conta Koda</p>
+              <h1 className="mt-2 text-5xl font-semibold tracking-[-.05em]">Reparos.</h1>
             </div>
-            <p className="mt-2 text-sm text-[#6e6e73]">
-              {r.model} · {r.category}
-            </p>
-            {r.tracking_code && <p className="mt-3 text-sm">Rastreio: {r.tracking_code}</p>}
-          </a>
-        ))}
-        {user && !items.length && (
-          <div className="rounded-[28px] bg-white p-12 text-center">
-            <Wrench className="mx-auto h-8 w-8 text-[#86868b]" />
-            <p className="mt-4 text-sm text-[#6e6e73]">Nenhum reparo solicitado.</p>
+            <a
+              href="/reparos/solicitar"
+              className="rounded-full bg-[#0071e3] px-5 py-2.5 text-sm font-semibold text-white"
+            >
+              Solicitar reparo
+            </a>
           </div>
-        )}
-        {!user && <a href="/conta/entrar?next=/conta/reparos">Entre para acompanhar reparos.</a>}
+          <div className="mt-10 space-y-4">
+            {items.map((r) => (
+              <a
+                key={r.id}
+                href={`/conta/reparos/${r.id}`}
+                className="block rounded-[28px] bg-white p-6 transition-transform hover:-translate-y-0.5"
+              >
+                <p className="font-mono text-xs text-[#86868b]">{r.protocol}</p>
+                <div className="mt-2 flex justify-between gap-4">
+                  <h2 className="text-xl font-semibold">{labels[r.status] ?? r.status}</h2>
+                  {r.final_price_cents != null && (
+                    <strong>
+                      {new Intl.NumberFormat("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      }).format(r.final_price_cents / 100)}
+                    </strong>
+                  )}
+                </div>
+                <p className="mt-2 text-sm text-[#6e6e73]">
+                  {r.model} · {r.category}
+                </p>
+                {r.tracking_code && <p className="mt-3 text-sm">Rastreio: {r.tracking_code}</p>}
+              </a>
+            ))}
+            {user && !items.length && (
+              <div className="rounded-[28px] bg-white p-12 text-center">
+                <Wrench className="mx-auto h-8 w-8 text-[#86868b]" />
+                <p className="mt-4 text-sm text-[#6e6e73]">Nenhum reparo solicitado.</p>
+              </div>
+            )}
+            {!user && (
+              <a href="/conta/entrar?next=/conta/reparos">Entre para acompanhar reparos.</a>
+            )}
+          </div>
+        </div>
       </div>
     </main>
   );
