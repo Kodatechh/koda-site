@@ -144,6 +144,7 @@ function StorePage() {
             <div className="mt-12 flex gap-3 overflow-x-auto pb-2">
               <QuickLink href="#kodabot" label="KodaBot" />
               <QuickLink href="#acessorios" label="Acessórios" />
+              <QuickLink href="/recondicionados" label="Recondicionados" />
               <QuickLink href="/comparar" label="Comparar" />
               <QuickLink href="/comprar" label="Compra guiada" />
               <QuickLink href="/trade-in" label="Trade In" />

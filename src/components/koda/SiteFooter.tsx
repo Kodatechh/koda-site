@@ -7,6 +7,7 @@ const groups = [
       ["KodaBot Pro", "/kodabot-pro"],
       ["Comparar modelos", "/comparar"],
       ["KodaCare", "/kodacare"],
+      ["Recondicionados", "/recondicionados"],
     ],
   },
   {
@@ -24,6 +25,7 @@ const groups = [
       ["Meus pedidos", "/conta/pedidos"],
       ["Meus KodaBots", "/conta"],
       ["Notificações", "/conta/notificacoes"],
+      ["Indique a Koda", "/indicacao"],
     ],
   },
   {
@@ -40,6 +42,9 @@ const groups = [
     title: "Sobre a Koda",
     links: [
       ["Koda", "/sobre"],
+      ["Conteúdo Koda", "/conteudo"],
+      ["Koda para Educação", "/educacao"],
+      ["Koda para Empresas", "/empresas"],
       ["Privacidade", "/privacidade"],
       ["Fale com a Koda", "/suporte/contato"],
     ],

@@ -15,15 +15,20 @@ import { Route as AtivarRouteImport } from './routes/ativar'
 import { Route as CompararRouteImport } from './routes/comparar'
 import { Route as ComprarRouteImport } from './routes/comprar'
 import { Route as ContaRouteImport } from './routes/conta'
+import { Route as ConteudoRouteImport } from './routes/conteudo'
 import { Route as ContratosRouteImport } from './routes/contratos'
+import { Route as EducacaoRouteImport } from './routes/educacao'
+import { Route as EmpresasRouteImport } from './routes/empresas'
 import { Route as FabricaRouteImport } from './routes/fabrica'
 import { Route as FinanceiroInternoRouteImport } from './routes/financeiro-interno'
+import { Route as IndicacaoRouteImport } from './routes/indicacao'
 import { Route as KodabotRouteImport } from './routes/kodabot'
 import { Route as KodabotProRouteImport } from './routes/kodabot-pro'
 import { Route as KodacareRouteImport } from './routes/kodacare'
 import { Route as KodaosRouteImport } from './routes/kodaos'
 import { Route as LojaRouteImport } from './routes/loja'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as RecondicionadosRouteImport } from './routes/recondicionados'
 import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as SuporteRouteImport } from './routes/suporte'
@@ -101,9 +106,24 @@ const ContaRoute = ContaRouteImport.update({
   path: '/conta',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConteudoRoute = ConteudoRouteImport.update({
+  id: '/conteudo',
+  path: '/conteudo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContratosRoute = ContratosRouteImport.update({
   id: '/contratos',
   path: '/contratos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EducacaoRoute = EducacaoRouteImport.update({
+  id: '/educacao',
+  path: '/educacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmpresasRoute = EmpresasRouteImport.update({
+  id: '/empresas',
+  path: '/empresas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FabricaRoute = FabricaRouteImport.update({
@@ -114,6 +134,11 @@ const FabricaRoute = FabricaRouteImport.update({
 const FinanceiroInternoRoute = FinanceiroInternoRouteImport.update({
   id: '/financeiro-interno',
   path: '/financeiro-interno',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndicacaoRoute = IndicacaoRouteImport.update({
+  id: '/indicacao',
+  path: '/indicacao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KodabotRoute = KodabotRouteImport.update({
@@ -144,6 +169,11 @@ const LojaRoute = LojaRouteImport.update({
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
   id: '/privacidade',
   path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecondicionadosRoute = RecondicionadosRouteImport.update({
+  id: '/recondicionados',
+  path: '/recondicionados',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SobreRoute = SobreRouteImport.update({
@@ -386,15 +416,20 @@ export interface FileRoutesByFullPath {
   '/comparar': typeof CompararRoute
   '/comprar': typeof ComprarRoute
   '/conta': typeof ContaRouteWithChildren
+  '/conteudo': typeof ConteudoRoute
   '/contratos': typeof ContratosRoute
+  '/educacao': typeof EducacaoRoute
+  '/empresas': typeof EmpresasRoute
   '/fabrica': typeof FabricaRoute
   '/financeiro-interno': typeof FinanceiroInternoRoute
+  '/indicacao': typeof IndicacaoRoute
   '/kodabot': typeof KodabotRouteWithChildren
   '/kodabot-pro': typeof KodabotProRouteWithChildren
   '/kodacare': typeof KodacareRoute
   '/kodaos': typeof KodaosRouteWithChildren
   '/loja': typeof LojaRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/recondicionados': typeof RecondicionadosRoute
   '/sobre': typeof SobreRoute
   '/status': typeof StatusRoute
   '/suporte': typeof SuporteRouteWithChildren
@@ -447,12 +482,17 @@ export interface FileRoutesByTo {
   '/ativar': typeof AtivarRoute
   '/comparar': typeof CompararRoute
   '/comprar': typeof ComprarRoute
+  '/conteudo': typeof ConteudoRoute
   '/contratos': typeof ContratosRoute
+  '/educacao': typeof EducacaoRoute
+  '/empresas': typeof EmpresasRoute
   '/fabrica': typeof FabricaRoute
   '/financeiro-interno': typeof FinanceiroInternoRoute
+  '/indicacao': typeof IndicacaoRoute
   '/kodacare': typeof KodacareRoute
   '/loja': typeof LojaRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/recondicionados': typeof RecondicionadosRoute
   '/sobre': typeof SobreRoute
   '/status': typeof StatusRoute
   '/suporte-interno': typeof SuporteInternoRoute
@@ -507,15 +547,20 @@ export interface FileRoutesById {
   '/comparar': typeof CompararRoute
   '/comprar': typeof ComprarRoute
   '/conta': typeof ContaRouteWithChildren
+  '/conteudo': typeof ConteudoRoute
   '/contratos': typeof ContratosRoute
+  '/educacao': typeof EducacaoRoute
+  '/empresas': typeof EmpresasRoute
   '/fabrica': typeof FabricaRoute
   '/financeiro-interno': typeof FinanceiroInternoRoute
+  '/indicacao': typeof IndicacaoRoute
   '/kodabot': typeof KodabotRouteWithChildren
   '/kodabot-pro': typeof KodabotProRouteWithChildren
   '/kodacare': typeof KodacareRoute
   '/kodaos': typeof KodaosRouteWithChildren
   '/loja': typeof LojaRoute
   '/privacidade': typeof PrivacidadeRoute
+  '/recondicionados': typeof RecondicionadosRoute
   '/sobre': typeof SobreRoute
   '/status': typeof StatusRoute
   '/suporte': typeof SuporteRouteWithChildren
@@ -572,15 +617,20 @@ export interface FileRouteTypes {
     | '/comparar'
     | '/comprar'
     | '/conta'
+    | '/conteudo'
     | '/contratos'
+    | '/educacao'
+    | '/empresas'
     | '/fabrica'
     | '/financeiro-interno'
+    | '/indicacao'
     | '/kodabot'
     | '/kodabot-pro'
     | '/kodacare'
     | '/kodaos'
     | '/loja'
     | '/privacidade'
+    | '/recondicionados'
     | '/sobre'
     | '/status'
     | '/suporte'
@@ -633,12 +683,17 @@ export interface FileRouteTypes {
     | '/ativar'
     | '/comparar'
     | '/comprar'
+    | '/conteudo'
     | '/contratos'
+    | '/educacao'
+    | '/empresas'
     | '/fabrica'
     | '/financeiro-interno'
+    | '/indicacao'
     | '/kodacare'
     | '/loja'
     | '/privacidade'
+    | '/recondicionados'
     | '/sobre'
     | '/status'
     | '/suporte-interno'
@@ -692,15 +747,20 @@ export interface FileRouteTypes {
     | '/comparar'
     | '/comprar'
     | '/conta'
+    | '/conteudo'
     | '/contratos'
+    | '/educacao'
+    | '/empresas'
     | '/fabrica'
     | '/financeiro-interno'
+    | '/indicacao'
     | '/kodabot'
     | '/kodabot-pro'
     | '/kodacare'
     | '/kodaos'
     | '/loja'
     | '/privacidade'
+    | '/recondicionados'
     | '/sobre'
     | '/status'
     | '/suporte'
@@ -756,15 +816,20 @@ export interface RootRouteChildren {
   CompararRoute: typeof CompararRoute
   ComprarRoute: typeof ComprarRoute
   ContaRoute: typeof ContaRouteWithChildren
+  ConteudoRoute: typeof ConteudoRoute
   ContratosRoute: typeof ContratosRoute
+  EducacaoRoute: typeof EducacaoRoute
+  EmpresasRoute: typeof EmpresasRoute
   FabricaRoute: typeof FabricaRoute
   FinanceiroInternoRoute: typeof FinanceiroInternoRoute
+  IndicacaoRoute: typeof IndicacaoRoute
   KodabotRoute: typeof KodabotRouteWithChildren
   KodabotProRoute: typeof KodabotProRouteWithChildren
   KodacareRoute: typeof KodacareRoute
   KodaosRoute: typeof KodaosRouteWithChildren
   LojaRoute: typeof LojaRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
+  RecondicionadosRoute: typeof RecondicionadosRoute
   SobreRoute: typeof SobreRoute
   StatusRoute: typeof StatusRoute
   SuporteRoute: typeof SuporteRouteWithChildren
@@ -821,11 +886,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ContaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/conteudo': {
+      id: '/conteudo'
+      path: '/conteudo'
+      fullPath: '/conteudo'
+      preLoaderRoute: typeof ConteudoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contratos': {
       id: '/contratos'
       path: '/contratos'
       fullPath: '/contratos'
       preLoaderRoute: typeof ContratosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/educacao': {
+      id: '/educacao'
+      path: '/educacao'
+      fullPath: '/educacao'
+      preLoaderRoute: typeof EducacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/empresas': {
+      id: '/empresas'
+      path: '/empresas'
+      fullPath: '/empresas'
+      preLoaderRoute: typeof EmpresasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fabrica': {
@@ -840,6 +926,13 @@ declare module '@tanstack/react-router' {
       path: '/financeiro-interno'
       fullPath: '/financeiro-interno'
       preLoaderRoute: typeof FinanceiroInternoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/indicacao': {
+      id: '/indicacao'
+      path: '/indicacao'
+      fullPath: '/indicacao'
+      preLoaderRoute: typeof IndicacaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kodabot': {
@@ -882,6 +975,13 @@ declare module '@tanstack/react-router' {
       path: '/privacidade'
       fullPath: '/privacidade'
       preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recondicionados': {
+      id: '/recondicionados'
+      path: '/recondicionados'
+      fullPath: '/recondicionados'
+      preLoaderRoute: typeof RecondicionadosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sobre': {
@@ -1361,15 +1461,20 @@ const rootRouteChildren: RootRouteChildren = {
   CompararRoute: CompararRoute,
   ComprarRoute: ComprarRoute,
   ContaRoute: ContaRouteWithChildren,
+  ConteudoRoute: ConteudoRoute,
   ContratosRoute: ContratosRoute,
+  EducacaoRoute: EducacaoRoute,
+  EmpresasRoute: EmpresasRoute,
   FabricaRoute: FabricaRoute,
   FinanceiroInternoRoute: FinanceiroInternoRoute,
+  IndicacaoRoute: IndicacaoRoute,
   KodabotRoute: KodabotRouteWithChildren,
   KodabotProRoute: KodabotProRouteWithChildren,
   KodacareRoute: KodacareRoute,
   KodaosRoute: KodaosRouteWithChildren,
   LojaRoute: LojaRoute,
   PrivacidadeRoute: PrivacidadeRoute,
+  RecondicionadosRoute: RecondicionadosRoute,
   SobreRoute: SobreRoute,
   StatusRoute: StatusRoute,
   SuporteRoute: SuporteRouteWithChildren,

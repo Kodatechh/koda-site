@@ -22,6 +22,7 @@ const navItems: NavItem[] = [
           { label: "Acessórios", href: "/loja" },
           { label: "KodaBot", href: "/kodabot" },
           { label: "KodaBot Pro", href: "/kodabot-pro" },
+          { label: "Recondicionados", href: "/recondicionados" },
           { label: "Comparar modelos", href: "/comparar" },
         ],
       },
@@ -109,6 +110,7 @@ const navItems: NavItem[] = [
           { label: "Sobre nós", href: "/sobre" },
           { label: "Sobre os KodaBots", href: "/kodabot" },
           { label: "KODA OS", href: "/kodaos" },
+          { label: "Conteúdo Koda", href: "/conteudo" },
         ],
       },
       {
@@ -125,6 +127,14 @@ const navItems: NavItem[] = [
           { label: "Visão geral", href: "/kodaos" },
           { label: "Atualizações", href: "/kodaos/updates" },
           { label: "Changelog", href: "/kodaos/changelog" },
+        ],
+      },
+      {
+        title: "Para mais pessoas",
+        items: [
+          { label: "Koda para Educação", href: "/educacao" },
+          { label: "Koda para Empresas", href: "/empresas" },
+          { label: "Programa de indicação", href: "/indicacao" },
         ],
       },
     ],

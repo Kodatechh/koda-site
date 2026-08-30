@@ -2,3 +2,6 @@ project_id = "qqvwnsemihkknzodkxob"
 
 [functions.koda-product-waitlist]
 verify_jwt = false
+
+[functions.koda-growth-interest]
+verify_jwt = false
