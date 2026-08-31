@@ -241,7 +241,19 @@ export function Nav() {
                   if (!item.menu) hideMenu(true);
                 }}
               >
-                {item.menu ? (
+                {item.menu && item.label === "Loja" ? (
+                  <a
+                    href={item.href}
+                    aria-expanded={openMenu === item.label}
+                    aria-controls={`globalnav-${item.label.toLowerCase().replaceAll(" ", "-")}`}
+                    onMouseEnter={() => showMenu(item.label)}
+                    onFocus={() => showMenu(item.label)}
+                    onClick={closeNavigation}
+                    className="flex h-11 items-center whitespace-nowrap px-0 text-[12px] font-normal leading-none text-[#1d1d1f]/80 outline-none transition-opacity hover:opacity-55 focus-visible:ring-2 focus-visible:ring-[#0071e3]/35"
+                  >
+                    {item.label}
+                  </a>
+                ) : item.menu ? (
                   <button
                     type="button"
                     aria-expanded={openMenu === item.label}
@@ -353,7 +365,55 @@ export function Nav() {
           <div className="fixed inset-x-0 top-11 z-[70] max-h-[calc(100vh-44px)] overflow-y-auto bg-white px-6 pb-12 pt-4 lg:hidden">
             {navItems.map((item) => (
               <div key={item.label} className="border-b border-black/[.06] last:border-0">
-                {item.menu ? (
+                {item.menu && item.label === "Loja" ? (
+                  <>
+                    <div className="flex w-full items-center justify-between">
+                      <a
+                        href={item.href}
+                        onClick={closeNavigation}
+                        className="flex-1 py-4 text-[28px] font-semibold tracking-[-.045em]"
+                      >
+                        {item.label}
+                      </a>
+                      <button
+                        type="button"
+                        aria-label="Mostrar opções da Loja"
+                        aria-expanded={mobileMenu === item.label}
+                        onClick={() =>
+                          setMobileMenu((open) => (open === item.label ? null : item.label))
+                        }
+                        className="grid h-12 w-12 place-items-center"
+                      >
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform duration-200 ${mobileMenu === item.label ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                    </div>
+                    <div
+                      className={`grid transition-[grid-template-rows,opacity] duration-200 ${mobileMenu === item.label ? "grid-rows-[1fr] pb-5 opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+                    >
+                      <div className="overflow-hidden">
+                        {item.menu.map((group) => (
+                          <div key={group.title} className="mb-5 last:mb-0">
+                            <p className="mb-2 text-[11px] text-[#86868b]">{group.title}</p>
+                            <div className="space-y-2">
+                              {group.items.map((sub) => (
+                                <a
+                                  key={`${sub.label}-${sub.href}`}
+                                  href={sub.href}
+                                  onClick={closeNavigation}
+                                  className="block text-[15px] font-semibold text-[#1d1d1f]"
+                                >
+                                  {sub.label}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                ) : item.menu ? (
                   <>
                     <button
                       type="button"
