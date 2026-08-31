@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Banknote, Factory, Headphones, ShieldCheck } from "lucide-react";
+import { Activity, Banknote, Factory, Headphones, ShieldCheck } from "lucide-react";
 
 import { useAuth } from "@/components/koda/AuthProvider";
 import { AdminSectionNav } from "@/components/koda/AdminSectionNav";
@@ -14,6 +14,12 @@ export const Route = createFileRoute("/admin/")({
 });
 
 const areas = [
+  {
+    title: "Operações",
+    text: "Pré-venda, capacidade, expedição, conversão e evolução do produto.",
+    href: "/admin/operacoes",
+    icon: Activity,
+  },
   {
     title: "Produção",
     text: "Provisionamento, testes, inventário e liberação de KodaBots.",
@@ -75,7 +81,7 @@ function AdminHome() {
                 Uma única entrada para operar o ciclo completo, da produção ao pós-venda.
               </p>
             </header>
-            <section className="mt-12 grid gap-4 md:grid-cols-3">
+            <section className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {areas
                 .filter((area) => isFactoryAdmin || area.href === "/admin/suporte")
                 .map((area) => {

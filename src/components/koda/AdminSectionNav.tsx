@@ -1,10 +1,11 @@
-import { Banknote, Factory, Headphones, LayoutDashboard, Recycle } from "lucide-react";
+import { Activity, Banknote, Factory, Headphones, LayoutDashboard, Recycle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 const adminLinks = [
   { id: "home", label: "Visão geral", href: "/admin", icon: LayoutDashboard },
   { id: "factory", label: "Fábrica", href: "/admin/fabrica", icon: Factory },
   { id: "finance", label: "Comercial", href: "/admin/financeiro", icon: Banknote },
+  { id: "operations", label: "Operações", href: "/admin/operacoes", icon: Activity },
   { id: "support", label: "Suporte", href: "/admin/suporte", icon: Headphones },
   { id: "tradein", label: "Trade In", href: "/admin/trade-in", icon: Recycle },
 ] as const;

@@ -17,6 +17,7 @@ import { useAuth } from "@/components/koda/AuthProvider";
 import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
+import { trackCommerceEvent } from "@/lib/commerce-events";
 
 export const Route = createFileRoute("/comprar")({
   head: () => ({
@@ -72,6 +73,26 @@ function GuidedPurchase() {
   const [shipping, setShipping] = useState<ShippingOption[]>([]);
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingError, setShippingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    trackCommerceEvent("guided_purchase_started", "kodabot-i");
+    try {
+      const saved = JSON.parse(window.localStorage.getItem("koda_guided_purchase_v1") ?? "null");
+      if (saved?.model === "kodabot-i" || saved?.model === "kodabot-i-pro") setModel(saved.model);
+      if (typeof saved?.adapter === "boolean") setAdapter(saved.adapter);
+      if (saved?.tradeInChoice === "yes" || saved?.tradeInChoice === "no")
+        setTradeInChoice(saved.tradeInChoice);
+    } catch {
+      /* ignore malformed local recovery data */
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      "koda_guided_purchase_v1",
+      JSON.stringify({ model, adapter, tradeInChoice, step }),
+    );
+  }, [model, adapter, tradeInChoice, step]);
 
   useEffect(() => {
     if (!user) {
@@ -133,11 +154,13 @@ function GuidedPurchase() {
       setShippingError("Não foi possível calcular o frete para esse CEP agora.");
     } else {
       setShipping(data.options);
+      trackCommerceEvent("shipping_calculated", "kodabot-i", { options: data.options.length });
     }
     setShippingLoading(false);
   }
 
   function next() {
+    if (step === steps.length - 2) trackCommerceEvent("guided_purchase_completed", model);
     setStep((current) => Math.min(steps.length - 1, current + 1));
   }
 

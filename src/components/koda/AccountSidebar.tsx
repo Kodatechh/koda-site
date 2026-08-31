@@ -1,10 +1,19 @@
-import { Bell, Headphones, Package, Settings2, Smartphone, Wrench } from "lucide-react";
+import {
+  Bell,
+  FlaskConical,
+  Headphones,
+  Package,
+  Settings2,
+  Smartphone,
+  Wrench,
+} from "lucide-react";
 
 const items = [
   { label: "Meus KodaBots", href: "/conta#meus-kodabots", icon: Smartphone },
   { label: "Pedidos", href: "/conta/pedidos", icon: Package },
   { label: "Reparos", href: "/conta/reparos", icon: Wrench },
   { label: "Atendimentos", href: "/conta#atendimentos", icon: Headphones },
+  { label: "Ajude a evoluir", href: "/conta/participar", icon: FlaskConical },
   { label: "Notificações", href: "/conta/notificacoes", icon: Bell },
   { label: "Configurações da conta", href: "/conta/configuracoes", icon: Settings2 },
 ];

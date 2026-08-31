@@ -37,6 +37,7 @@ import { Route as TradeInRouteImport } from './routes/trade-in'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminFabricaRouteImport } from './routes/admin.fabrica'
 import { Route as AdminFinanceiroRouteImport } from './routes/admin.financeiro'
+import { Route as AdminOperacoesRouteImport } from './routes/admin.operacoes'
 import { Route as AdminSuporteRouteImport } from './routes/admin.suporte'
 import { Route as AdminTradeInRouteImport } from './routes/admin.trade-in'
 import { Route as CheckoutProductSlugRouteImport } from './routes/checkout.$productSlug'
@@ -45,6 +46,7 @@ import { Route as ContaConfiguracoesRouteImport } from './routes/conta.configura
 import { Route as ContaCriarRouteImport } from './routes/conta.criar'
 import { Route as ContaEntrarRouteImport } from './routes/conta.entrar'
 import { Route as ContaNotificacoesRouteImport } from './routes/conta.notificacoes'
+import { Route as ContaParticiparRouteImport } from './routes/conta.participar'
 import { Route as ContaPedidosRouteImport } from './routes/conta.pedidos'
 import { Route as ContaRecuperarRouteImport } from './routes/conta.recuperar'
 import { Route as ContaRedefinirRouteImport } from './routes/conta.redefinir'
@@ -59,6 +61,7 @@ import { Route as KodaosIndexRouteImport } from './routes/kodaos.index'
 import { Route as KodaosChangelogRouteImport } from './routes/kodaos.changelog'
 import { Route as KodaosUpdatesRouteImport } from './routes/kodaos.updates'
 import { Route as PedidoConfirmadoOrderIdRouteImport } from './routes/pedido-confirmado.$orderId'
+import { Route as PreVendaStatusRouteImport } from './routes/pre-venda.status'
 import { Route as ReparosSolicitarRouteImport } from './routes/reparos.solicitar'
 import { Route as SuporteIndexRouteImport } from './routes/suporte.index'
 import { Route as SuporteConfigurarRouteImport } from './routes/suporte.configurar'
@@ -216,6 +219,11 @@ const AdminFinanceiroRoute = AdminFinanceiroRouteImport.update({
   path: '/financeiro',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminOperacoesRoute = AdminOperacoesRouteImport.update({
+  id: '/operacoes',
+  path: '/operacoes',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminSuporteRoute = AdminSuporteRouteImport.update({
   id: '/suporte',
   path: '/suporte',
@@ -254,6 +262,11 @@ const ContaEntrarRoute = ContaEntrarRouteImport.update({
 const ContaNotificacoesRoute = ContaNotificacoesRouteImport.update({
   id: '/notificacoes',
   path: '/notificacoes',
+  getParentRoute: () => ContaRoute,
+} as any)
+const ContaParticiparRoute = ContaParticiparRouteImport.update({
+  id: '/participar',
+  path: '/participar',
   getParentRoute: () => ContaRoute,
 } as any)
 const ContaPedidosRoute = ContaPedidosRouteImport.update({
@@ -324,6 +337,11 @@ const KodaosUpdatesRoute = KodaosUpdatesRouteImport.update({
 const PedidoConfirmadoOrderIdRoute = PedidoConfirmadoOrderIdRouteImport.update({
   id: '/pedido-confirmado/$orderId',
   path: '/pedido-confirmado/$orderId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreVendaStatusRoute = PreVendaStatusRouteImport.update({
+  id: '/pre-venda/status',
+  path: '/pre-venda/status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReparosSolicitarRoute = ReparosSolicitarRouteImport.update({
@@ -437,6 +455,7 @@ export interface FileRoutesByFullPath {
   '/trade-in': typeof TradeInRoute
   '/admin/fabrica': typeof AdminFabricaRoute
   '/admin/financeiro': typeof AdminFinanceiroRoute
+  '/admin/operacoes': typeof AdminOperacoesRoute
   '/admin/suporte': typeof AdminSuporteRoute
   '/admin/trade-in': typeof AdminTradeInRoute
   '/checkout/$productSlug': typeof CheckoutProductSlugRoute
@@ -444,6 +463,7 @@ export interface FileRoutesByFullPath {
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/notificacoes': typeof ContaNotificacoesRoute
+  '/conta/participar': typeof ContaParticiparRoute
   '/conta/pedidos': typeof ContaPedidosRouteWithChildren
   '/conta/recuperar': typeof ContaRecuperarRoute
   '/conta/redefinir': typeof ContaRedefinirRoute
@@ -455,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/kodaos/changelog': typeof KodaosChangelogRoute
   '/kodaos/updates': typeof KodaosUpdatesRoute
   '/pedido-confirmado/$orderId': typeof PedidoConfirmadoOrderIdRoute
+  '/pre-venda/status': typeof PreVendaStatusRoute
   '/reparos/solicitar': typeof ReparosSolicitarRoute
   '/suporte/configurar': typeof SuporteConfigurarRoute
   '/suporte/contato': typeof SuporteContatoRoute
@@ -499,6 +520,7 @@ export interface FileRoutesByTo {
   '/trade-in': typeof TradeInRoute
   '/admin/fabrica': typeof AdminFabricaRoute
   '/admin/financeiro': typeof AdminFinanceiroRoute
+  '/admin/operacoes': typeof AdminOperacoesRoute
   '/admin/suporte': typeof AdminSuporteRoute
   '/admin/trade-in': typeof AdminTradeInRoute
   '/checkout/$productSlug': typeof CheckoutProductSlugRoute
@@ -506,6 +528,7 @@ export interface FileRoutesByTo {
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/notificacoes': typeof ContaNotificacoesRoute
+  '/conta/participar': typeof ContaParticiparRoute
   '/conta/pedidos': typeof ContaPedidosRouteWithChildren
   '/conta/recuperar': typeof ContaRecuperarRoute
   '/conta/redefinir': typeof ContaRedefinirRoute
@@ -517,6 +540,7 @@ export interface FileRoutesByTo {
   '/kodaos/changelog': typeof KodaosChangelogRoute
   '/kodaos/updates': typeof KodaosUpdatesRoute
   '/pedido-confirmado/$orderId': typeof PedidoConfirmadoOrderIdRoute
+  '/pre-venda/status': typeof PreVendaStatusRoute
   '/reparos/solicitar': typeof ReparosSolicitarRoute
   '/suporte/configurar': typeof SuporteConfigurarRoute
   '/suporte/contato': typeof SuporteContatoRoute
@@ -568,6 +592,7 @@ export interface FileRoutesById {
   '/trade-in': typeof TradeInRoute
   '/admin/fabrica': typeof AdminFabricaRoute
   '/admin/financeiro': typeof AdminFinanceiroRoute
+  '/admin/operacoes': typeof AdminOperacoesRoute
   '/admin/suporte': typeof AdminSuporteRoute
   '/admin/trade-in': typeof AdminTradeInRoute
   '/checkout/$productSlug': typeof CheckoutProductSlugRoute
@@ -575,6 +600,7 @@ export interface FileRoutesById {
   '/conta/criar': typeof ContaCriarRoute
   '/conta/entrar': typeof ContaEntrarRoute
   '/conta/notificacoes': typeof ContaNotificacoesRoute
+  '/conta/participar': typeof ContaParticiparRoute
   '/conta/pedidos': typeof ContaPedidosRouteWithChildren
   '/conta/recuperar': typeof ContaRecuperarRoute
   '/conta/redefinir': typeof ContaRedefinirRoute
@@ -586,6 +612,7 @@ export interface FileRoutesById {
   '/kodaos/changelog': typeof KodaosChangelogRoute
   '/kodaos/updates': typeof KodaosUpdatesRoute
   '/pedido-confirmado/$orderId': typeof PedidoConfirmadoOrderIdRoute
+  '/pre-venda/status': typeof PreVendaStatusRoute
   '/reparos/solicitar': typeof ReparosSolicitarRoute
   '/suporte/configurar': typeof SuporteConfigurarRoute
   '/suporte/contato': typeof SuporteContatoRoute
@@ -638,6 +665,7 @@ export interface FileRouteTypes {
     | '/trade-in'
     | '/admin/fabrica'
     | '/admin/financeiro'
+    | '/admin/operacoes'
     | '/admin/suporte'
     | '/admin/trade-in'
     | '/checkout/$productSlug'
@@ -645,6 +673,7 @@ export interface FileRouteTypes {
     | '/conta/criar'
     | '/conta/entrar'
     | '/conta/notificacoes'
+    | '/conta/participar'
     | '/conta/pedidos'
     | '/conta/recuperar'
     | '/conta/redefinir'
@@ -656,6 +685,7 @@ export interface FileRouteTypes {
     | '/kodaos/changelog'
     | '/kodaos/updates'
     | '/pedido-confirmado/$orderId'
+    | '/pre-venda/status'
     | '/reparos/solicitar'
     | '/suporte/configurar'
     | '/suporte/contato'
@@ -700,6 +730,7 @@ export interface FileRouteTypes {
     | '/trade-in'
     | '/admin/fabrica'
     | '/admin/financeiro'
+    | '/admin/operacoes'
     | '/admin/suporte'
     | '/admin/trade-in'
     | '/checkout/$productSlug'
@@ -707,6 +738,7 @@ export interface FileRouteTypes {
     | '/conta/criar'
     | '/conta/entrar'
     | '/conta/notificacoes'
+    | '/conta/participar'
     | '/conta/pedidos'
     | '/conta/recuperar'
     | '/conta/redefinir'
@@ -718,6 +750,7 @@ export interface FileRouteTypes {
     | '/kodaos/changelog'
     | '/kodaos/updates'
     | '/pedido-confirmado/$orderId'
+    | '/pre-venda/status'
     | '/reparos/solicitar'
     | '/suporte/configurar'
     | '/suporte/contato'
@@ -768,6 +801,7 @@ export interface FileRouteTypes {
     | '/trade-in'
     | '/admin/fabrica'
     | '/admin/financeiro'
+    | '/admin/operacoes'
     | '/admin/suporte'
     | '/admin/trade-in'
     | '/checkout/$productSlug'
@@ -775,6 +809,7 @@ export interface FileRouteTypes {
     | '/conta/criar'
     | '/conta/entrar'
     | '/conta/notificacoes'
+    | '/conta/participar'
     | '/conta/pedidos'
     | '/conta/recuperar'
     | '/conta/redefinir'
@@ -786,6 +821,7 @@ export interface FileRouteTypes {
     | '/kodaos/changelog'
     | '/kodaos/updates'
     | '/pedido-confirmado/$orderId'
+    | '/pre-venda/status'
     | '/reparos/solicitar'
     | '/suporte/configurar'
     | '/suporte/contato'
@@ -838,6 +874,7 @@ export interface RootRouteChildren {
   CheckoutProductSlugRoute: typeof CheckoutProductSlugRoute
   KodabotIComprarRoute: typeof KodabotIComprarRoute
   PedidoConfirmadoOrderIdRoute: typeof PedidoConfirmadoOrderIdRoute
+  PreVendaStatusRoute: typeof PreVendaStatusRoute
   ReparosSolicitarRoute: typeof ReparosSolicitarRoute
   CheckoutReparoRepairIdRoute: typeof CheckoutReparoRepairIdRoute
 }
@@ -1040,6 +1077,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFinanceiroRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/operacoes': {
+      id: '/admin/operacoes'
+      path: '/operacoes'
+      fullPath: '/admin/operacoes'
+      preLoaderRoute: typeof AdminOperacoesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/suporte': {
       id: '/admin/suporte'
       path: '/suporte'
@@ -1094,6 +1138,13 @@ declare module '@tanstack/react-router' {
       path: '/notificacoes'
       fullPath: '/conta/notificacoes'
       preLoaderRoute: typeof ContaNotificacoesRouteImport
+      parentRoute: typeof ContaRoute
+    }
+    '/conta/participar': {
+      id: '/conta/participar'
+      path: '/participar'
+      fullPath: '/conta/participar'
+      preLoaderRoute: typeof ContaParticiparRouteImport
       parentRoute: typeof ContaRoute
     }
     '/conta/pedidos': {
@@ -1192,6 +1243,13 @@ declare module '@tanstack/react-router' {
       path: '/pedido-confirmado/$orderId'
       fullPath: '/pedido-confirmado/$orderId'
       preLoaderRoute: typeof PedidoConfirmadoOrderIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pre-venda/status': {
+      id: '/pre-venda/status'
+      path: '/pre-venda/status'
+      fullPath: '/pre-venda/status'
+      preLoaderRoute: typeof PreVendaStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reparos/solicitar': {
@@ -1312,6 +1370,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminFabricaRoute: typeof AdminFabricaRoute
   AdminFinanceiroRoute: typeof AdminFinanceiroRoute
+  AdminOperacoesRoute: typeof AdminOperacoesRoute
   AdminSuporteRoute: typeof AdminSuporteRoute
   AdminTradeInRoute: typeof AdminTradeInRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -1320,6 +1379,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminFabricaRoute: AdminFabricaRoute,
   AdminFinanceiroRoute: AdminFinanceiroRoute,
+  AdminOperacoesRoute: AdminOperacoesRoute,
   AdminSuporteRoute: AdminSuporteRoute,
   AdminTradeInRoute: AdminTradeInRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -1356,6 +1416,7 @@ interface ContaRouteChildren {
   ContaCriarRoute: typeof ContaCriarRoute
   ContaEntrarRoute: typeof ContaEntrarRoute
   ContaNotificacoesRoute: typeof ContaNotificacoesRoute
+  ContaParticiparRoute: typeof ContaParticiparRoute
   ContaPedidosRoute: typeof ContaPedidosRouteWithChildren
   ContaRecuperarRoute: typeof ContaRecuperarRoute
   ContaRedefinirRoute: typeof ContaRedefinirRoute
@@ -1372,6 +1433,7 @@ const ContaRouteChildren: ContaRouteChildren = {
   ContaCriarRoute: ContaCriarRoute,
   ContaEntrarRoute: ContaEntrarRoute,
   ContaNotificacoesRoute: ContaNotificacoesRoute,
+  ContaParticiparRoute: ContaParticiparRoute,
   ContaPedidosRoute: ContaPedidosRouteWithChildren,
   ContaRecuperarRoute: ContaRecuperarRoute,
   ContaRedefinirRoute: ContaRedefinirRoute,
@@ -1483,6 +1545,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutProductSlugRoute: CheckoutProductSlugRoute,
   KodabotIComprarRoute: KodabotIComprarRoute,
   PedidoConfirmadoOrderIdRoute: PedidoConfirmadoOrderIdRoute,
+  PreVendaStatusRoute: PreVendaStatusRoute,
   ReparosSolicitarRoute: ReparosSolicitarRoute,
   CheckoutReparoRepairIdRoute: CheckoutReparoRepairIdRoute,
 }

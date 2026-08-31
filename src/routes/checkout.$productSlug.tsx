@@ -19,6 +19,7 @@ import { CardPaymentBrick } from "@/components/koda/CardPaymentBrick";
 import { Nav } from "@/components/koda/Nav";
 import { SiteFooter } from "@/components/koda/SiteFooter";
 import { supabase } from "@/integrations/supabase/client";
+import { trackCommerceEvent } from "@/lib/commerce-events";
 
 type CatalogProduct = {
   slug: string;
@@ -163,6 +164,18 @@ function createCheckoutReference() {
   return uuid ?? `checkout_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }
 
+function readCheckoutDraft(productSlug: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const draft = JSON.parse(
+      window.localStorage.getItem(`koda_checkout_v1_${productSlug}`) ?? "null",
+    );
+    return draft && typeof draft === "object" ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
 function displayModel(model: string) {
   if (model === "kodabot-i") return "KodaBot";
   if (model === "kodabot-i-pro") return "KodaBot Pro";
@@ -289,7 +302,9 @@ function CheckoutPage() {
   const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(
+    () => Number(readCheckoutDraft(productSlug)?.quantity) || 1,
+  );
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
   const [submitting, setSubmitting] = useState(false);
   const [order, setOrder] = useState<CreatedOrder | null>(null);
@@ -306,7 +321,8 @@ function CheckoutPage() {
   const [includePowerAdapter, setIncludePowerAdapter] = useState(() =>
     typeof window === "undefined"
       ? false
-      : new URLSearchParams(window.location.search).get("adapter") === "1",
+      : new URLSearchParams(window.location.search).get("adapter") === "1" ||
+        Boolean(readCheckoutDraft(productSlug)?.includePowerAdapter),
   );
 
   const [devices, setDevices] = useState<KodaDevice[]>([]);
@@ -326,6 +342,18 @@ function CheckoutPage() {
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [shippingProvider, setShippingProvider] = useState<string | null>(null);
   const [selectedShippingId, setSelectedShippingId] = useState("");
+
+  useEffect(() => {
+    trackCommerceEvent("checkout_started", productSlug);
+  }, [productSlug]);
+
+  useEffect(() => {
+    if (order) return;
+    window.localStorage.setItem(
+      `koda_checkout_v1_${productSlug}`,
+      JSON.stringify({ quantity, includePowerAdapter, updatedAt: new Date().toISOString() }),
+    );
+  }, [includePowerAdapter, order, productSlug, quantity]);
 
   useEffect(() => {
     let alive = true;
@@ -602,6 +630,9 @@ function CheckoutPage() {
     setShippingOptions(data.options);
     setShippingProvider(data.provider);
     setSelectedShippingId(data.options[0]!.id);
+    trackCommerceEvent("shipping_calculated", catalog.product.slug, {
+      options: data.options.length,
+    });
     setShippingLoading(false);
   }
 
@@ -617,6 +648,8 @@ function CheckoutPage() {
       );
     }
     setOrder(data.order);
+    window.localStorage.removeItem(`koda_checkout_v1_${productSlug}`);
+    trackCommerceEvent("order_created", catalog?.product.slug ?? productSlug);
     return data.order;
   }
 
@@ -640,6 +673,9 @@ function CheckoutPage() {
     setSubmitting(true);
     setError(null);
     try {
+      trackCommerceEvent("payment_started", catalog?.product.slug ?? productSlug, {
+        method: "pix",
+      });
       const created = order ?? (await createOrder());
       await generatePix(created.id);
     } catch (err) {
@@ -1239,13 +1275,14 @@ function CheckoutPage() {
                   amountCents={totalCents}
                   enabled={checkoutReady && cardReady}
                   orderRequest={orderRequest}
-                  onOrderCreated={(created) =>
+                  onOrderCreated={(created) => (
+                    trackCommerceEvent("order_created", catalog.product.slug, { method: "card" }),
                     setOrder({
                       id: created.id,
                       ...(created.display_number ? { display_number: created.display_number } : {}),
                       status: created.status ?? "draft",
                     })
-                  }
+                  )}
                 />
               )}
               {!checkoutReady && user && catalog.product.available && (

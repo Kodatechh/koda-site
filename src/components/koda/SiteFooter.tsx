@@ -8,6 +8,7 @@ const groups = [
       ["Comparar modelos", "/comparar"],
       ["KodaCare", "/kodacare"],
       ["Recondicionados", "/recondicionados"],
+      ["Status da pré-venda", "/pre-venda/status"],
     ],
   },
   {
@@ -26,6 +27,7 @@ const groups = [
       ["Meus KodaBots", "/conta"],
       ["Notificações", "/conta/notificacoes"],
       ["Indique a Koda", "/indicacao"],
+      ["Ajude a evoluir", "/conta/participar"],
     ],
   },
   {

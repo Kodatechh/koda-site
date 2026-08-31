@@ -55,6 +55,7 @@ Deno.serve(async (req: Request) => {
 
   let context = "";
   let isStaff = false;
+  let supportCategory = body.category ?? "outro";
   if (body.mode === "customer_assist") {
     if (!body.message?.trim()) return json({ error: "message_required" }, 400);
     context = `Categoria: ${body.category ?? "outro"}\nTítulo: ${body.subject ?? ""}\nMensagem: ${body.message}`;
@@ -73,6 +74,7 @@ Deno.serve(async (req: Request) => {
       ["admin", "support_agent", "support_advanced"].includes(item.role),
     );
     if (!isStaff || !supportCase) return json({ error: "forbidden" }, 403);
+    supportCategory = supportCase.category ?? "outro";
     context = [
       `Categoria: ${supportCase.category}`,
       `Título: ${supportCase.subject}`,
@@ -86,6 +88,19 @@ Deno.serve(async (req: Request) => {
       ),
     ].join("\n");
   }
+
+  const allowedCategories = ["produto", "reparo", "garantia", "conta", "kodaos", "pedido", "seguranca", "outro"];
+  if (!allowedCategories.includes(supportCategory)) supportCategory = "outro";
+  const { data: approvedArticles } = await admin
+    .from("support_knowledge_articles")
+    .select("title,category,body,updated_at")
+    .eq("status", "approved")
+    .in("category", [supportCategory, "seguranca", "outro"])
+    .order("updated_at", { ascending: false })
+    .limit(6);
+  const approvedKnowledge = (approvedArticles ?? []).length
+    ? (approvedArticles ?? []).map((article) => `FONTE APROVADA — ${article.title}\n${article.body}`).join("\n\n")
+    : "Nenhuma fonte de procedimento aprovada para esta categoria.";
 
   const schema =
     body.mode === "customer_assist"
@@ -125,7 +140,7 @@ Deno.serve(async (req: Request) => {
             required: ["reply", "internal_checks"],
           };
 
-  const instructions = `Você é o assistente de atendimento da Koda. Escreva em português do Brasil, com clareza, empatia e concisão. Use somente os fatos presentes no chamado. Nunca invente capacidades do KodaBot, cobertura, garantia, estoque, prazo, preço, diagnóstico ou política. Não solicite senhas, códigos de autenticação ou dados completos de pagamento. Sinalize risco elétrico, calor excessivo, fumaça ou bateria danificada como urgente e recomende interromper o uso. Rascunhos nunca são enviados automaticamente. ${body.mode === "customer_assist" ? "Ajude o cliente a descrever o problema sem mudar os fatos." : body.mode === "triage" ? "Resuma e classifique para a equipe." : "Crie uma resposta que reconheça o problema e peça apenas as informações realmente necessárias."}`;
+  const instructions = `Você é o assistente de atendimento da Koda. Escreva em português do Brasil, com clareza, empatia e concisão. Use somente os fatos presentes no chamado e as FONTES APROVADAS fornecidas. Se não houver fonte aprovada, não dê procedimentos, políticas ou diagnósticos: apenas organize o relato, reconheça o problema e peça as informações necessárias para a equipe humana. Nunca invente capacidades do KodaBot, cobertura, garantia, estoque, prazo, preço, diagnóstico ou política. Não solicite senhas, códigos de autenticação ou dados completos de pagamento. Sinalize risco elétrico, calor excessivo, fumaça ou bateria danificada como urgente e recomende interromper o uso. Rascunhos nunca são enviados automaticamente. ${body.mode === "customer_assist" ? "Ajude o cliente a descrever o problema sem mudar os fatos." : body.mode === "triage" ? "Resuma e classifique para a equipe." : "Crie uma resposta que reconheça o problema e peça apenas as informações realmente necessárias."}`;
 
   const aiResponse = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -133,7 +148,7 @@ Deno.serve(async (req: Request) => {
     body: JSON.stringify({
       model: Deno.env.get("OPENAI_SUPPORT_MODEL") ?? "gpt-5-mini",
       instructions,
-      input: context.slice(0, 16000),
+      input: `CHAMADO\n${context.slice(0, 12000)}\n\nBASE DE CONHECIMENTO\n${approvedKnowledge.slice(0, 12000)}`,
       text: { format: { type: "json_schema", name: "koda_support_result", strict: true, schema } },
     }),
   });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -10,6 +11,7 @@ import {
   ShieldCheck,
   Sparkles,
   Truck,
+  MessageCircleQuestion,
 } from "lucide-react";
 
 import { Nav } from "@/components/koda/Nav";
@@ -35,6 +37,7 @@ type StoreProduct = {
 };
 
 type CatalogListResponse = { products: StoreProduct[] };
+const storeDb = supabase as any;
 
 export const Route = createFileRoute("/loja")({
   head: () => ({
@@ -346,11 +349,102 @@ function StorePage() {
                 />
               </div>
             </section>
+            <ProductQuestions />
           </>
         )}
       </main>
       <SiteFooter />
     </div>
+  );
+}
+
+function ProductQuestions() {
+  const [productId, setProductId] = useState("");
+  const [questions, setQuestions] = useState<
+    Array<{ id: string; question: string; answer: string | null }>
+  >([]);
+  const [question, setQuestion] = useState("");
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    storeDb
+      .from("commerce_products")
+      .select("id")
+      .eq("slug", "kodabot-i")
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (!data?.id) return;
+        setProductId(data.id);
+        storeDb
+          .from("product_questions")
+          .select("id,question,answer")
+          .eq("product_id", data.id)
+          .eq("status", "published")
+          .order("answered_at", { ascending: false })
+          .limit(12)
+          .then(({ data: rows }: any) => setQuestions(rows ?? []));
+      });
+  }, []);
+  async function submit() {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) {
+      window.location.href = "/conta/entrar?next=%2Floja%23perguntas";
+      return;
+    }
+    if (question.trim().length < 5) {
+      setMessage("Escreva uma pergunta um pouco mais detalhada.");
+      return;
+    }
+    const { error } = await storeDb
+      .from("product_questions")
+      .insert({ product_id: productId, user_id: auth.user.id, question: question.trim() });
+    setMessage(
+      error
+        ? "Não foi possível enviar agora."
+        : "Pergunta recebida. A resposta aparece aqui depois da revisão da Koda.",
+    );
+    if (!error) setQuestion("");
+  }
+  return (
+    <section id="perguntas" className="px-5 py-24 sm:py-32">
+      <div className="mx-auto max-w-[1180px]">
+        <MessageCircleQuestion className="h-8 w-8 text-[#0071e3]" />
+        <h2 className="mt-7 text-5xl font-semibold tracking-[-.06em]">
+          Perguntas respondidas pela Koda.
+        </h2>
+        <div className="mt-10 grid gap-4 lg:grid-cols-[1fr_380px]">
+          <div className="space-y-3">
+            {questions.map((item) => (
+              <details key={item.id} className="rounded-[24px] bg-white p-6">
+                <summary className="cursor-pointer font-semibold">{item.question}</summary>
+                <p className="mt-4 text-sm leading-relaxed text-[#6e6e73]">{item.answer}</p>
+              </details>
+            ))}
+            {!questions.length && (
+              <p className="rounded-[24px] bg-white p-6 text-sm text-[#6e6e73]">
+                As respostas aprovadas aparecerão aqui.
+              </p>
+            )}
+          </div>
+          <div className="h-fit rounded-[28px] bg-white p-6">
+            <h3 className="text-xl font-semibold">Ainda tem dúvida?</h3>
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Pergunte sobre compra, conteúdo da caixa ou compatibilidade."
+              className="mt-4 min-h-28 w-full rounded-xl border border-black/10 p-3 text-sm outline-none focus:border-[#0071e3]"
+            />
+            <button
+              onClick={() => void submit()}
+              disabled={!productId}
+              className="mt-3 rounded-full bg-[#0071e3] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-40"
+            >
+              Enviar pergunta
+            </button>
+            {message && <p className="mt-3 text-xs text-[#6e6e73]">{message}</p>}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
